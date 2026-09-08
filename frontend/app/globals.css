@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+/* Cadence design tokens — source of truth in styles/tokens.css */
+@import "../styles/tokens.css";
+
+@theme inline {
+  /* Wire Cadence tokens into Tailwind's colour system */
+  --color-bg-primary:     var(--bg-primary);
+  --color-bg-surface:     var(--bg-surface);
+  --color-bg-surface-alt: var(--bg-surface-alt);
+  --color-accent-pulse:   var(--accent-pulse);
+  --color-accent-warning: var(--accent-warning);
+  --color-accent-danger:  var(--accent-danger);
+  --color-text-primary:   var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border-subtle:  var(--border-subtle);
+  --color-border-active:  var(--border-active);
+  --color-border-warning: var(--border-warning);
+  --color-border-danger:  var(--border-danger);
+
+  /* Wire font variables loaded by layout.tsx */
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+/* Base reset — Cadence "Pulse" dark theme */
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Monospace — numbers, countdowns, addresses, amounts */
+.font-mono,
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+}

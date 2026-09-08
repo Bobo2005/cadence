@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production / Build artifacts
+dist/
+*/dist/
+.next/
+*/.next/
+out/
+*/out/
+build/
+*/build/
+
+# Foundry / Solidity
+contracts/cache/
+contracts/out/
+contracts/.logs/
+contracts/.ignore/
+contracts/broadcast/*/31337/
+contracts/broadcast/**/dry-run/
+
+# Environment files
+.env
+.env.*
+*.env
+*.env.local
+*.env.production
+!.env.example
+!*.env.example
+!frontend/.env.example
+!frontend/.env.production.example
+!contracts/.env.example
+!notifications/.env.example
+
+# Local storage & test outbox data
+notifications/data/*.json
+!notifications/data/.gitkeep
+
+# System & IDE files
+.DS_Store
+Thumbs.db
+*.pem
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+.vercel
+
+# Temporary / Scratch files
+.temp/
+tmp/
+*.tmp
+*.zip
+*.tar.gz

@@ -1,0 +1,82 @@
+/**
+ * Cadence Design System — "Pulse" Visual Identity
+ * All design tokens as CSS custom properties.
+ * Source of truth: docs/DESIGN-SYSTEM.md
+ *
+ * Usage in Tailwind: reference via var(--token-name) in arbitrary values,
+ * or extend tailwind.config.ts to map these to Tailwind utilities.
+ */
+
+:root {
+  /* ─── Color ─────────────────────────────────────────────────────── */
+
+  /** Near-black primary background */
+  --bg-primary: #0a0e14;
+
+  /** Card / panel surface — one step up from bg-primary */
+  --bg-surface: #12161f;
+
+  /** Hover / active surface state */
+  --bg-surface-alt: #1a1f2b;
+
+  /**
+   * Electric teal / clinical green — the "life signal" color.
+   * Use ONLY for: the pulse line, primary CTAs.
+   * Do not use decoratively.
+   */
+  --accent-pulse: #2ee6a8;
+
+  /** Amber — contest window / approaching deadline state */
+  --accent-warning: #f5b841;
+
+  /**
+   * Used sparingly — irreversible / finalized state only.
+   * Never decorative.
+   */
+  --accent-danger: #f5484a;
+
+  /** Primary body text */
+  --text-primary: #e8ecf1;
+
+  /** Secondary / muted text */
+  --text-secondary: #8993a6;
+
+  /** Subtle borders and dividers */
+  --border-subtle: #232838;
+
+  /** State-driven hero card borders (confirmed in DESIGN-SYSTEM.md) */
+  --border-active: #2ee6a8;
+  --border-warning: #f5b841;
+  --border-danger: #f5484a;
+
+  /* ─── Typography ────────────────────────────────────────────────── */
+
+  /**
+   * Monospace — numbers, countdowns, addresses, amounts.
+   * Reinforces precision and technical trustworthiness.
+   * Loaded via Google Fonts: JetBrains Mono
+   */
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  /**
+   * Sans-serif — labels, body copy, buttons, everything else.
+   * Two fonts total — do not add a third.
+   * Loaded via Google Fonts: Inter
+   */
+  --font-sans: "Inter", "Manrope", ui-sans-serif, system-ui, sans-serif;
+
+  /* ─── Spacing / Radius ──────────────────────────────────────────── */
+  /* Defined here as a single source of truth; extend as needed once
+     the UI reference mockup arrives (see docs/DESIGN-SYSTEM.md). */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  /* ─── Motion ────────────────────────────────────────────────────── */
+  /**
+   * Motion budget goes entirely to the pulse line and countdown.
+   * Avoid decorative motion elsewhere (no bouncing buttons, no parallax).
+   */
+  --transition-fast: 150ms ease;
+  --transition-base: 250ms ease;
+}

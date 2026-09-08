@@ -1,0 +1,71 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+/// @title StealthKeyHelper
+/// @notice Supplies real, cryptographically verified EIP-5564 stealth keypairs for Foundry tests.
+/// @dev ⚠️ ARCHITECTURE CONSTRAINT #2:
+///      All subsequent Contestable Claim tests MUST sign with real stealth keys, not mock EOAs.
+///      This helper embeds real keypairs derived via /frontend/lib/stealth.ts on secp256k1.
+///      See docs/ARCHITECTURE.md Constraint #2 and docs/MEMORY.md.
+library StealthKeyHelper {
+    struct StealthKeypair {
+        string label;
+        bytes spendingPrivateKey;
+        bytes spendingPublicKey;
+        bytes viewingPrivateKey;
+        bytes viewingPublicKey;
+        bytes ephemeralPrivateKey;
+        bytes ephemeralPublicKey;
+        address stealthAddress;
+        uint256 stealthPrivateKey;
+        bytes1 viewTag;
+    }
+
+    /// @notice Returns the primary verified stealth keypair.
+    function getPrimaryStealthKeypair() internal pure returns (StealthKeypair memory) {
+        return StealthKeypair({
+            label: "Primary Vault Owner",
+            spendingPrivateKey: hex"9fb8fc782e95cc8a556a8c25865815ff6613f1ea7bc8c54a93bcbaaa68e622a3",
+            spendingPublicKey: hex"043cef8aec8d605e9fdf5fc7c7756ef1af161a7bb20bb3e72d22f67310148b8944bce771ea91ce2ca3daeb2ae80e2085fbc49cfd8c796cd3d9d290b9887522098a",
+            viewingPrivateKey: hex"6fec3028fb6358782fc688a5d0032eb07d2d1cf70253e39b6a6d4cb759fe525b",
+            viewingPublicKey: hex"047af098b4f6b7cbf0b2e3d910ffcd301f02bc9ff5289937bfe2d9c4732cd7eb41a7fbcdcb12d879e186fd267a39aa01f91ab70f89f34434fa7ccf4bee77a5ad0f",
+            ephemeralPrivateKey: hex"561878bcefedcba1e79049b3d1af9961b493ba210e738a115a2af64cc402cb76",
+            ephemeralPublicKey: hex"049216d6158b0c70cbca2a6d147dec7eecb607a920a1d184e210974de6e9f6bb02f8413de12aa73e0c0d086856e0387bc6b87c119c48a7b5f664ba46227287b6c8",
+            stealthAddress: 0xDaa6d3b0e2329C180929df36a7c523481BBfAfB3,
+            stealthPrivateKey: 0x3b6b8825407feac85ad829723167788ce2f7c0a127e60592b6c2e5bc74311f89,
+            viewTag: 0x9b
+        });
+    }
+
+    /// @notice Returns the secondary verified stealth keypair.
+    function getSecondaryStealthKeypair() internal pure returns (StealthKeypair memory) {
+        return StealthKeypair({
+            label: "Secondary Vault Owner",
+            spendingPrivateKey: hex"6656f6ddcdc814c1c9e376534010489a23a97f3950645e411fe41b4765f22130",
+            spendingPublicKey: hex"042b08af084120701eafe600833730a48b69261c624c03d6772410411f62e5fd8001a3724cdd5d4e10c3337ae712c9be389ac4ec527c3e6f614452562bda8a33e0",
+            viewingPrivateKey: hex"95e15d3e06064168d353df4dcb068ca44fd7a71488a8355971bc17d8d06837ad",
+            viewingPublicKey: hex"0456a3e6430f394dc030d96ae32882c833276f29fbdca708f6f68fb25244c317366d2ac5def76a6eea8f83b87db4c2e0eb56153a4f969033054b17b74a68d1b87a",
+            ephemeralPrivateKey: hex"1ba3daa1a3e12f4f89eda31393baf4d1355f16ece0bb9a2befcc5ba85ce7d367",
+            ephemeralPublicKey: hex"04cad25896ef3430f7d00b90a0dc8d804a271f60afb3f4a4ef752e49bd167fb20dda2ac2372e576d059ab7e92a9e5838a3b12bd86e9cb558997043b30e1e15e0af",
+            stealthAddress: 0x77331bc49862C8eFaF6dD81f463Ab24dB7F00EAC,
+            stealthPrivateKey: 0x5d1e7a516d53d1ccd9756a4df2c49790195245a8c8a123f6c4e619cb1eecd3b4,
+            viewTag: 0xf6
+        });
+    }
+
+    /// @notice Returns the third verified stealth keypair.
+    function getThirdStealthKeypair() internal pure returns (StealthKeypair memory) {
+        return StealthKeypair({
+            label: "Third Vault Owner",
+            spendingPrivateKey: hex"06ac83f52a6eb67bc4fe472125faada18673ba92c60d300cf6bab55a9ac6bc46",
+            spendingPublicKey: hex"04448d53c2cd556f4c51c9231a1f058dbcfbc65daf3770468e8b8538b9530821f126a884f3da01bec9e15606f2d8f5dfc050ac4807237b2e55e39c109e4d4c7271",
+            viewingPrivateKey: hex"d8caa9a981482291cb1bbf844ee7be105af76b1c4d3269923797353d330c0bc3",
+            viewingPublicKey: hex"04e5f958e5c2641b01960f17c6e5ff4b39285b06e2b8672ba7d871e8232af5167431aa0d52bc0495f96df7688e56fd27619b0b2d60c6513911ca457a3b085ee87f",
+            ephemeralPrivateKey: hex"b60fd40033485f8cf59e005037509074f815d1b1b42007b523e1a06d6300b471",
+            ephemeralPublicKey: hex"04eabb6c59fe8eab7602d45504ca6a60bd419f9c165de6728d08ea0a68628244b63ddba09e1e3151b770213b87843b447bc1a747515ef35440b39cb5860c5bf98e",
+            stealthAddress: 0x22b7c384140570f1eAe0d4a356D6dBfEe0D2a217,
+            stealthPrivateKey: 0x560f91ea39dfd8a09576585df008de75a3f27cbfc90d5c97ba164f46a0003360,
+            viewTag: 0x4f
+        });
+    }
+}

@@ -4,7 +4,7 @@ pragma solidity ^0.8.24;
 import {MerkleProofLib} from "./libraries/MerkleProofLib.sol";
 import {IGuardianRegistry} from "./interfaces/IGuardianRegistry.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title GuardianRegistry
@@ -12,7 +12,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 /// @dev Guardian identities remain private (hidden as a Merkle root) while the vault is active.
 ///      At claim-eligibility time, guardians prove membership via Merkle proofs and attest.
 ///      See docs/ARCHITECTURE.md and docs/PROJECT-PLAN.md Days 5–7.
-contract GuardianRegistry is ReentrancyGuard, IGuardianRegistry {
+contract GuardianRegistry is ReentrancyGuard, EIP712, IGuardianRegistry {
     // --- Custom Errors ---
     error ZeroAddress();
     error InvalidRoot();
@@ -22,6 +22,11 @@ contract GuardianRegistry is ReentrancyGuard, IGuardianRegistry {
     error InvalidGuardianProof();
     error DuplicateAttestation(address guardian);
     error InvalidSignature();
+    error DeadlineExpired(uint256 deadline, uint256 current);
+
+    // --- Constants ---
+    bytes32 public constant GUARDIAN_ATTESTATION_TYPEHASH =
+        keccak256("GuardianAttestation(address vault,address guardian,uint256 cycle,uint256 deadline)");
 
     // --- State Variables ---
 
@@ -39,6 +44,8 @@ contract GuardianRegistry is ReentrancyGuard, IGuardianRegistry {
 
     /// @notice Authorized consensus contract mapped by vault address.
     mapping(address => address) public consensusContracts;
+
+    constructor() EIP712("GuardianRegistry", "1") {}
 
     // --- Configuration Functions ---
 
@@ -91,26 +98,30 @@ contract GuardianRegistry is ReentrancyGuard, IGuardianRegistry {
     /// @param vault The vault being attested for.
     /// @param guardian The guardian's address.
     /// @param proof The Merkle proof showing the guardian is in the guardian tree.
+    /// @param deadline Signature expiration timestamp.
     /// @param signature The ECDSA signature of the guardian approving the attestation.
     function attestWithSig(
         address vault,
         address guardian,
         bytes32[] calldata proof,
+        uint256 deadline,
         bytes calldata signature
     ) external nonReentrant {
         if (guardian == address(0)) revert ZeroAddress();
+        if (block.timestamp > deadline) revert DeadlineExpired(deadline, block.timestamp);
 
         uint256 currentCycle = attestationCycle[vault];
         bytes32 structHash = keccak256(
             abi.encode(
-                keccak256("GuardianAttestation(address vault,address guardian,uint256 cycle)"),
+                GUARDIAN_ATTESTATION_TYPEHASH,
                 vault,
                 guardian,
-                currentCycle
+                currentCycle,
+                deadline
             )
         );
-        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(structHash);
-        address signer = ECDSA.recover(ethHash, signature);
+        bytes32 digest = _hashTypedDataV4(structHash);
+        address signer = ECDSA.recover(digest, signature);
         if (signer != guardian) revert InvalidSignature();
 
         _processAttestation(vault, guardian, proof);
@@ -150,9 +161,10 @@ contract GuardianRegistry is ReentrancyGuard, IGuardianRegistry {
     /// @param vault The vault address.
     /// @param _consensus The consensus contract address.
     function setConsensusForVault(address vault, address _consensus) external {
-        if (vaultOwners[vault] != address(0) && msg.sender != vaultOwners[vault] && msg.sender != vault) {
+        if (vaultOwners[vault] == address(0) || (msg.sender != vaultOwners[vault] && msg.sender != vault)) {
             revert Unauthorized();
         }
+        if (_consensus == address(0)) revert ZeroAddress();
         consensusContracts[vault] = _consensus;
     }
 

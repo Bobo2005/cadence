@@ -305,24 +305,45 @@ contract GuardianAttestationTest is Test {
     // Relayed Attestations (attestWithSig)
     // =========================================================================
 
-    function test_attestWithSig_success() public {
-        uint256 cycle = registry.attestationCycle(vault);
-        bytes32 structHash = keccak256(
+    function _getGuardianAttestationDigest(
+        address _vault,
+        address _guardian,
+        uint256 _cycle,
+        uint256 _deadline
+    ) internal view returns (bytes32) {
+        bytes32 domainSeparator = keccak256(
             abi.encode(
-                keccak256("GuardianAttestation(address vault,address guardian,uint256 cycle)"),
-                vault,
-                guardianA,
-                cycle
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("GuardianRegistry")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(registry)
             )
         );
-        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(structHash);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianAPKey, ethHash);
+        bytes32 structHash = keccak256(
+            abi.encode(
+                registry.GUARDIAN_ATTESTATION_TYPEHASH(),
+                _vault,
+                _guardian,
+                _cycle,
+                _deadline
+            )
+        );
+        return keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
+    }
+
+    function test_attestWithSig_success() public {
+        uint256 cycle = registry.attestationCycle(vault);
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 digest = _getGuardianAttestationDigest(vault, guardianA, cycle, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianAPKey, digest);
         bytes memory sig = abi.encodePacked(r, s, v);
 
         // Relayer submits signature
         address relayer = address(0x999);
         vm.prank(relayer);
-        registry.attestWithSig(vault, guardianA, proofA, sig);
+        registry.attestWithSig(vault, guardianA, proofA, deadline, sig);
 
         assertTrue(registry.hasGuardianAttested(vault, guardianA));
         assertEq(registry.getAttestationCount(vault), 1);
@@ -330,21 +351,34 @@ contract GuardianAttestationTest is Test {
 
     function test_attestWithSig_invalidSignature_reverts() public {
         uint256 cycle = registry.attestationCycle(vault);
-        bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256("GuardianAttestation(address vault,address guardian,uint256 cycle)"),
-                vault,
-                guardianA,
-                cycle
-            )
-        );
-        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(structHash);
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 digest = _getGuardianAttestationDigest(vault, guardianA, cycle, deadline);
 
         // Signed by wrong private key (guardianB instead of guardianA)
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianBPKey, ethHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianBPKey, digest);
         bytes memory badSig = abi.encodePacked(r, s, v);
 
         vm.expectRevert(GuardianRegistry.InvalidSignature.selector);
-        registry.attestWithSig(vault, guardianA, proofA, badSig);
+        registry.attestWithSig(vault, guardianA, proofA, deadline, badSig);
+    }
+
+    function test_attestWithSig_deadlineExpired_reverts() public {
+        uint256 cycle = registry.attestationCycle(vault);
+        uint256 deadline = block.timestamp + 100;
+        bytes32 digest = _getGuardianAttestationDigest(vault, guardianA, cycle, deadline);
+
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(guardianAPKey, digest);
+        bytes memory sig = abi.encodePacked(r, s, v);
+
+        vm.warp(deadline + 1);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                GuardianRegistry.DeadlineExpired.selector,
+                deadline,
+                deadline + 1
+            )
+        );
+        registry.attestWithSig(vault, guardianA, proofA, deadline, sig);
     }
 }

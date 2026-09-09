@@ -41,12 +41,14 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     error VetoWindowNotElapsed(uint256 currentTimestamp, uint256 vetoDeadline);
     error VetoWindowZero();
     error SelfBackupNotAllowed();
+    error MaxTokensExceeded();
 
     // --- Events ---
     event Deposit(address indexed sender, address indexed token, uint256 amount);
     event OwnerCheckedIn(address indexed owner, uint256 timestamp);
     event CheckInIntervalUpdated(uint256 newInterval);
     event TokenWhitelistUpdated(address indexed token, bool status);
+    event TokenTransferFailed(address indexed token, address indexed beneficiary, uint256 amount);
     event AllocationRootCommitted(bytes32 indexed root, uint256 timestamp);
     event ClaimExecuted(address indexed beneficiary, uint256 shareBps, uint256 ethAmount);
     event UpkeepPerformed(uint256 timestamp, bytes performData);
@@ -60,6 +62,9 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         uint256 shareBps,
         uint256 ethAmount
     );
+
+    // --- Constants ---
+    uint256 public constant MAX_WHITELISTED_TOKENS = 20;
 
     // --- State Variables ---
 
@@ -126,9 +131,11 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         // Configure consensus parameters in the standalone consensus contract
         consensus.configureVault(address(this), initialOwner, initialCheckInInterval, 72 hours);
 
+        if (initialTokens.length > MAX_WHITELISTED_TOKENS) revert MaxTokensExceeded();
+
         for (uint256 i = 0; i < initialTokens.length; i++) {
             address token = initialTokens[i];
-            if (token != address(0)) {
+            if (token != address(0) && !isWhitelistedToken[token]) {
                 isWhitelistedToken[token] = true;
                 whitelistedTokens.push(token);
                 emit TokenWhitelistUpdated(token, true);
@@ -259,10 +266,26 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     /// @param status True to whitelist, false to delist.
     function setTokenWhitelist(address token, bool status) external onlyOwner {
         if (token == address(0)) revert ZeroAddress();
-        if (status && !isWhitelistedToken[token]) {
-            whitelistedTokens.push(token);
+        if (status) {
+            if (!isWhitelistedToken[token]) {
+                if (whitelistedTokens.length >= MAX_WHITELISTED_TOKENS) revert MaxTokensExceeded();
+                whitelistedTokens.push(token);
+                isWhitelistedToken[token] = true;
+            }
+        } else {
+            if (isWhitelistedToken[token]) {
+                isWhitelistedToken[token] = false;
+                // Clean removal from whitelistedTokens array
+                uint256 len = whitelistedTokens.length;
+                for (uint256 i = 0; i < len; i++) {
+                    if (whitelistedTokens[i] == token) {
+                        whitelistedTokens[i] = whitelistedTokens[len - 1];
+                        whitelistedTokens.pop();
+                        break;
+                    }
+                }
+            }
         }
-        isWhitelistedToken[token] = status;
         emit TokenWhitelistUpdated(token, status);
     }
 
@@ -339,7 +362,7 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
             if (totalToken > 0) {
                 uint256 tokenPayout = (totalToken * shareBps) / 10000;
                 if (tokenPayout > 0) {
-                    IERC20(token).safeTransfer(msg.sender, tokenPayout);
+                    _safeTransferCatching(token, msg.sender, tokenPayout);
                 }
             }
         }
@@ -482,12 +505,22 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
             if (totalToken > 0) {
                 uint256 tokenPayout = (totalToken * shareBps) / 10000;
                 if (tokenPayout > 0) {
-                    IERC20(token).safeTransfer(msg.sender, tokenPayout);
+                    _safeTransferCatching(token, msg.sender, tokenPayout);
                 }
             }
         }
 
         emit BackupClaimExecuted(beneficiary, msg.sender, shareBps, ethPayout);
+    }
+
+    /// @notice Attempts ERC-20 token transfer safely without reverting the whole transaction on failure.
+    function _safeTransferCatching(address token, address to, uint256 amount) internal {
+        (bool success, bytes memory returndata) = token.call(
+            abi.encodeWithSelector(IERC20.transfer.selector, to, amount)
+        );
+        if (!success || (returndata.length != 0 && !abi.decode(returndata, (bool)))) {
+            emit TokenTransferFailed(token, to, amount);
+        }
     }
 
     /// @notice Returns the registered backup address and veto window for a beneficiary.

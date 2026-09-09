@@ -88,7 +88,6 @@ contract AllocationPrivacyTest is Test {
         address[] memory initialTokens = new address[](1);
         initialTokens[0] = address(usdc);
         vault = new InheritanceVault(owner, CHECK_IN_INTERVAL, initialTokens, address(consensus));
-        guardianRegistry.setConsensusForVault(address(vault), address(consensus));
 
         // 4. Setup guardians
         bytes32 gLeafA = MerkleProofLib.computeGuardianLeaf(guardianA);
@@ -101,6 +100,9 @@ contract AllocationPrivacyTest is Test {
 
         vm.prank(owner);
         guardianRegistry.commitGuardianRoot(address(vault), guardianRoot, 2, 2);
+
+        vm.prank(owner);
+        guardianRegistry.setConsensusForVault(address(vault), address(consensus));
 
         // 5. Commit allocationRoot as owner
         vm.prank(owner);
@@ -357,10 +359,11 @@ contract AllocationPrivacyTest is Test {
         // Deploy new vault without setting allocationRoot
         address[] memory tokens = new address[](0);
         InheritanceVault freshVault = new InheritanceVault(owner, CHECK_IN_INTERVAL, tokens, address(consensus));
-        guardianRegistry.setConsensusForVault(address(freshVault), address(consensus));
-
         vm.prank(owner);
         guardianRegistry.commitGuardianRoot(address(freshVault), guardianRoot, 2, 2);
+
+        vm.prank(owner);
+        guardianRegistry.setConsensusForVault(address(freshVault), address(consensus));
 
         // Warp and advance to Finalized
         vm.warp(block.timestamp + CHECK_IN_INTERVAL + 1);

@@ -119,4 +119,28 @@ contract BalanceCommitmentTest is Test {
         assertEq(balanceCommitment.getBalance(mockVault2), 0.5 ether);
         assertEq(balanceCommitment.getBalance(mockVault3), 3 ether);
     }
+
+    function test_unauthorizedCaller_reverts() public {
+        address attacker = address(0xbad);
+
+        vm.startPrank(attacker);
+        vm.expectRevert(BalanceCommitment.Unauthorized.selector);
+        balanceCommitment.recordDeposit(mockVault1, 1 ether);
+
+        vm.expectRevert(BalanceCommitment.Unauthorized.selector);
+        balanceCommitment.commitTransparentBalance(mockVault1, 10 ether);
+
+        vm.expectRevert(BalanceCommitment.Unauthorized.selector);
+        balanceCommitment.deductPayout(mockVault1, 1 ether);
+        vm.stopPrank();
+    }
+
+    function test_authorizedVault_canModifyBalance() public {
+        address attacker = address(0xbad);
+        balanceCommitment.setAuthorizedVault(attacker, true);
+
+        vm.prank(attacker);
+        balanceCommitment.recordDeposit(mockVault1, 2 ether);
+        assertEq(balanceCommitment.getBalance(mockVault1), 2 ether);
+    }
 }

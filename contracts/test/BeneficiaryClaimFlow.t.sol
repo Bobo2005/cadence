@@ -91,11 +91,12 @@ contract BeneficiaryClaimFlowTest is Test {
         address[] memory initialTokens = new address[](1);
         initialTokens[0] = address(usdc);
         vault = new InheritanceVault(owner, CHECK_IN_INTERVAL, initialTokens, address(consensus));
-        guardianRegistry.setConsensusForVault(address(vault), address(consensus));
 
         // 5. Commit Guardian Root as owner (threshold 2-of-2)
         vm.prank(owner);
         guardianRegistry.commitGuardianRoot(address(vault), guardianRoot, 2, 2);
+        vm.prank(owner);
+        guardianRegistry.setConsensusForVault(address(vault), address(consensus));
 
         // 6. Whitelist USDC and Commit allocationRoot
         vm.startPrank(owner);

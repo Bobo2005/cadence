@@ -43,6 +43,7 @@ interface IGuardianRegistry {
         address vault,
         address guardian,
         bytes32[] calldata proof,
+        uint256 deadline,
         bytes calldata signature
     ) external;
 

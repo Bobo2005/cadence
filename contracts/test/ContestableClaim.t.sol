@@ -93,9 +93,6 @@ contract ContestableClaimTest is Test {
             address(consensus)
         );
 
-        // Authorize consensus in guardianRegistry so it can reset attestations upon cancellation
-        guardianRegistry.setConsensusForVault(address(vault), address(consensus));
-
         // Setup 2-of-2 guardian Merkle tree
         bytes32 leafA = MerkleProofLib.computeGuardianLeaf(guardianA);
         bytes32 leafB = MerkleProofLib.computeGuardianLeaf(guardianB);
@@ -110,6 +107,10 @@ contract ContestableClaimTest is Test {
         // Commit guardian root for vault as owner
         vm.prank(primaryOwner.stealthAddress);
         guardianRegistry.commitGuardianRoot(address(vault), guardianRoot, THRESHOLD, TOTAL_GUARDIANS);
+
+        // Authorize consensus in guardianRegistry so it can reset attestations upon cancellation
+        vm.prank(primaryOwner.stealthAddress);
+        guardianRegistry.setConsensusForVault(address(vault), address(consensus));
     }
 
     // --- Helper to advance vault into ClaimPending state ---
@@ -740,10 +741,11 @@ contract ContestableClaimTest is Test {
             initialTokens,
             address(consensus)
         );
-        guardianRegistry.setConsensusForVault(address(vault2), address(consensus));
-
         vm.prank(secondaryOwner.stealthAddress);
         guardianRegistry.commitGuardianRoot(address(vault2), guardianRoot, THRESHOLD, TOTAL_GUARDIANS);
+
+        vm.prank(secondaryOwner.stealthAddress);
+        guardianRegistry.setConsensusForVault(address(vault2), address(consensus));
 
         // Advance to ClaimPending
         vm.warp(block.timestamp + CHECK_IN_INTERVAL + 1);

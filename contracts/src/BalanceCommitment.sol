@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+
 /// @title BalanceCommitment
 /// @notice Standard transparent balance accounting module for Cadence inheritance vaults.
 /// @dev DE-SCOPED from Pedersen commitment per Day 13 Go/No-Go protocol in docs/PROJECT-PLAN.md Feature Spotlight B:
@@ -13,19 +15,43 @@ pragma solidity ^0.8.24;
 ///        4. Plaintext balance is permanently exposed upon the very first claim reveal.
 ///      Per protocol rules, Pedersen commitments were de-scoped immediately to standard transparent
 ///      balance accounting (mapping(address => uint256) public balances) without cryptographic reveal-and-verify steps.
-contract BalanceCommitment {
+contract BalanceCommitment is Ownable {
     // --- Storage ---
     // Vault Address => Plaintext Balance in wei
     mapping(address => uint256) public balances;
+
+    // Authorized vaults or adapters allowed to record and deduct balances
+    mapping(address => bool) public isAuthorizedVault;
 
     // --- Events ---
     event DepositRecorded(address indexed vault, uint256 amount, uint256 newTotal);
     event TransparentBalanceCommitted(address indexed vault, uint256 balance);
     event PayoutDeducted(address indexed vault, uint256 amount, uint256 remainingBalance);
+    event VaultAuthorizationUpdated(address indexed vault, bool authorized);
 
     // --- Custom Errors ---
     error InsufficientBalance(uint256 requested, uint256 available);
     error ZeroAddress();
+    error Unauthorized();
+
+    // --- Modifiers ---
+    modifier onlyAuthorized(address vault) {
+        if (msg.sender != owner() && msg.sender != vault && !isAuthorizedVault[msg.sender]) {
+            revert Unauthorized();
+        }
+        _;
+    }
+
+    constructor() Ownable(msg.sender) {}
+
+    /// @notice Authorizes or deauthorizes a vault contract or adapter.
+    /// @param vault Address of the vault contract.
+    /// @param authorized True to authorize, false to revoke.
+    function setAuthorizedVault(address vault, bool authorized) external onlyOwner {
+        if (vault == address(0)) revert ZeroAddress();
+        isAuthorizedVault[vault] = authorized;
+        emit VaultAuthorizationUpdated(vault, authorized);
+    }
 
     // =========================================================================
     // Transparent Balance Accounting
@@ -34,7 +60,7 @@ contract BalanceCommitment {
     /// @notice Records an incoming deposit to a vault's balance.
     /// @param vault Address of the vault contract.
     /// @param amount Amount in wei deposited.
-    function recordDeposit(address vault, uint256 amount) external {
+    function recordDeposit(address vault, uint256 amount) external onlyAuthorized(vault) {
         if (vault == address(0)) revert ZeroAddress();
         balances[vault] += amount;
         emit DepositRecorded(vault, amount, balances[vault]);
@@ -44,7 +70,7 @@ contract BalanceCommitment {
     /// @dev Provides compatibility for transparent fallback initialization.
     /// @param vault Address of the vault contract.
     /// @param balance Plaintext balance in wei.
-    function commitTransparentBalance(address vault, uint256 balance) external {
+    function commitTransparentBalance(address vault, uint256 balance) external onlyAuthorized(vault) {
         if (vault == address(0)) revert ZeroAddress();
         balances[vault] = balance;
         emit TransparentBalanceCommitted(vault, balance);
@@ -53,7 +79,7 @@ contract BalanceCommitment {
     /// @notice Deducts a claimed payout from the vault's transparent balance.
     /// @param vault Address of the vault contract.
     /// @param amount Amount in wei to deduct.
-    function deductPayout(address vault, uint256 amount) external {
+    function deductPayout(address vault, uint256 amount) external onlyAuthorized(vault) {
         if (vault == address(0)) revert ZeroAddress();
         uint256 current = balances[vault];
         if (amount > current) {

@@ -110,15 +110,19 @@ contract StealthAddressRegistryTest is Test {
     function test_registerKeysOnBehalf_success() public {
         StealthKeyHelper.StealthKeypair memory primary = StealthKeyHelper.getPrimaryStealthKeypair();
         uint256 nonce = registry.nonces(userFromKey);
+        uint256 deadline = block.timestamp + 1 hours;
 
         bytes32 structHash = keccak256(
             abi.encode(
-                keccak256("RegisterKeysOnBehalf(address registrant,uint256 schemeId,bytes spendingPubKey,bytes viewingPubKey,uint256 nonce)"),
+                keccak256("RegisterKeysOnBehalf(address registrant,uint256 schemeId,bytes spendingPubKey,bytes viewingPubKey,uint256 nonce,uint256 deadline,uint256 chainId,address verifyingContract)"),
                 userFromKey,
                 SCHEME_ID,
                 keccak256(primary.spendingPublicKey),
                 keccak256(primary.viewingPublicKey),
-                nonce
+                nonce,
+                deadline,
+                block.chainid,
+                address(registry)
             )
         );
         bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(structHash);
@@ -132,7 +136,8 @@ contract StealthAddressRegistryTest is Test {
             SCHEME_ID,
             signature,
             primary.spendingPublicKey,
-            primary.viewingPublicKey
+            primary.viewingPublicKey,
+            deadline
         );
 
         assertEq(registry.nonces(userFromKey), nonce + 1, "Nonce should increment");
@@ -148,17 +153,21 @@ contract StealthAddressRegistryTest is Test {
     function test_registerKeysOnBehalf_wrongSigner_reverts() public {
         StealthKeyHelper.StealthKeypair memory primary = StealthKeyHelper.getPrimaryStealthKeypair();
         uint256 nonce = registry.nonces(userFromKey);
+        uint256 deadline = block.timestamp + 1 hours;
 
         // Sign with stranger key instead of userPrivateKey
         uint256 strangerKey = 0x999999;
         bytes32 structHash = keccak256(
             abi.encode(
-                keccak256("RegisterKeysOnBehalf(address registrant,uint256 schemeId,bytes spendingPubKey,bytes viewingPubKey,uint256 nonce)"),
+                keccak256("RegisterKeysOnBehalf(address registrant,uint256 schemeId,bytes spendingPubKey,bytes viewingPubKey,uint256 nonce,uint256 deadline,uint256 chainId,address verifyingContract)"),
                 userFromKey,
                 SCHEME_ID,
                 keccak256(primary.spendingPublicKey),
                 keccak256(primary.viewingPublicKey),
-                nonce
+                nonce,
+                deadline,
+                block.chainid,
+                address(registry)
             )
         );
         bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(structHash);
@@ -172,7 +181,50 @@ contract StealthAddressRegistryTest is Test {
             SCHEME_ID,
             wrongSig,
             primary.spendingPublicKey,
-            primary.viewingPublicKey
+            primary.viewingPublicKey,
+            deadline
+        );
+    }
+
+    function test_registerKeysOnBehalf_deadlineExpired_reverts() public {
+        StealthKeyHelper.StealthKeypair memory primary = StealthKeyHelper.getPrimaryStealthKeypair();
+        uint256 nonce = registry.nonces(userFromKey);
+        uint256 deadline = block.timestamp + 100;
+
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256("RegisterKeysOnBehalf(address registrant,uint256 schemeId,bytes spendingPubKey,bytes viewingPubKey,uint256 nonce,uint256 deadline,uint256 chainId,address verifyingContract)"),
+                userFromKey,
+                SCHEME_ID,
+                keccak256(primary.spendingPublicKey),
+                keccak256(primary.viewingPublicKey),
+                nonce,
+                deadline,
+                block.chainid,
+                address(registry)
+            )
+        );
+        bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(structHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(userPrivateKey, ethHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.warp(deadline + 1);
+
+        vm.prank(relayer);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                StealthAddressRegistry.DeadlineExpired.selector,
+                deadline,
+                deadline + 1
+            )
+        );
+        registry.registerKeysOnBehalf(
+            userFromKey,
+            SCHEME_ID,
+            signature,
+            primary.spendingPublicKey,
+            primary.viewingPublicKey,
+            deadline
         );
     }
 
@@ -187,7 +239,8 @@ contract StealthAddressRegistryTest is Test {
             SCHEME_ID,
             badSig,
             primary.spendingPublicKey,
-            primary.viewingPublicKey
+            primary.viewingPublicKey,
+            block.timestamp + 1 hours
         );
     }
 
@@ -202,7 +255,8 @@ contract StealthAddressRegistryTest is Test {
             SCHEME_ID,
             dummySig,
             primary.spendingPublicKey,
-            primary.viewingPublicKey
+            primary.viewingPublicKey,
+            block.timestamp + 1 hours
         );
     }
 

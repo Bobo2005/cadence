@@ -55,12 +55,14 @@ interface IStealthAddressRegistry {
     /// @param signature ECDSA signature of registrant authorizing registration.
     /// @param spendingPubKey The spending public key bytes.
     /// @param viewingPubKey The viewing public key bytes.
+    /// @param deadline Timestamp after which the signature expires.
     function registerKeysOnBehalf(
         address registrant,
         uint256 schemeId,
         bytes calldata signature,
         bytes calldata spendingPubKey,
-        bytes calldata viewingPubKey
+        bytes calldata viewingPubKey,
+        uint256 deadline
     ) external;
 
     /// @notice Retrieves the registered stealth meta-address for an account and scheme.

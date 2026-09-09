@@ -19,6 +19,7 @@ contract StealthAddressRegistry is IStealthAddressRegistry {
     error InvalidSchemeId();
     error InvalidKeyLength();
     error InvalidSignature();
+    error DeadlineExpired(uint256 deadline, uint256 current);
 
     // --- State Variables ---
 
@@ -45,19 +46,24 @@ contract StealthAddressRegistry is IStealthAddressRegistry {
         uint256 schemeId,
         bytes calldata signature,
         bytes calldata spendingPubKey,
-        bytes calldata viewingPubKey
+        bytes calldata viewingPubKey,
+        uint256 deadline
     ) external override {
         if (registrant == address(0)) revert ZeroAddress();
+        if (block.timestamp > deadline) revert DeadlineExpired(deadline, block.timestamp);
 
         uint256 currentNonce = nonces[registrant]++;
         bytes32 structHash = keccak256(
             abi.encode(
-                keccak256("RegisterKeysOnBehalf(address registrant,uint256 schemeId,bytes spendingPubKey,bytes viewingPubKey,uint256 nonce)"),
+                keccak256("RegisterKeysOnBehalf(address registrant,uint256 schemeId,bytes spendingPubKey,bytes viewingPubKey,uint256 nonce,uint256 deadline,uint256 chainId,address verifyingContract)"),
                 registrant,
                 schemeId,
                 keccak256(spendingPubKey),
                 keccak256(viewingPubKey),
-                currentNonce
+                currentNonce,
+                deadline,
+                block.chainid,
+                address(this)
             )
         );
         bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(structHash);

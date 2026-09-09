@@ -63,7 +63,6 @@ contract BeneficiaryBackupClaimTest is Test {
 
         // 2. Deploy Vault
         vault = new InheritanceVault(vaultOwner, checkInInterval, tokens, address(consensus));
-        guardianRegistry.setConsensusForVault(address(vault), address(consensus));
 
         // 3. Configure Vault Guardians (2-of-3)
         bytes32 leafA = MerkleProofLib.computeGuardianLeaf(guardianA);
@@ -74,6 +73,8 @@ contract BeneficiaryBackupClaimTest is Test {
 
         vm.prank(vaultOwner);
         guardianRegistry.commitGuardianRoot(address(vault), guardianRoot, 2, 3);
+        vm.prank(vaultOwner);
+        guardianRegistry.setConsensusForVault(address(vault), address(consensus));
 
         // 4. Set Allocation Root for Beneficiary
         bytes32 benLeaf = MerkleProofLib.computeAllocationLeaf(beneficiary, beneficiaryShareBps, beneficiarySalt);

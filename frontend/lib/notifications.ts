@@ -57,14 +57,20 @@ const KNOWN_DEMO_KEYS: Record<string, Hex> = {
 };
 
 /**
- * Returns the canonical binding confirmation message for a wallet address.
+ * Returns the canonical binding confirmation message for a wallet address and email.
  */
-export function getCanonicalBindingMessage(walletAddress: string): string {
+export function getCanonicalBindingMessage(
+  walletAddress: string,
+  email: string = "",
+  nonce: string | number = 0,
+  timestamp: string | number = 0
+): string {
+  const cleanEmail = (email || "").trim().toLowerCase();
   try {
     const normalized = getAddress(walletAddress);
-    return `I confirm this email is associated with wallet ${normalized} for Cadence notifications`;
+    return `Cadence Notification Verification\nWallet: ${normalized}\nEmail: ${cleanEmail}\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
   } catch {
-    return `I confirm this email is associated with wallet ${walletAddress} for Cadence notifications`;
+    return `Cadence Notification Verification\nWallet: ${walletAddress}\nEmail: ${cleanEmail}\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
   }
 }
 
@@ -99,7 +105,9 @@ export async function getWalletNotificationStatus(
 export async function bindWalletEmail(
   walletAddress: string,
   email: string,
-  signature: string
+  signature: string,
+  nonce: string | number = 0,
+  timestamp: string | number = 0
 ): Promise<BindEmailResponse> {
   try {
     const res = await fetch(`${NOTIFICATION_SERVICE_URL}/api/bind`, {
@@ -109,6 +117,8 @@ export async function bindWalletEmail(
         walletAddress,
         email,
         signature,
+        nonce,
+        timestamp,
       }),
     });
 
@@ -130,10 +140,12 @@ export async function bindWalletEmail(
  */
 export async function requestSignatureAndBind(
   walletAddress: string,
-  email: string
+  email: string,
+  nonce: string | number = 0,
+  timestamp: string | number = 0
 ): Promise<BindEmailResponse> {
   const normalized = getAddress(walletAddress);
-  const message = getCanonicalBindingMessage(normalized);
+  const message = getCanonicalBindingMessage(normalized, email, nonce, timestamp);
   let signature: Hex | null = null;
 
   // 1. Try injected Web3 wallet (MetaMask, Rabby, Coinbase, etc.)
@@ -150,9 +162,9 @@ export async function requestSignatureAndBind(
       const targetAccount = account || normalized;
       signature = await client.signMessage({
         account: targetAccount,
-        message: getCanonicalBindingMessage(targetAccount),
+        message: getCanonicalBindingMessage(targetAccount, email, nonce, timestamp),
       });
-      return await bindWalletEmail(targetAccount, email, signature);
+      return await bindWalletEmail(targetAccount, email, signature, nonce, timestamp);
     } catch (walletErr: unknown) {
       console.warn("[Notifications] Injected wallet signing failed/declined:", walletErr);
       const msg = walletErr instanceof Error ? walletErr.message : String(walletErr);
@@ -167,7 +179,7 @@ export async function requestSignatureAndBind(
   if (demoKey) {
     const account = privateKeyToAccount(demoKey);
     signature = await account.signMessage({ message });
-    return await bindWalletEmail(normalized, email, signature);
+    return await bindWalletEmail(normalized, email, signature, nonce, timestamp);
   }
 
   // 3. Fallback: require explicit signature
@@ -221,7 +233,11 @@ export async function triggerOwnerReminder(params: {
       `${NOTIFICATION_SERVICE_URL}/api/notify/owner-reminder`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-cadence-internal-key":
+            process.env.CADENCE_INTERNAL_API_KEY || "cadence-internal-secret",
+        },
         body: JSON.stringify(params),
       }
     );
@@ -245,7 +261,11 @@ export async function triggerClaimReadyNotice(params: {
       `${NOTIFICATION_SERVICE_URL}/api/notify/claim-ready`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-cadence-internal-key":
+            process.env.CADENCE_INTERNAL_API_KEY || "cadence-internal-secret",
+        },
         body: JSON.stringify(params),
       }
     );

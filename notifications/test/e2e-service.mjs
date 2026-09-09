@@ -44,11 +44,28 @@ async function main() {
   assert.strictEqual(suggestData.binding.verified, false, "Suggested email MUST be unverified");
   console.log("✓ Suggestion stored as PENDING (verified: false):", suggestData.binding);
 
-  // 4. Dispatch attempt to unverified beneficiary MUST be blocked
-  console.log("\n[4] Security Guard: Reject Notification to Unverified Beneficiary");
-  const blockedNoticeRes = await fetch(`${BASE_URL}/api/notify/claim-ready`, {
+  // 4. Unauthorized dispatch attempt without internal key MUST be blocked (401)
+  console.log("\n[4] Security Guard: Reject Notification Trigger without Internal Secret (401)");
+  const unauthRes = await fetch(`${BASE_URL}/api/notify/claim-ready`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      beneficiaryAddress: beneficiaryAccount.address,
+      vaultId: "vault-demo-1",
+      claimableAmount: "1.00 ETH",
+    }),
+  });
+  assert.strictEqual(unauthRes.status, 401, "Expected 401 Unauthorized without x-cadence-internal-key");
+  console.log("✓ External unauthenticated trigger rejected with 401 Unauthorized");
+
+  // 4b. Dispatch attempt to unverified beneficiary with valid internal key MUST be blocked by Constraint #6 (403)
+  console.log("\n[4b] Security Guard: Reject Notification to Unverified Beneficiary (403)");
+  const blockedNoticeRes = await fetch(`${BASE_URL}/api/notify/claim-ready`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-cadence-internal-key": "cadence-internal-secret",
+    },
     body: JSON.stringify({
       beneficiaryAddress: beneficiaryAccount.address,
       vaultId: "vault-demo-1",
@@ -62,7 +79,7 @@ async function main() {
 
   // 5. Impersonation attack: Attacker signs on behalf of beneficiary -> MUST BE REJECTED
   console.log("\n[5] Impersonation Rejection: Forged Signature Attack");
-  const canonicalBeneficiaryMsg = getBindingMessage(beneficiaryAccount.address);
+  const canonicalBeneficiaryMsg = getBindingMessage(beneficiaryAccount.address, "alice.beneficiary@cadence.io", 0, 0);
   const forgedSig = await attackerAccount.signMessage({ message: canonicalBeneficiaryMsg });
   const forgedBindRes = await fetch(`${BASE_URL}/api/bind`, {
     method: "POST",
@@ -77,16 +94,30 @@ async function main() {
   const forgedData = await forgedBindRes.json();
   console.log("✓ Forged signature correctly rejected:", forgedData.error);
 
+  // 5b. Email Tampering Attack: Beneficiary signs for alice@cadence.io, but attacker tries to bind evil@cadence.io
+  console.log("\n[5b] Email Tampering Rejection: Signature Bound to Specific Email");
+  const validAliceSig = await beneficiaryAccount.signMessage({ message: canonicalBeneficiaryMsg });
+  const tamperedBindRes = await fetch(`${BASE_URL}/api/bind`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      walletAddress: beneficiaryAccount.address,
+      email: "evil@cadence.io",
+      signature: validAliceSig,
+    }),
+  });
+  assert.strictEqual(tamperedBindRes.status, 400, "Expected 400 Bad Request for tampered email payload");
+  console.log("✓ Email substitution attack correctly rejected by backend binding verifier");
+
   // 6. Beneficiary signs valid confirmation message
   console.log("\n[6] Legitimate Beneficiary Confirmation with Valid Signature");
-  const validBeneficiarySig = await beneficiaryAccount.signMessage({ message: canonicalBeneficiaryMsg });
   const bindRes = await fetch(`${BASE_URL}/api/bind`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       walletAddress: beneficiaryAccount.address,
       email: "alice.beneficiary@cadence.io",
-      signature: validBeneficiarySig,
+      signature: validAliceSig,
     }),
   });
   assert.strictEqual(bindRes.status, 200);
@@ -98,7 +129,10 @@ async function main() {
   console.log("\n[7] Claim Notification Dispatched to Verified Beneficiary");
   const claimNoticeRes = await fetch(`${BASE_URL}/api/notify/claim-ready`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-cadence-internal-key": "cadence-internal-secret",
+    },
     body: JSON.stringify({
       beneficiaryAddress: beneficiaryAccount.address,
       vaultId: "vault-demo-1",
@@ -112,7 +146,7 @@ async function main() {
 
   // 8. Owner binds email and receives check-in reminder
   console.log("\n[8] Owner Binds and Receives Check-In Deadline Reminder");
-  const canonicalOwnerMsg = getBindingMessage(ownerAccount.address);
+  const canonicalOwnerMsg = getBindingMessage(ownerAccount.address, "vault.owner@cadence.io", 0, 0);
   const validOwnerSig = await ownerAccount.signMessage({ message: canonicalOwnerMsg });
   const ownerBindRes = await fetch(`${BASE_URL}/api/bind`, {
     method: "POST",
@@ -127,7 +161,10 @@ async function main() {
 
   const ownerReminderRes = await fetch(`${BASE_URL}/api/notify/owner-reminder`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "x-cadence-internal-key": "cadence-internal-secret",
+    },
     body: JSON.stringify({
       ownerAddress: ownerAccount.address,
       vaultId: "vault-demo-2",
@@ -139,9 +176,11 @@ async function main() {
   assert.strictEqual(reminderData.success, true);
   console.log("✓ Owner check-in reminder dispatched! ID:", reminderData.notificationId);
 
-  // 9. Inspect Outbox
-  console.log("\n[9] Inspect Outbox Log");
-  const outboxRes = await fetch(`${BASE_URL}/api/outbox`);
+  // 9. Inspect Outbox (with Admin Secret)
+  console.log("\n[9] Inspect Outbox Log (Admin Authorization Required)");
+  const outboxRes = await fetch(`${BASE_URL}/api/outbox`, {
+    headers: { Authorization: "Bearer cadence-admin-secret" },
+  });
   assert.strictEqual(outboxRes.status, 200);
   const outboxData = await outboxRes.json();
   console.log(`✓ Total dispatched messages in audit log: ${outboxData.total}`);

@@ -20,15 +20,15 @@ async function runTests() {
 
   // 1. Message Formatting
   console.log("\n[TEST 1] Canonical Binding Message Format");
-  const msgA = getBindingMessage(accountOwner.address);
-  const expectedMsgA = `I confirm this email is associated with wallet ${accountOwner.address} for Cadence notifications`;
+  const msgA = getBindingMessage(accountOwner.address, "owner@example.com", 0, 0);
+  const expectedMsgA = `Cadence Notification Verification\nWallet: ${accountOwner.address}\nEmail: owner@example.com\nNonce: 0\nTimestamp: 0`;
   assert.strictEqual(msgA, expectedMsgA, "Message template mismatch");
-  console.log("✓ Correct canonical confirmation message generated:", msgA);
+  console.log("✓ Correct canonical confirmation message generated:\n" + msgA);
 
   // 2. Valid Signature Verification
   console.log("\n[TEST 2] Legitimate Signature Verification");
   const validSigA = await accountOwner.signMessage({ message: msgA });
-  const resultValid = await verifyWalletBindingSignature(accountOwner.address, validSigA);
+  const resultValid = await verifyWalletBindingSignature(accountOwner.address, "owner@example.com", validSigA, 0, 0);
   assert.strictEqual(resultValid.valid, true, "Valid signature failed verification");
   console.log("✓ Valid signature verified successfully for wallet", accountOwner.address);
 
@@ -36,9 +36,16 @@ async function runTests() {
   console.log("\n[TEST 3] Impersonation & Forged Signature Rejection");
   // Attacker signs message claiming to be Owner
   const forgedSig = await accountAttacker.signMessage({ message: msgA });
-  const resultForged = await verifyWalletBindingSignature(accountOwner.address, forgedSig);
+  const resultForged = await verifyWalletBindingSignature(accountOwner.address, "owner@example.com", forgedSig, 0, 0);
   assert.strictEqual(resultForged.valid, false, "Forged signature was incorrectly accepted!");
   console.log("✓ Forged signature from attacker rejected successfully:", resultForged.error);
+
+  // 3b. Email Tampering / Hijacking Rejection (Phase 2.1)
+  console.log("\n[TEST 3b] Email Tampering & Signature Hijacking Rejection");
+  // Owner signed msgA (for owner@example.com). Someone attempts to bind attacker@evil.com with msgA's signature
+  const resultTampered = await verifyWalletBindingSignature(accountOwner.address, "attacker@evil.com", validSigA, 0, 0);
+  assert.strictEqual(resultTampered.valid, false, "Tampered email signature was incorrectly accepted!");
+  console.log("✓ Tampered email binding rejected successfully:", resultTampered.error);
 
   // 4. Owner-suggested Beneficiary Email is Stored as PENDING/Unverified
   console.log("\n[TEST 4] Owner Suggests Beneficiary Email (Must be Unverified)");
@@ -72,10 +79,10 @@ async function runTests() {
 
   // 6. Beneficiary Connects and Signs to Confirm Binding
   console.log("\n[TEST 6] Beneficiary Explicitly Confirms Binding with Signature");
-  const msgB = getBindingMessage(accountBeneficiary.address);
+  const msgB = getBindingMessage(accountBeneficiary.address, suggestedEmail, 0, 0);
   const validSigB = await accountBeneficiary.signMessage({ message: msgB });
 
-  const verificationB = await verifyWalletBindingSignature(accountBeneficiary.address, validSigB);
+  const verificationB = await verifyWalletBindingSignature(accountBeneficiary.address, suggestedEmail, validSigB, 0, 0);
   assert.strictEqual(verificationB.valid, true, "Beneficiary signature verification failed");
 
   db.confirmBinding(accountBeneficiary.address, suggestedEmail, validSigB);

@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import { rateLimit } from "express-rate-limit";
 import { getAddress } from "viem";
 import { db } from "./db.js";
 import { verifyWalletBindingSignature, getBindingMessage } from "./bindingVerifier.js";
@@ -11,13 +12,82 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-app.use(cors({
-  origin: "*",
-  methods: ["GET", "POST", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-}));
+// 2.3 Strict & Configurable CORS
+const allowedOrigins = [
+  process.env.CLIENT_URL,
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:3001",
+].filter(Boolean) as string[];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. curl, server-to-server, mobile requests)
+      if (!origin) return callback(null, true);
+
+      const isAllowed =
+        allowedOrigins.includes(origin) ||
+        /^https:\/\/.*cadence.*\.vercel\.app$/.test(origin) ||
+        /^https:\/\/.*onrender\.com$/.test(origin);
+
+      if (isAllowed) {
+        return callback(null, true);
+      }
+      return callback(new Error(`CORS origin not allowed: ${origin}`));
+    },
+    methods: ["GET", "POST", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "x-cadence-internal-key",
+      "x-admin-key",
+      "x-internal-key",
+      "x-test-bypass-limiter",
+    ],
+  })
+);
 
 app.use(express.json());
+
+// 2.3 Rate Limiting: Global Rate Limiter (100 requests per 15 minutes)
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    error: "Too many requests from this IP, please try again after 15 minutes",
+  },
+  skip: (req) => process.env.NODE_ENV === "test" && req.headers["x-test-bypass-limiter"] === "true",
+});
+app.use(globalLimiter);
+
+// 2.3 Rate Limiting: Strict Limiter (10 requests per 15 minutes per IP on sensitive routes)
+const strictLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  message: {
+    error: "Rate limit exceeded for sensitive operations. Please try again after 15 minutes.",
+  },
+  skip: (req) => process.env.NODE_ENV === "test" && req.headers["x-test-bypass-limiter"] === "true",
+});
+
+// 2.2 Internal Trigger Authentication Middleware
+const INTERNAL_KEY = process.env.CADENCE_INTERNAL_API_KEY || "cadence-internal-secret";
+
+function requireInternalKey(req: Request, res: Response, next: () => void) {
+  const key = req.headers["x-cadence-internal-key"] || req.headers["x-internal-key"];
+  if (!key || key !== INTERNAL_KEY) {
+    return res.status(401).json({
+      error: "Unauthorized: Missing or invalid x-cadence-internal-key header",
+    });
+  }
+  next();
+}
 
 // Health check
 app.get("/health", (req: Request, res: Response) => {
@@ -32,12 +102,16 @@ app.get("/health", (req: Request, res: Response) => {
 /**
  * GET /api/message/:walletAddress
  * Returns the exact message text the wallet must sign to bind an email.
+ * Binds email, nonce, and timestamp per Constraint #6 and Phase 2 hardening.
  */
 app.get("/api/message/:walletAddress", (req: Request, res: Response) => {
   try {
     const address = getAddress(req.params.walletAddress);
-    const message = getBindingMessage(address);
-    res.json({ walletAddress: address, message });
+    const email = (req.query.email as string) || "";
+    const nonce = req.query.nonce !== undefined ? String(req.query.nonce) : 0;
+    const timestamp = req.query.timestamp !== undefined ? String(req.query.timestamp) : 0;
+    const message = getBindingMessage(address, email, nonce, timestamp);
+    res.json({ walletAddress: address, email, nonce, timestamp, message });
   } catch {
     res.status(400).json({ error: "Invalid wallet address format" });
   }
@@ -90,7 +164,7 @@ app.get("/api/status/:walletAddress", (req: Request, res: Response) => {
  * It is saved as PENDING with verified=false, receiving ZERO notifications
  * until the beneficiary wallet explicitly signs.
  */
-app.post("/api/suggest", (req: Request, res: Response) => {
+app.post("/api/suggest", strictLimiter, (req: Request, res: Response) => {
   try {
     const { walletAddress, email, suggestedBy } = req.body;
 
@@ -129,11 +203,11 @@ app.post("/api/suggest", (req: Request, res: Response) => {
 /**
  * POST /api/bind
  * Wallet owner or beneficiary signs the confirmation message to bind and verify email.
- * CONSTRAINT #6: Valid signature from walletAddress is strictly required.
+ * CONSTRAINT #6 & Phase 2.1: Valid signature strictly binding walletAddress + email is enforced.
  */
-app.post("/api/bind", async (req: Request, res: Response) => {
+app.post("/api/bind", strictLimiter, async (req: Request, res: Response) => {
   try {
-    const { walletAddress, email, signature } = req.body;
+    const { walletAddress, email, signature, nonce, timestamp } = req.body;
 
     if (!walletAddress || !email || !signature) {
       return res.status(400).json({
@@ -147,9 +221,16 @@ app.post("/api/bind", async (req: Request, res: Response) => {
     }
 
     const normalizedAddress = getAddress(walletAddress);
+    const cleanEmail = email.trim().toLowerCase();
 
-    // Verify signature with viem
-    const verification = await verifyWalletBindingSignature(normalizedAddress, signature);
+    // Verify signature with viem strictly binding email, nonce, timestamp
+    const verification = await verifyWalletBindingSignature(
+      normalizedAddress,
+      cleanEmail,
+      signature,
+      nonce ?? 0,
+      timestamp ?? 0
+    );
 
     if (!verification.valid) {
       return res.status(400).json({
@@ -160,9 +241,9 @@ app.post("/api/bind", async (req: Request, res: Response) => {
     }
 
     // Signature is valid! Persist binding with verified=true
-    const binding = db.confirmBinding(normalizedAddress, email, signature);
+    const binding = db.confirmBinding(normalizedAddress, cleanEmail, signature);
 
-    console.log(`[BIND SUCCESS] Wallet ${normalizedAddress} bound to ${email}`);
+    console.log(`[BIND SUCCESS] Wallet ${normalizedAddress} bound to ${cleanEmail}`);
 
     // Dispatches instant welcome & confirmation email to recipient
     emailService
@@ -193,8 +274,9 @@ app.post("/api/bind", async (req: Request, res: Response) => {
 /**
  * POST /api/notify/owner-reminder
  * Dispatches check-in reminder to vault owner (if verified).
+ * Protected by internal secret header (x-cadence-internal-key).
  */
-app.post("/api/notify/owner-reminder", async (req: Request, res: Response) => {
+app.post("/api/notify/owner-reminder", requireInternalKey, async (req: Request, res: Response) => {
   try {
     const { ownerAddress, vaultId, daysRemaining, deadlineTimestamp } = req.body;
     if (!ownerAddress) {
@@ -221,8 +303,9 @@ app.post("/api/notify/owner-reminder", async (req: Request, res: Response) => {
 /**
  * POST /api/notify/beneficiary-added
  * Dispatches notice to beneficiary when added (ONLY if beneficiary is verified).
+ * Protected by internal secret header (x-cadence-internal-key).
  */
-app.post("/api/notify/beneficiary-added", async (req: Request, res: Response) => {
+app.post("/api/notify/beneficiary-added", requireInternalKey, async (req: Request, res: Response) => {
   try {
     const { beneficiaryAddress, ownerAddress, vaultId, shareBps } = req.body;
     if (!beneficiaryAddress || !ownerAddress) {
@@ -249,8 +332,9 @@ app.post("/api/notify/beneficiary-added", async (req: Request, res: Response) =>
 /**
  * POST /api/notify/claim-ready
  * Dispatches claim ready notice to beneficiary (ONLY if beneficiary is verified).
+ * Protected by internal secret header (x-cadence-internal-key).
  */
-app.post("/api/notify/claim-ready", async (req: Request, res: Response) => {
+app.post("/api/notify/claim-ready", requireInternalKey, async (req: Request, res: Response) => {
   try {
     const { beneficiaryAddress, vaultId, claimableAmount, reason } = req.body;
     if (!beneficiaryAddress) {
@@ -282,7 +366,7 @@ app.post("/api/notify/claim-ready", async (req: Request, res: Response) => {
  * Do NOT return matching wallet addresses or indicate whether an address was found to the UI.
  * The reveal ONLY happens via the email itself, sent to an address already verified.
  */
-app.post("/api/remind-wallet", async (req: Request, res: Response) => {
+app.post("/api/remind-wallet", strictLimiter, async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
     if (!email || typeof email !== "string" || !email.includes("@")) {
@@ -313,8 +397,32 @@ app.post("/api/remind-wallet", async (req: Request, res: Response) => {
 /**
  * GET /api/outbox
  * Audit log of sent notifications.
+ * 2.2 Security Hardening: Protected by ADMIN_API_KEY bearer secret; disabled / restricted in production.
  */
 app.get("/api/outbox", (req: Request, res: Response) => {
+  const adminKey = process.env.ADMIN_API_KEY;
+  const authHeader = req.headers["authorization"] || req.headers["x-admin-key"];
+  const token =
+    typeof authHeader === "string"
+      ? authHeader.replace(/^Bearer\s+/i, "").trim()
+      : undefined;
+
+  // In production, strictly require matching ADMIN_API_KEY
+  if (process.env.NODE_ENV === "production") {
+    if (!adminKey || token !== adminKey) {
+      return res.status(403).json({
+        error: "Access forbidden: outbox audit log is restricted in production",
+      });
+    }
+  } else {
+    // In dev / test, if ADMIN_API_KEY is configured, enforce it (unless in unit test mode without key)
+    if (adminKey && token !== adminKey && process.env.NODE_ENV !== "test") {
+      return res.status(401).json({
+        error: "Unauthorized: Invalid admin API key",
+      });
+    }
+  }
+
   const outbox = emailService.getOutbox();
   res.json({ total: outbox.length, outbox });
 });

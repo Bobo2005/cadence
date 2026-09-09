@@ -2,11 +2,21 @@ import { getAddress, verifyMessage } from "viem";
 
 /**
  * Expected message format for wallet-binding verification:
- * "I confirm this email is associated with wallet 0x... for Cadence notifications"
+ * Cadence Notification Verification
+ * Wallet: ${walletAddress}
+ * Email: ${email.toLowerCase()}
+ * Nonce: ${nonce}
+ * Timestamp: ${timestamp}
  */
-export function getBindingMessage(walletAddress: string): string {
+export function getBindingMessage(
+  walletAddress: string,
+  email: string,
+  nonce: string | number = 0,
+  timestamp: string | number = 0
+): string {
   const normalized = getAddress(walletAddress);
-  return `I confirm this email is associated with wallet ${normalized} for Cadence notifications`;
+  const cleanEmail = (email || "").trim().toLowerCase();
+  return `Cadence Notification Verification\nWallet: ${normalized}\nEmail: ${cleanEmail}\nNonce: ${nonce}\nTimestamp: ${timestamp}`;
 }
 
 export interface VerificationResult {
@@ -18,18 +28,22 @@ export interface VerificationResult {
 
 /**
  * Verifies that the given signature was created by walletAddress
- * for the canonical Cadence notification binding confirmation message.
+ * for the canonical Cadence notification binding confirmation message
+ * binding the specific email address.
  *
  * Constraint #6: An email must NEVER be stored as bound to a wallet
- * without a valid signature from that wallet confirming it.
+ * without a valid signature from that wallet strictly binding that email.
  */
 export async function verifyWalletBindingSignature(
   walletAddress: string,
-  signature: `0x${string}` | string
+  email: string,
+  signature: `0x${string}` | string,
+  nonce: string | number = 0,
+  timestamp: string | number = 0
 ): Promise<VerificationResult> {
   try {
-    if (!walletAddress || !signature) {
-      return { valid: false, error: "Missing walletAddress or signature" };
+    if (!walletAddress || !email || !signature) {
+      return { valid: false, error: "Missing walletAddress, email, or signature" };
     }
 
     let normalized: `0x${string}`;
@@ -39,7 +53,8 @@ export async function verifyWalletBindingSignature(
       return { valid: false, error: "Invalid Ethereum wallet address format" };
     }
 
-    const message = getBindingMessage(normalized);
+    const cleanEmail = email.trim().toLowerCase();
+    const message = getBindingMessage(normalized, cleanEmail, nonce, timestamp);
 
     const isValid = await verifyMessage({
       address: normalized,
@@ -52,7 +67,7 @@ export async function verifyWalletBindingSignature(
         valid: false,
         normalizedAddress: normalized,
         expectedMessage: message,
-        error: "Signature does not match wallet address",
+        error: "Signature does not match wallet address and email binding",
       };
     }
 
@@ -68,3 +83,4 @@ export async function verifyWalletBindingSignature(
     };
   }
 }
+

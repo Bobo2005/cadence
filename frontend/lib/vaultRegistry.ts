@@ -125,8 +125,14 @@ export const SEED_VAULTS: RegisteredVault[] = [
 
 const LOCAL_STORAGE_KEY = "cadence_vault_registry";
 
+const OBSOLETE_DUMMY_ADDRESSES = new Set([
+  "0x0165878a594ca255338adfa4d48449f69242eb8f",
+  "0x6101786575938562839217647281938501837492",
+]);
+
 /**
  * Retrieves all registered vaults (combining seed vaults and user-created vaults).
+ * Automatically purges legacy/undeployed dummy test addresses from browser storage.
  */
 export function getRegisteredVaults(): RegisteredVault[] {
   if (typeof window === "undefined") {
@@ -135,11 +141,42 @@ export function getRegisteredVaults(): RegisteredVault[] {
 
   try {
     const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    let vaults: RegisteredVault[] = [];
+    let hadStaleVaults = false;
+
     if (!raw) {
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(SEED_VAULTS, bigIntReplacer));
       return SEED_VAULTS;
+    } else {
+      const parsed = JSON.parse(raw, bigIntReviver) as RegisteredVault[];
+      // Filter out known obsolete dummy/mock addresses
+      vaults = parsed.filter((v) => {
+        const isObsolete = v.vaultAddress && OBSOLETE_DUMMY_ADDRESSES.has(v.vaultAddress.toLowerCase());
+        if (isObsolete) {
+          hadStaleVaults = true;
+        }
+        return !isObsolete;
+      });
     }
-    return JSON.parse(raw, bigIntReviver) as RegisteredVault[];
+
+    // Ensure current SEED_VAULTS are preserved and reconciled
+    for (const seed of SEED_VAULTS) {
+      const existingIdx = vaults.findIndex(
+        (v) =>
+          v.id === seed.id ||
+          (v.vaultAddress && v.vaultAddress.toLowerCase() === seed.vaultAddress.toLowerCase())
+      );
+      if (existingIdx === -1) {
+        vaults.push(seed);
+        hadStaleVaults = true;
+      }
+    }
+
+    if (hadStaleVaults) {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(vaults, bigIntReplacer));
+    }
+
+    return vaults;
   } catch (err) {
     console.warn("Failed to read from localStorage:", err);
     return SEED_VAULTS;

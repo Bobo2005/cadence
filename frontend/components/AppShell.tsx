@@ -10,8 +10,6 @@ import { useWalletModal } from "./ui/ConnectWalletModal";
 import { DEMO_WALLETS } from "../lib/wagmi";
 import { useUserRole } from "../hooks/useUserRole";
 import { publicClient } from "../lib/contracts";
-import JudgeModeBanner from "./JudgeModeBanner";
-import HowItWorksModal from "./HowItWorksModal";
 
 export type NavTabId = "Dashboard" | "Create Vault" | "Contest" | "Claim Portal";
 
@@ -42,7 +40,6 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
   }, [pathname, propActiveTab]);
 
   const [isPersonaMenuOpen, setIsPersonaMenuOpen] = useState(false);
-  const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [blockNumber, setBlockNumber] = useState<bigint | null>(null);
   const [isRpcSynced, setIsRpcSynced] = useState<boolean>(true);
@@ -158,8 +155,6 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
 
   return (
     <div className="min-h-screen bg-[#0A0E14] text-[#E8ECF1] flex flex-col font-sans selection:bg-[#2EE6A8]/20 selection:text-[#2EE6A8]">
-      {/* Sticky Judge Fast-Track Demo Bar for 1-Click Evaluation */}
-      <JudgeModeBanner />
 
       {/* ========================================================================= */}
       {/* PERSISTENT TOP BAR (Matches reference screens 2, 3, 4, 5)                  */}
@@ -210,16 +205,8 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
           })}
         </nav>
 
-        {/* Right: How It Works & Connected Wallet Pill */}
+        {/* Right: Connected Wallet Pill */}
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={() => setIsHowItWorksOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#12161F] border border-[#232838] hover:border-[#2EE6A8]/40 transition-colors text-xs font-mono text-[#8993A6] hover:text-[#2EE6A8] cursor-pointer"
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-[#2EE6A8]" />
-            <span>How It Works</span>
-          </button>
 
           <div className="relative" ref={personaMenuRef}>
           {isConnected ? (
@@ -448,11 +435,6 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
         </main>
       </div>
 
-      {/* Global Interactive Cryptographic Architecture Modal */}
-      <HowItWorksModal
-        isOpen={isHowItWorksOpen}
-        onClose={() => setIsHowItWorksOpen(false)}
-      />
     </div>
   );
 }

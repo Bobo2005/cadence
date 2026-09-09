@@ -20,7 +20,6 @@ import {
 } from "../lib/notifications";
 import { getRegisteredVaults } from "../lib/vaultRegistry";
 import { DEMO_WALLETS } from "../lib/wagmi";
-import { useToast } from "./ToastProvider";
 
 interface VaultPulseDashboardProps {
   initialVaultAddress?: Address;
@@ -62,7 +61,6 @@ export default function VaultPulseDashboard({
 }: VaultPulseDashboardProps) {
   const { address: connectedAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { addToast } = useToast();
 
   // Active vault selection
   const defaultAddress = initialVaultAddress || (vaultId as Address) || ownedVaults[0]?.vaultAddress;
@@ -135,20 +133,8 @@ export default function VaultPulseDashboard({
         account: connectedAddress,
       });
       setIntervalStatusMsg("Waiting for block confirmation on Sepolia...");
-      addToast({
-        title: "Interval Update Broadcast",
-        description: `Updating cadence to ${newSeconds < 3600 ? newSeconds / 60 + " min" : newSeconds / 86400 + " days"}.`,
-        txHash: hash,
-        type: "info",
-      });
       await publicClient.waitForTransactionReceipt({ hash });
       setIntervalStatusMsg("Interval successfully updated on-chain!");
-      addToast({
-        title: "Cadence Interval Confirmed",
-        description: `Locker interval set to ${newSeconds < 3600 ? newSeconds / 60 + " min" : newSeconds / 86400 + " days"} on Sepolia.`,
-        txHash: hash,
-        type: "success",
-      });
       await fetchOnChainData(activeVaultAddress);
       setTimeout(() => {
         setShowIntervalModal(false);
@@ -158,11 +144,6 @@ export default function VaultPulseDashboard({
       console.error("[VaultPulseDashboard] Failed to set check-in interval:", err);
       const msg = err?.shortMessage || err?.message || "Transaction failed";
       setIntervalStatusMsg(`Error: ${msg.slice(0, 100)}`);
-      addToast({
-        title: "Update Failed",
-        description: msg.slice(0, 100),
-        type: "error",
-      });
     } finally {
       setIsUpdatingInterval(false);
     }
@@ -363,19 +344,9 @@ export default function VaultPulseDashboard({
         setEmailStatus("verified");
         setConfirmedEmail(result.binding?.email || emailInput);
         setIsEditingEmail(false);
-        addToast({
-          title: "Email Notifications Bound",
-          description: `Active alerts enabled for ${emailInput}`,
-          type: "success",
-        });
       } else {
         alert(result.error || "Failed to verify signature for email binding.");
         setEmailStatus("not_set");
-        addToast({
-          title: "Email Binding Failed",
-          description: result.error || "Could not verify signature",
-          type: "error",
-        });
       }
     } catch (err: unknown) {
       console.error("[Dashboard] Signature binding failed:", err);

@@ -32,7 +32,6 @@ Cadence is a non-custodial, privacy-preserving inheritance protocol on Ethereum 
 - ⚡ **Live API Service (Render)**: [`https://cadence-notifications.onrender.com`](https://cadence-notifications.onrender.com)
   - Microservice Health Check: [`https://cadence-notifications.onrender.com/health`](https://cadence-notifications.onrender.com/health)
 - 🏆 **Hackathon Pitch Kit & 3-Min Video Script**: [`docs/HACKATHON-PITCH.md`](docs/HACKATHON-PITCH.md)
-- ⚡ **Judge Fast-Track Demo Bar**: Built-in sticky top bar with 1-click persona switching (`Owner`, `Alice`, `Bob`, `Guardians`), fast 5-minute test locker toggle, pre-funded test private keys, and interactive cryptographic architecture modal.
 
 ### Verified Smart Contracts (Ethereum Sepolia)
 
@@ -51,9 +50,9 @@ All contracts are compiled with Solidity 0.8.28 (Via-IR enabled) and verified wi
 
 ---
 
-## 3. 3-Minute Judge Walkthrough Guide
+## 3. 3-Minute Walkthrough Guide
 
-The Cadence interface features a sticky top bar engineered for rapid 3-minute hackathon evaluation. Follow this sequential guide:
+The Cadence interface features built-in demo persona switching (in the persistent header wallet pill) and pre-deployed Sepolia test lockers for rapid evaluation. Follow this sequential guide:
 
 ```
 [ Step 1: Owner Pulse ]  ──>  [ Step 2: Guardian Quorum ]  ──>  [ Step 3: Beneficiary Claim ]  ──>  [ Step 4: Stealth Cancel ]
@@ -61,21 +60,21 @@ The Cadence interface features a sticky top bar engineered for rapid 3-minute ha
 ```
 
 ### Step 1: Connect as Owner $\rightarrow$ View Heartbeat $\rightarrow$ Test Interval Adjustment (5m)
-1. In the sticky top **Judge Fast-Track** bar, click **`[Owner]`**. The app connects as `0xC09C...77e4`.
+1. Connect as **Owner** (`0xC09C...77e4`) using your wallet or the demo persona switcher in the header.
 2. Open [`/dashboard`](https://cadence-protocol.vercel.app/dashboard) to inspect the **Locker Heartbeat Rhythm**:
    - The live oscilloscope ECG line visualizes heartbeat status (`62 BPM Steady`).
    - Click **`[⚡ Adjust Interval]`** on the hero rhythm card. Select the **`5 Min (Test)`** preset (300s) and confirm the on-chain update on Sepolia.
-   - Click **`[Send Heartbeat Check-In]`**: Toast notification confirms on-chain timestamp renewal with Etherscan receipt link.
+   - Click **`[Send Heartbeat Check-In]`**: Confirms on-chain timestamp renewal with Etherscan receipt link.
 
 ### Step 2: Switch to Guardian $\rightarrow$ Attest Inactivity Lapse
-1. Click **`[Guardian 1]`** or **`[Guardian 2]`** in the Judge Bar to switch to an active proof-of-life node (`0x81C3...91a2` or `0x34d7...A1F0`).
+1. Switch to **Guardian 1** or **Guardian 2** (`0x81C3...91a2` or `0x34d7...A1F0`) via your wallet or the header persona switcher.
 2. Navigate to [`/contest`](https://cadence-protocol.vercel.app/contest):
    - Review guardian attestation records queried directly from `GuardianRegistry.sol`.
    - If the 5-minute interval lapses without a check-in, guardians affirm inactivity. Once the M-of-N threshold is reached, the locker transitions to `ClaimPending` and starts the 72-hour Contest Window.
    - The ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`).
 
 ### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via ECIES $\rightarrow$ Execute Claim
-1. In the Judge Bar, click **`[Alice (40%)]`** (`0x7099...79C8`).
+1. Connect as **Alice** (`0x7099...79C8`) via your wallet or the header persona switcher.
 2. Open [`/claim`](https://cadence-protocol.vercel.app/claim):
    - Notice that Alice's 40% share is **not public on Etherscan**. The browser automatically decrypts her allocation off-chain using her private key via **ECIES-secp256k1** and generates her cryptographic Merkle proof against `allocationRoot`.
    - Once the locker enters finalized status, click **`[Claim Share]`**.

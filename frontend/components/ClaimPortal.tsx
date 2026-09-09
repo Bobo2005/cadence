@@ -3,8 +3,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useAccount, useWalletClient } from "wagmi";
-import { type Hex, type Address, isAddressEqual, getAddress, formatEther } from "viem";
-import { sepolia } from "viem/chains";
+import {
+  type Hex,
+  type Address,
+  isAddressEqual,
+  getAddress,
+  formatEther,
+  parseEther,
+  createWalletClient,
+} from "viem";
+import { privateKeyToAccount } from "viem/accounts";
+import { cadenceSepolia, sepoliaTransports, DEMO_WALLET_KEYS } from "../lib/wagmi";
 import LiveECGMonitor from "./ui/LiveECGMonitor";
 import {
   publicClient,
@@ -27,7 +36,6 @@ import {
   requestWalletReminder,
 } from "../lib/notifications";
 import { parseUserFriendlyError } from "./CreateVaultForm";
-import { useToast } from "./ToastProvider";
 
 export interface ClaimableVaultItem {
   id: string;
@@ -50,7 +58,6 @@ export interface ClaimableVaultItem {
 export default function ClaimPortal() {
   const { address: connectedAddress, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { addToast } = useToast();
 
   // Loading & state
   const [isLoading, setIsLoading] = useState(true);
@@ -268,28 +275,13 @@ export default function ClaimPortal() {
       if (result.success && result.verified) {
         setIsConfirmedEmail(true);
         setIsCustomEmailMode(false);
-        addToast({
-          title: "Beneficiary Alert Bound",
-          description: `Connected to ${targetEmail}`,
-          type: "success",
-        });
       } else {
         alert(result.error || "Signature verification failed.");
-        addToast({
-          title: "Email Binding Failed",
-          description: result.error || "Verification failed",
-          type: "error",
-        });
       }
     } catch (err: unknown) {
       console.warn("[ClaimPortal] Email binding declined/error:", err);
       const msg = parseUserFriendlyError(err);
       alert(msg);
-      addToast({
-        title: "Signature Declined",
-        description: msg,
-        type: "error",
-      });
     } finally {
       setIsSigningEmail(false);
     }
@@ -313,18 +305,8 @@ export default function ClaimPortal() {
             "If an account exists with that verified email, a reminder has been sent to your inbox."
         );
         setRecoveryEmail("");
-        addToast({
-          title: "Wallet Reminder Dispatched",
-          description: "Check your inbox for the registered address.",
-          type: "info",
-        });
       } else {
         setReminderErrorMessage(res.error || "Failed to submit reminder request.");
-        addToast({
-          title: "Reminder Request Failed",
-          description: res.error || "No match found",
-          type: "error",
-        });
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -362,20 +344,73 @@ export default function ClaimPortal() {
     setClaimError(null);
 
     try {
-      if (!walletClient) {
+      // 1. Verify target vault is deployed on Sepolia
+      const bytecode = await publicClient.getBytecode({ address: vault.vaultContractAddress });
+      if (!bytecode || bytecode === "0x") {
+        throw new Error(
+          `Vault contract ${vault.vaultContractAddress} is not deployed on Sepolia. Please select a valid deployed locker.`
+        );
+      }
+
+      // 2. Resolve signer (local private key for demo personas / custom keys, or connected wallet)
+      const normalizedAddress = getAddress(connectedAddress);
+      const matchingDemo = DEMO_BENEFICIARIES.find((b) =>
+        isAddressEqual(b.address, normalizedAddress)
+      );
+      const privateKeyToUse = customPrivateKey.trim() || matchingDemo?.privateKey;
+
+      let effectiveClient: any = walletClient;
+      let effectiveAccount: any = walletClient?.account || connectedAddress;
+
+      if (privateKeyToUse) {
+        const cleanKey = (privateKeyToUse.startsWith("0x")
+          ? privateKeyToUse
+          : `0x${privateKeyToUse}`) as Hex;
+        const localAccount = privateKeyToAccount(cleanKey);
+        effectiveClient = createWalletClient({
+          account: localAccount,
+          chain: cadenceSepolia,
+          transport: sepoliaTransports,
+        });
+        effectiveAccount = localAccount;
+      }
+
+      if (!effectiveClient) {
         throw new Error("No connected wallet client found. Please connect your wallet.");
       }
 
-      // Execute on-chain claim(shareBps, salt, proof)
+      // 3. Ensure claimant has sufficient gas for Sepolia transaction
+      const claimantAddress = (typeof effectiveAccount === "string" ? effectiveAccount : effectiveAccount?.address) as Address;
+      try {
+        const balance = await publicClient.getBalance({ address: claimantAddress });
+        if (balance < 1000000000000000n && DEMO_WALLET_KEYS.owner) {
+          // Auto-fund gas for presentation demo personas from deployer
+          const deployerAccount = privateKeyToAccount(DEMO_WALLET_KEYS.owner);
+          const deployerClient = createWalletClient({
+            account: deployerAccount,
+            chain: cadenceSepolia,
+            transport: sepoliaTransports,
+          });
+          const fundHash = await deployerClient.sendTransaction({
+            to: claimantAddress,
+            value: parseEther("0.003"),
+          });
+          await publicClient.waitForTransactionReceipt({ hash: fundHash });
+        }
+      } catch (fundErr) {
+        console.warn("[ClaimPortal] Auto gas-topup warning:", fundErr);
+      }
+
+      // 4. Execute on-chain claim(shareBps, salt, proof)
       let txHash: Hex;
       try {
-        txHash = await (walletClient as any).writeContract({
-          chain: sepolia,
+        txHash = await effectiveClient.writeContract({
+          chain: cadenceSepolia,
           address: vault.vaultContractAddress,
           abi: INHERITANCE_VAULT_ABI,
           functionName: "claim",
           args: [BigInt(vault.shareBps), vault.salt, vault.merkleProof],
-          account: connectedAddress,
+          account: effectiveAccount,
         });
 
         const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
@@ -398,22 +433,10 @@ export default function ClaimPortal() {
         txHash,
         amount: vault.decryptedShareEth,
       });
-
-      addToast({
-        title: "Inheritance Claim Confirmed",
-        description: `Transferred ${vault.decryptedShareEth} ETH on Sepolia.`,
-        txHash,
-        type: "success",
-      });
     } catch (err: unknown) {
       console.warn("[ClaimPortal] Claim execution paused/declined:", err);
       const msg = parseUserFriendlyError(err);
       setClaimError(msg);
-      addToast({
-        title: "Claim Execution Failed",
-        description: msg.slice(0, 100),
-        type: "error",
-      });
     } finally {
       setClaimingVaultId(null);
     }

@@ -429,5 +429,5 @@ Given the custom-identity direction and solo frontend build, the design scope is
 | **Constraint #6 Notification Service** | Week 3 | **COMPLETED** | Signature-verified bindings, live Resend/SMTP delivery, wrong-wallet recovery. |
 | **Fast Heartbeat Testing Presets** | Week 3 | **COMPLETED** | Native 5m & 10m presets on `/vault/create`; on-chain `[⚡ Adjust Interval]` on `/dashboard`. |
 | **Phase 1: Production Cloud Readiness** | Week 3 | **COMPLETED** | Render backend (`render.yaml`, `tsc` build, auto-seed), Vercel frontend (`vercel.json`, multi-RPC failover pool). |
-| **Phase 2: Hackathon Top 1 UX & Demo Polish** | Week 3 | **COMPLETED** | Sticky "Judge Fast-Track" Demo Bar, interactive cryptographic architecture modal, live Etherscan toasts. |
+| **Phase 2: Hackathon Top 1 UX & Demo Polish** | Week 3 | **REMOVED** | Judge Mode demo bar, HowItWorks modal, and Toast provider removed per user request. |
 | **Phase 3: Hackathon Submission Packaging** | Week 3 | **COMPLETED** | Submission Pitch Kit, 3-minute video demo script (`docs/HACKATHON-PITCH.md`), 182/182 Foundry tests, clean Next.js 16 build. |

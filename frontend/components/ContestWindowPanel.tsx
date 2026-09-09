@@ -21,7 +21,6 @@ import {
 import { getRegisteredVaults, saveRegisteredVault } from "../lib/vaultRegistry";
 import { DEMO_WALLETS } from "../lib/wagmi";
 import { parseUserFriendlyError } from "./CreateVaultForm";
-import { useToast } from "./ToastProvider";
 
 interface ContestWindowPanelProps {
   activeVaultAddress?: Address;
@@ -42,7 +41,6 @@ export default function ContestWindowPanel({
 }: ContestWindowPanelProps) {
   const { address: connectedAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
-  const { addToast } = useToast();
 
   // 1. Vault Selection
   const [selectedVaultAddress, setSelectedVaultAddress] = useState<Address>(
@@ -411,12 +409,6 @@ export default function ContestWindowPanel({
       }
 
       setCancellationTx(txHash);
-      addToast({
-        title: "EIP-712 Stealth Cancel Relayed",
-        description: "Contest halted on-chain with zero gas linkage to primary wallet.",
-        txHash,
-        type: "success",
-      });
 
       // 5. Refresh on-chain state: verify transition to Active and reset guardians
       const regToUpdate = getRegisteredVaults().find((v) =>
@@ -434,11 +426,6 @@ export default function ContestWindowPanel({
       console.warn("[ContestWindowPanel] Failed to cancel claim with signature:", err);
       const msg = parseUserFriendlyError(err);
       setCancellationError(msg);
-      addToast({
-        title: "Stealth Cancel Failed",
-        description: msg.slice(0, 100),
-        type: "error",
-      });
     } finally {
       setIsContesting(false);
     }

@@ -12,7 +12,6 @@ import {
   type SponsorshipQuote,
   type CheckInExecutionResult,
 } from "../lib/paymaster";
-import { useToast } from "./ToastProvider";
 
 interface CheckInButtonProps {
   vaultAddress: Address;
@@ -30,7 +29,6 @@ export default function CheckInButton({
   className = "",
 }: CheckInButtonProps) {
   const { data: walletClient } = useWalletClient();
-  const { addToast } = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
   const [isQuoting, setIsQuoting] = useState(false);
@@ -110,23 +108,12 @@ export default function CheckInButton({
 
       const result = await executeCheckIn(vaultAddress, walletClient, ownerAddress);
       setExecutionResult(result);
-      addToast({
-        title: result.mode === "sponsored_smart_account" ? "Heartbeat Sponsored (ERC-4337)" : "Heartbeat Confirmed",
-        description: "Proof-of-life timestamp refreshed on Sepolia.",
-        txHash: result.txHash,
-        type: "success",
-      });
       if (onCheckInSuccess) {
         onCheckInSuccess(result);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setErrorMessage(`Check-in failed: ${msg}`);
-      addToast({
-        title: "Check-in Failed",
-        description: msg.slice(0, 120),
-        type: "error",
-      });
     } finally {
       setIsSubmitting(false);
       setSubmissionStep("");

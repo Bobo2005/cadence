@@ -7,7 +7,6 @@ import CadenceLogo from "./ui/CadenceLogo";
 
 import { useAccount, useDisconnect, useConnect } from "wagmi";
 import { useWalletModal } from "./ui/ConnectWalletModal";
-import { DEMO_WALLETS } from "../lib/wagmi";
 import { useUserRole } from "../hooks/useUserRole";
 import { publicClient } from "../lib/contracts";
 
@@ -90,16 +89,6 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
     setIsPersonaMenuOpen(false);
     disconnect();
     router.push("/");
-  };
-
-  const handleSwitchMock = (targetPersonaId: string) => {
-    const personaConnector =
-      connectors.find((c) => c.id === `mock-${targetPersonaId}`) ||
-      connectors.find((c) => c.id === "mock");
-    if (personaConnector) {
-      connect({ connector: personaConnector });
-      setIsPersonaMenuOpen(false);
-    }
   };
 
   // Truncated format matching reference: 0x71C...8b2
@@ -214,7 +203,7 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
               type="button"
               onClick={() => setIsPersonaMenuOpen(!isPersonaMenuOpen)}
               className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#12161F] border border-[#232838] hover:border-[#2EE6A8]/40 transition-all text-xs font-mono text-[#E8ECF1] cursor-pointer"
-              title="Click to view account / switch persona"
+              title="Click to view account"
             >
               <span className="w-2 h-2 rounded-full bg-[#2EE6A8] shadow-[0_0_8px_#2EE6A8] animate-pulse" />
               <span>{formattedAddress}</span>
@@ -301,38 +290,6 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
                     </Link>
                   </div>
                 )}
-              </div>
-
-              {/* Demo Persona quick switcher */}
-              <div className="py-1 px-1">
-                <div className="px-3 pt-2 pb-1 text-[10px] font-semibold text-[#8993A6] uppercase tracking-wider">
-                  Switch Protocol Persona
-                </div>
-                {DEMO_WALLETS.map((p) => {
-                  const isCurrent = address?.toLowerCase() === p.address.toLowerCase();
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => handleSwitchMock(p.id)}
-                      className={`w-full px-3 py-1.5 rounded-lg text-left text-xs flex items-center justify-between transition-colors ${
-                        isCurrent
-                          ? "bg-[#1A1F2B] text-[#2EE6A8]"
-                          : "text-[#8993A6] hover:text-[#E8ECF1] hover:bg-[#1A1F2B]/50"
-                      }`}
-                    >
-                      <div>
-                        <div className="font-medium text-[#E8ECF1]">{p.label}</div>
-                        <div className="font-mono text-[10px] text-[#8993A6]">
-                          {p.address.slice(0, 5)}...{p.address.slice(-3)}
-                        </div>
-                      </div>
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#0A0E14] border border-[#232838] text-[#8993A6]">
-                        {p.role.split(" ")[0]}
-                      </span>
-                    </button>
-                  );
-                })}
               </div>
 
               <div className="pt-2 border-t border-[#232838] px-4 py-1.5 flex items-center justify-between text-[11px]">

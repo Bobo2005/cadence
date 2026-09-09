@@ -13,7 +13,7 @@ import {
   createWalletClient,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { cadenceSepolia, sepoliaTransports, DEMO_WALLET_KEYS } from "../lib/wagmi";
+import { cadenceSepolia, sepoliaTransports } from "../lib/wagmi";
 import LiveECGMonitor from "./ui/LiveECGMonitor";
 import {
   publicClient,
@@ -25,7 +25,6 @@ import {
   getRegisteredVaults,
   generateProofFromLeaves,
   verifyProof,
-  DEMO_BENEFICIARIES,
   type RegisteredVault,
 } from "../lib/vaultRegistry";
 import { decryptAllocation, type AllocationData } from "../lib/encryption";
@@ -126,10 +125,7 @@ export default function ClaimPortal() {
       const allVaults = getRegisteredVaults();
 
       // Locate private key for decryption
-      const matchingDemo = DEMO_BENEFICIARIES.find((b) =>
-        isAddressEqual(b.address, normalizedAddress)
-      );
-      const privateKeyToUse = customPrivateKey.trim() || matchingDemo?.privateKey;
+      const privateKeyToUse = customPrivateKey.trim();
 
       const discovered: ClaimableVaultItem[] = [];
 
@@ -352,12 +348,8 @@ export default function ClaimPortal() {
         );
       }
 
-      // 2. Resolve signer (local private key for demo personas / custom keys, or connected wallet)
-      const normalizedAddress = getAddress(connectedAddress);
-      const matchingDemo = DEMO_BENEFICIARIES.find((b) =>
-        isAddressEqual(b.address, normalizedAddress)
-      );
-      const privateKeyToUse = customPrivateKey.trim() || matchingDemo?.privateKey;
+      // 2. Resolve signer (local private key for custom keys, or connected wallet)
+      const privateKeyToUse = customPrivateKey.trim();
 
       let effectiveClient: any = walletClient;
       let effectiveAccount: any = walletClient?.account || connectedAddress;
@@ -377,28 +369,6 @@ export default function ClaimPortal() {
 
       if (!effectiveClient) {
         throw new Error("No connected wallet client found. Please connect your wallet.");
-      }
-
-      // 3. Ensure claimant has sufficient gas for Sepolia transaction
-      const claimantAddress = (typeof effectiveAccount === "string" ? effectiveAccount : effectiveAccount?.address) as Address;
-      try {
-        const balance = await publicClient.getBalance({ address: claimantAddress });
-        if (balance < 1000000000000000n && DEMO_WALLET_KEYS.owner) {
-          // Auto-fund gas for presentation demo personas from deployer
-          const deployerAccount = privateKeyToAccount(DEMO_WALLET_KEYS.owner);
-          const deployerClient = createWalletClient({
-            account: deployerAccount,
-            chain: cadenceSepolia,
-            transport: sepoliaTransports,
-          });
-          const fundHash = await deployerClient.sendTransaction({
-            to: claimantAddress,
-            value: parseEther("0.003"),
-          });
-          await publicClient.waitForTransactionReceipt({ hash: fundHash });
-        }
-      } catch (fundErr) {
-        console.warn("[ClaimPortal] Auto gas-topup warning:", fundErr);
       }
 
       // 4. Execute on-chain claim(shareBps, salt, proof)
@@ -728,24 +698,6 @@ export default function ClaimPortal() {
                   🔒 Privacy invariant: For security, registered addresses are never revealed in the browser. The reminder is delivered strictly to the verified inbox.
                 </p>
               </form>
-            </div>
-
-            {/* Persona Switcher Guidance for Testers */}
-            <div className="p-4 rounded-xl bg-[#0A0E14] border border-[#232838] max-w-md mx-auto text-left space-y-2 text-xs font-mono">
-              <div className="text-[#8993A6] font-semibold uppercase text-[11px] tracking-wider">
-                To test the heir claim flow:
-              </div>
-              <p className="text-[#5A6478] font-sans text-xs">
-                Switch personas using the wallet menu in the top navigation bar:
-              </p>
-              <div className="space-y-1 pt-1">
-                <div className="text-[#2EE6A8]">
-                  • Alice (Primary Heir · 40% Share): <span className="text-[#8993A6]">0x7099...79C8</span>
-                </div>
-                <div className="text-[#F5B841]">
-                  • Bob (Secondary Heir · 60% Share): <span className="text-[#8993A6]">0x3C44...93BC</span>
-                </div>
-              </div>
             </div>
           </div>
         )}

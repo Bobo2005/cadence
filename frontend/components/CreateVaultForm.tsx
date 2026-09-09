@@ -38,7 +38,6 @@ import {
   getProvisioningState,
   saveProvisioningState,
   clearProvisioningState,
-  DEMO_BENEFICIARIES,
   type ProvisioningState,
 } from "../lib/vaultRegistry.ts";
 
@@ -510,18 +509,11 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         // Build encrypted allocations for beneficiaries
         const encryptedAllocationsList = await Promise.all(
           allocationsList.map(async (a, idx) => {
-            const matchingDemo = DEMO_BENEFICIARIES.find((db) => {
-              try {
-                return isAddressEqual(db.address, a.address);
-              } catch {
-                return db.address.toLowerCase() === a.address.toLowerCase();
-              }
-            });
-
+            const pubKey = (beneficiaryItems[idx] as any)?.publicKey;
             let ciphertext = "";
-            if (matchingDemo?.publicKey) {
+            if (pubKey) {
               try {
-                ciphertext = await encryptAllocation(matchingDemo.publicKey, {
+                ciphertext = await encryptAllocation(pubKey, {
                   beneficiary: a.address,
                   shareBps: Number(a.shareBps),
                   salt: a.salt,

@@ -10,7 +10,6 @@ import {
   GUARDIAN_REGISTRY_ABI,
   BENEFICIARY_ACCOUNT_FACTORY_ABI,
 } from "../lib/contracts.ts";
-import { DEMO_WALLETS } from "../lib/wagmi.ts";
 import {
   getRegisteredVaults,
   findVaultsForBeneficiary,
@@ -164,19 +163,7 @@ export function useUserRole(): UserRoleState {
               });
             }
           } catch {
-            // If contract read fails (e.g. offline/mock environment), check DEMO_WALLETS deployer address
-            const isKnownDeployer = isAddressEqual(
-              DEMO_WALLETS[0].address,
-              normalizedAddress
-            );
-            if (isKnownDeployer && !detectedOwned.some((m) => m.vaultAddress === cv.address)) {
-              detectedOwned.push({
-                vaultAddress: cv.address,
-                name: cv.name,
-                role: "owner",
-                details: "Configured Locker Creator",
-              });
-            }
+            // Contract read failed or network unreachable
           }
         }
 

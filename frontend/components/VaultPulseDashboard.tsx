@@ -19,7 +19,6 @@ import {
   requestSignatureAndBind,
 } from "../lib/notifications";
 import { getRegisteredVaults } from "../lib/vaultRegistry";
-import { DEMO_WALLETS } from "../lib/wagmi";
 
 interface VaultPulseDashboardProps {
   initialVaultAddress?: Address;
@@ -237,10 +236,7 @@ export default function VaultPulseDashboard({
       });
       const candidateGuardians: Address[] = (reg?.guardians && reg.guardians.length > 0)
         ? reg.guardians
-        : [
-            DEMO_WALLETS[3].address as Address,
-            DEMO_WALLETS[4].address as Address,
-          ];
+        : [];
 
       const guardianInfos: GuardianDisplayInfo[] = [];
       for (let i = 0; i < candidateGuardians.length; i++) {

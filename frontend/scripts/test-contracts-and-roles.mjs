@@ -31,8 +31,15 @@ import {
   KNOWN_PROTOCOL_GUARDIANS,
   KNOWN_PROTOCOL_BENEFICIARIES,
 } from "../hooks/useUserRole.ts";
-import { DEMO_WALLETS } from "../lib/wagmi.ts";
 import { findVaultsForBeneficiary } from "../lib/vaultRegistry.ts";
+
+const TEST_ADDRESSES = {
+  owner: "0xC09C394336D4Ed967B70a4C1C1110493673f77e4",
+  alice: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  bob: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+  guardian1: "0x81C3D582F3473F71C4C8bF394E1d32BA218991a2",
+  guardian2: "0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0",
+};
 
 let passed = 0;
 let failed = 0;
@@ -187,7 +194,7 @@ function simulateRoleDetection(userAddress) {
   const normalized = getAddress(userAddress);
 
   // 1. Owner check
-  const isOwner = isAddressEqual(DEMO_WALLETS[0].address, normalized);
+  const isOwner = isAddressEqual(TEST_ADDRESSES.owner, normalized);
 
   // 2. Beneficiary check
   const isBeneficiary =
@@ -231,7 +238,7 @@ function simulateRoleDetection(userAddress) {
 }
 
 test("Detects Vault Owner persona correctly", () => {
-  const ownerAddr = DEMO_WALLETS[0].address; // 0xC09C394336D4Ed967B70a4C1C1110493673f77e4
+  const ownerAddr = TEST_ADDRESSES.owner; // 0xC09C394336D4Ed967B70a4C1C1110493673f77e4
   const res = simulateRoleDetection(ownerAddr);
 
   assert.strictEqual(res.isOwner, true, "Should be detected as owner");
@@ -243,7 +250,7 @@ test("Detects Vault Owner persona correctly", () => {
 });
 
 test("Detects Beneficiary personas (Alice & Bob) correctly", () => {
-  const aliceAddr = DEMO_WALLETS[1].address; // 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+  const aliceAddr = TEST_ADDRESSES.alice; // 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
   const resAlice = simulateRoleDetection(aliceAddr);
   assert.strictEqual(resAlice.isBeneficiary, true, "Alice should be detected as beneficiary");
   assert.strictEqual(resAlice.isOwner, false);
@@ -252,7 +259,7 @@ test("Detects Beneficiary personas (Alice & Bob) correctly", () => {
   assert.strictEqual(resAlice.recommendedRoute, "/claim");
   assert(resAlice.roleBadge.includes("Beneficiary"));
 
-  const bobAddr = DEMO_WALLETS[2].address; // 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+  const bobAddr = TEST_ADDRESSES.bob; // 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
   const resBob = simulateRoleDetection(bobAddr);
   assert.strictEqual(resBob.isBeneficiary, true, "Bob should be detected as beneficiary");
   assert.strictEqual(resBob.isOwner, false);
@@ -262,7 +269,7 @@ test("Detects Beneficiary personas (Alice & Bob) correctly", () => {
 });
 
 test("Detects Guardian personas (Guardian 1 & Guardian 2) correctly", () => {
-  const g1Addr = DEMO_WALLETS[3].address; // 0x81C3D582F3473F71C4C8bF394E1d32BA218991a2
+  const g1Addr = TEST_ADDRESSES.guardian1; // 0x81C3D582F3473F71C4C8bF394E1d32BA218991a2
   const resG1 = simulateRoleDetection(g1Addr);
   assert.strictEqual(resG1.isGuardian, true, "Guardian 1 should be detected as guardian");
   assert.strictEqual(resG1.isOwner, false);
@@ -271,7 +278,7 @@ test("Detects Guardian personas (Guardian 1 & Guardian 2) correctly", () => {
   assert.strictEqual(resG1.recommendedRoute, "/contest");
   assert(resG1.roleBadge.includes("Guardian"));
 
-  const g2Addr = DEMO_WALLETS[4].address; // 0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0
+  const g2Addr = TEST_ADDRESSES.guardian2; // 0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0
   const resG2 = simulateRoleDetection(g2Addr);
   assert.strictEqual(resG2.isGuardian, true, "Guardian 2 should be detected as guardian");
   assert.strictEqual(resG2.isOwner, false);
@@ -296,7 +303,7 @@ test("Detects New User (unassociated wallet) correctly", () => {
 
 test("Supports multi-role simultaneously (non-exclusivity constraint)", () => {
   // Simulate a wallet that is both an Owner and a Guardian
-  const multiWallet = DEMO_WALLETS[0].address; // Deployer
+  const multiWallet = TEST_ADDRESSES.owner; // Deployer
   // If the deployer is also in the guardian set:
   const normalized = getAddress(multiWallet);
   const isOwner = true;

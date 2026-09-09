@@ -19,7 +19,6 @@ import {
   GUARDIAN_REGISTRY_ABI,
 } from "../lib/contracts";
 import { getRegisteredVaults, saveRegisteredVault } from "../lib/vaultRegistry";
-import { DEMO_WALLETS } from "../lib/wagmi";
 import { parseUserFriendlyError } from "./CreateVaultForm";
 
 interface ContestWindowPanelProps {
@@ -272,10 +271,7 @@ export default function ContestWindowPanel({
         });
         const candidateG: Address[] = (reg?.guardians && reg.guardians.length > 0)
           ? reg.guardians
-          : [
-              DEMO_WALLETS[3].address as Address,
-              DEMO_WALLETS[4].address as Address,
-            ];
+          : [];
 
         const updatedG: GuardianAttestationInfo[] = [];
         for (let i = 0; i < candidateG.length; i++) {

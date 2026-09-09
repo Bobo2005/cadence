@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useConnect, useAccount } from "wagmi";
 import CadenceLogo from "./CadenceLogo";
-import { DEMO_WALLETS } from "../../lib/wagmi";
 
 interface WalletModalContextType {
   isOpen: boolean;
@@ -38,7 +37,6 @@ export function WalletModalProvider({ children }: { children: React.ReactNode })
 export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
   const { connectors, connect, isPending, error } = useConnect();
   const { isConnected } = useAccount();
-  const [activeTab, setActiveTab] = useState<"injected" | "demo">("injected");
 
   // Automatically close on successful connection
   useEffect(() => {
@@ -48,24 +46,11 @@ export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
   }, [isConnected, onClose]);
 
   const injectedConnector = connectors.find((c) => c.id === "injected");
-  const mockConnector = connectors.find((c) => c.id === "mock");
   const walletConnectConnector = connectors.find((c) => c.id === "walletConnect");
 
   const handleConnectInjected = () => {
     if (injectedConnector) {
       connect({ connector: injectedConnector });
-    }
-  };
-
-  const handleConnectMock = (targetPersonaId?: string) => {
-    const personaConnector =
-      (targetPersonaId && connectors.find((c) => c.id === `mock-${targetPersonaId}`)) ||
-      mockConnector;
-    if (personaConnector) {
-      connect({
-        connector: personaConnector,
-      });
-      onClose();
     }
   };
 
@@ -90,61 +75,59 @@ export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
         </button>
 
         {/* Modal Header */}
-        <div className="flex items-center gap-3 mb-5">
-          <div className="p-2 rounded-xl bg-[#0A0E14] border border-[#232838]">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="p-2.5 rounded-xl bg-[#0A0E14] border border-[#232838]">
             <CadenceLogo size={28} showWordmark={false} />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-[#E8ECF1] tracking-tight">Connect to Cadence</h3>
-            <p className="text-xs text-[#8993A6]">Select your wallet on Ethereum Sepolia</p>
+            <h3 className="text-lg font-bold text-[#E8ECF1] tracking-tight">Connect Wallet</h3>
+            <p className="text-xs text-[#8993A6]">Connect your Web3 wallet on Ethereum Sepolia</p>
           </div>
         </div>
 
-        {/* Tab switcher: Browser Extension vs Demo Personas */}
-        <div className="grid grid-cols-2 p-1 rounded-xl bg-[#0A0E14] border border-[#232838] mb-4 text-xs font-medium">
+        {/* Wallet Options */}
+        <div className="space-y-3">
           <button
             type="button"
-            onClick={() => setActiveTab("injected")}
-            className={`py-2 rounded-lg transition-all text-center ${
-              activeTab === "injected"
-                ? "bg-[#1A1F2B] text-[#2EE6A8] shadow-sm font-semibold"
-                : "text-[#8993A6] hover:text-[#E8ECF1]"
-            }`}
+            disabled={isPending}
+            onClick={handleConnectInjected}
+            className="w-full flex items-center justify-between p-3.5 rounded-xl bg-[#1A1F2B]/60 border border-[#232838] hover:border-[#2EE6A8]/50 hover:bg-[#1A1F2B] transition-all group cursor-pointer disabled:opacity-50"
           >
-            Browser Wallet
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-[#0A0E14] border border-[#232838] flex items-center justify-center text-lg">
+                🦊
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-[#E8ECF1] group-hover:text-[#2EE6A8] transition-colors">
+                  Browser Wallet
+                </div>
+                <div className="text-[11px] text-[#8993A6]">
+                  MetaMask, Rabby, Coinbase, Brave, or other Web3 extension
+                </div>
+              </div>
+            </div>
+            <svg className="w-4 h-4 text-[#8993A6] group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
           </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("demo")}
-            className={`py-2 rounded-lg transition-all text-center ${
-              activeTab === "demo"
-                ? "bg-[#1A1F2B] text-[#2EE6A8] shadow-sm font-semibold"
-                : "text-[#8993A6] hover:text-[#E8ECF1]"
-            }`}
-          >
-            Demo Personas
-          </button>
-        </div>
 
-        {/* Tab 1: Browser Extension (MetaMask / Injected / WalletConnect) */}
-        {activeTab === "injected" && (
-          <div className="space-y-3">
+          {walletConnectConnector && (
             <button
               type="button"
               disabled={isPending}
-              onClick={handleConnectInjected}
+              onClick={() => connect({ connector: walletConnectConnector })}
               className="w-full flex items-center justify-between p-3.5 rounded-xl bg-[#1A1F2B]/60 border border-[#232838] hover:border-[#2EE6A8]/50 hover:bg-[#1A1F2B] transition-all group cursor-pointer disabled:opacity-50"
             >
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-lg bg-[#0A0E14] border border-[#232838] flex items-center justify-center text-lg">
-                  🦊
+                  📱
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-[#E8ECF1] group-hover:text-[#2EE6A8] transition-colors">
-                    MetaMask / Injected
+                    WalletConnect
                   </div>
                   <div className="text-[11px] text-[#8993A6]">
-                    Connect installed browser extension
+                    Scan QR code with mobile wallet
                   </div>
                 </div>
               </div>
@@ -152,66 +135,12 @@ export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
+          )}
 
-            {walletConnectConnector && (
-              <button
-                type="button"
-                disabled={isPending}
-                onClick={() => connect({ connector: walletConnectConnector })}
-                className="w-full flex items-center justify-between p-3.5 rounded-xl bg-[#1A1F2B]/60 border border-[#232838] hover:border-[#2EE6A8]/50 hover:bg-[#1A1F2B] transition-all group cursor-pointer disabled:opacity-50"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-[#0A0E14] border border-[#232838] flex items-center justify-center text-lg">
-                    📱
-                  </div>
-                  <div>
-                    <div className="text-sm font-semibold text-[#E8ECF1] group-hover:text-[#2EE6A8] transition-colors">
-                      WalletConnect
-                    </div>
-                    <div className="text-[11px] text-[#8993A6]">
-                      Scan QR with mobile wallet
-                    </div>
-                  </div>
-                </div>
-                <svg className="w-4 h-4 text-[#8993A6] group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            )}
-
-            <div className="p-3 rounded-xl bg-[#0A0E14]/70 border border-[#232838] text-[11px] text-[#8993A6] leading-relaxed">
-              <span className="text-[#2EE6A8] font-semibold">Sepolia Required:</span> Ensure your wallet network is set to Ethereum Sepolia Testnet (Chain ID 11155111).
-            </div>
+          <div className="p-3.5 rounded-xl bg-[#0A0E14]/70 border border-[#232838] text-[11px] text-[#8993A6] leading-relaxed">
+            <span className="text-[#2EE6A8] font-semibold">Sepolia Required:</span> Ensure your wallet network is set to Ethereum Sepolia Testnet (Chain ID 11155111).
           </div>
-        )}
-
-        {/* Tab 2: Demo / Presentation Personas */}
-        {activeTab === "demo" && (
-          <div className="space-y-2">
-            <p className="text-[11px] text-[#8993A6] mb-2">
-              Select a pre-configured protocol persona to test without needing a browser extension:
-            </p>
-            {DEMO_WALLETS.map((wallet) => (
-              <button
-                key={wallet.id}
-                type="button"
-                disabled={isPending}
-                onClick={() => handleConnectMock(wallet.id)}
-                className="w-full flex items-center justify-between p-2.5 rounded-xl bg-[#1A1F2B]/40 border border-[#232838] hover:border-[#2EE6A8]/40 hover:bg-[#1A1F2B] transition-all text-left cursor-pointer disabled:opacity-50"
-              >
-                <div>
-                  <div className="text-xs font-semibold text-[#E8ECF1]">{wallet.label}</div>
-                  <div className="text-[10px] font-mono text-[#8993A6]">
-                    {wallet.address.slice(0, 8)}...{wallet.address.slice(-6)}
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#0A0E14] border border-[#232838] text-[#2EE6A8]">
-                  {wallet.role}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+        </div>
 
         {/* Error message display if connection fails */}
         {error && (
@@ -223,7 +152,7 @@ export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
               <div className="font-semibold">Connection Error</div>
               <div className="text-[11px] leading-relaxed text-[#F5484A]/90">
                 {error.message.includes("Connector not found") || error.message.includes("not found")
-                  ? "No Web3 wallet extension detected in this browser. Try MetaMask or choose a Demo Persona above."
+                  ? "No Web3 wallet extension detected in this browser. Please install MetaMask, Rabby, or a Web3 wallet extension."
                   : error.message}
               </div>
             </div>
@@ -244,3 +173,4 @@ export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
+

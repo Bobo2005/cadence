@@ -23,6 +23,7 @@ The web application for **Cadence Protocol**, built on **Next.js 16 (App Router 
 
 4. **Beneficiary Claim Portal (`/claim`)**:
    - Client-side **ECIES (secp256k1)** private allocation decryption — zero plaintext on-chain (Constraint #3).
+   - **Safe In-Memory Key Derivation**: Completely eliminates raw private key text boxes from the user interface. Beneficiaries sign a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`) to derive the 32-byte ECIES decryption key strictly in-memory.
    - Pro-rata execution via `InheritanceVault.claim()`.
    - **Wrong-Wallet Recovery**: Privacy-preserving reminder email dispatcher for beneficiaries with multiple addresses.
 

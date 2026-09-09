@@ -186,3 +186,25 @@ Execute Phase 3 Hackathon Packaging:
    - Judge Q&A cheat sheet.
 ```
 
+---
+
+### Prompt 24 — Comprehensive 3-Phase Security Hardening & Regression Verification
+```
+Execute 3-Phase Security Hardening across contracts, notification microservice, and frontend:
+1. Phase 1: Smart Contract Access Control, Replay Defense & Claim Isolation:
+   - Hardened GuardianRegistry.setConsensusForVault against unauthorized front-running.
+   - Enforced EIP-712 domain separation on GuardianRegistry.attestWithSig (verifyingContract, block.chainid, deadline).
+   - Applied OpenZeppelin Ownable + onlyAuthorized(vault) on BalanceCommitment.sol.
+   - Implemented token claim isolation in InheritanceVault.sol via _safeTransferCatching and bounded token whitelist.
+   - Added contracts/test/SecurityAudit.t.sol (4/4 tests).
+2. Phase 2: Notification Backend Hardening, PII Privacy & Rate Limiting:
+   - Canonical email-bound signatures in notifications/bindingVerifier.ts.
+   - Protected /api/outbox with admin bearer auth and /api/trigger-claim-notice with internal shared secret.
+   - Tiered rate limiting (express-rate-limit) and strict CORS whitelisting.
+   - Added notifications/test/security.test.ts (3/3 test categories).
+3. Phase 3: Verification, Test Coverage & Safe Key Management:
+   - Safe in-memory ECIES key derivation via Web3 wallet signatures in frontend/components/ClaimPortal.tsx.
+   - Comprehensive test verification across Foundry (197/197), Notifications (15/15 unit + 10/10 e2e), and Next.js 16 build.
+```
+
+

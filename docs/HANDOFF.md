@@ -4,6 +4,39 @@
 
 ---
 
+## Handoff — 2026-09-09 (Security Hardening Phases 1–3, Safe Key Derivation & Comprehensive Documentation)
+
+**Who/what worked this session:** Antigravity AI
+
+**What was completed:**
+1. **Phase 1: Smart Contract Access Control, Replay Defense & Claim Isolation**:
+   - `GuardianRegistry.setConsensusForVault`: Added strict authorization requiring `vaultOwners[vault] != address(0)` and caller is `vaultOwners[vault] || vault`.
+   - `GuardianRegistry.attestWithSig`: Implemented standard EIP-712 domain separation (`verifyingContract`, `block.chainid`, `deadline`, struct `GuardianAttestation`) preventing cross-chain/cross-contract attestation replay.
+   - `BalanceCommitment.sol`: OpenZeppelin `Ownable` + `onlyAuthorized(vault)` access control across `recordDeposit`, `commitTransparentBalance`, and `deductPayout`.
+   - `InheritanceVault.sol`: Catching token transfers (`_safeTransferCatching`) emitting `TokenTransferFailed` so failing or paused tokens never revert the claim or trap ETH/healthy token payouts. Capped token whitelist at `MAX_WHITELISTED_TOKENS = 20` with swap-and-pop removal.
+   - `StealthAddressRegistry.sol`: Added `deadline`, `block.chainid`, and `address(this)` to `registerKeysOnBehalf`.
+   - Added `contracts/test/SecurityAudit.t.sol`: 4/4 regression tests passing.
+2. **Phase 2: Notification Backend Hardening, PII Privacy & Rate Limiting**:
+   - Canonical email-bound signature payload (`getBindingMessage(walletAddress, email, nonce)`) including lowercase email, nonce, timestamp.
+   - `POST /api/bind`: Rejects signatures if target email does not match signed email.
+   - Protected `/api/outbox` requiring admin bearer token (`ADMIN_API_KEY`) and disabled when `NODE_ENV === 'production'`.
+   - Protected internal notification hooks (`/api/trigger-claim-notice`) via `x-cadence-internal-key` / HMAC.
+   - Tiered rate limiting (`express-rate-limit`): 100 req/15m global, 10 req/15m on sensitive endpoints.
+   - Strict CORS origin whitelist.
+3. **Phase 3: Verification, Test Coverage & Safe Key Management**:
+   - `ClaimPortal.tsx`: Removed raw private key inputs; implemented safe in-memory ECIES key derivation via Web3 wallet signatures (`personal_sign` over deterministic salt `keccak256(sig)`).
+   - Added `notifications/test/security.test.ts`: 3 test categories passing.
+4. **Comprehensive Documentation Sweep**:
+   - Updated root `README.md`, `contracts/README.md`, `notifications/README.md`, `frontend/README.md`, `docs/ARCHITECTURE.md`, `docs/PRD.md`, `docs/PROJECT-PLAN.md`, `docs/HACKATHON-PITCH.md`, `docs/HANDOFF.md`, and `docs/MEMORY.md`.
+5. **Full Verification Across All Layers**:
+   - `forge test` in `contracts`: **197/197 tests passing** (13 suites, 0 failures, 0 skips).
+   - `npm test` in `notifications`: **15/15 tests passing** (`notifications.test.mjs` + `security.test.ts`).
+   - `npm run test:e2e` in `notifications`: **10/10 live e2e tests passing**.
+   - `npx tsc --noEmit` in `frontend`: **0 TypeScript errors**.
+   - `npm run build` in `frontend`: **Next.js 16 production build succeeded** with Turbopack across all 8 routes.
+
+---
+
 ## Handoff — 2026-09-09 (Removal of Phase 2 & Hackathon Top-1 Submission Kit)
 
 **Who/what worked this session:** Antigravity AI

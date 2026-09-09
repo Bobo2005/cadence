@@ -15,7 +15,7 @@
 - **Client-Side Privacy**: Beneficiary allocations and share percentages are encrypted off-chain via **ECIES-secp256k1**; only a 32-byte Merkle Root is stored on-chain. Zero public ledger leaks.
 - **Gasless Stealth Recovery**: Compelled or compromised owners can halt liquidation via an off-chain **EIP-712 typed signature** broadcast by any relayer with zero gas-linkage to the owner's address.
 - **Account Abstraction (ERC-4337)**: Native Pimlico Paymaster sponsorship for check-ins and gasless claims.
-- **Fully Deployed & Verified**: Live on **Sepolia Ethereum Testnet** with 182/182 Foundry tests and 11/11 backend integration tests passing.
+- **Fully Deployed & Verified**: Live on **Sepolia Ethereum Testnet** with 197/197 Foundry tests and 15/15 backend tests passing.
 
 ---
 
@@ -87,21 +87,28 @@ All contracts are compiled with Solidity 0.8.28 (Via-IR enabled) and verified on
 
 ---
 
-## 5. Judge Fast-Track Guide (Evaluate in 3 Minutes)
+## 5. Protocol Evaluation Guide (Evaluate in 3 Minutes)
 
-The Cadence UI includes a sticky **"Judge Fast-Track"** bar engineered for instant hackathon evaluation:
+The Cadence protocol supports standard Web3 wallet connections (MetaMask, Rabby, Coinbase Wallet) and pre-deployed Sepolia test lockers for rapid evaluation:
 
-1. **Top Bar Persona Switching**:
-   - Click **`[Owner]`**: Inspect heartbeat, deposit ETH, update intervals, or send proof-of-life pulses.
-   - Click **`[Alice (40%)]`**: Seamlessly load the Claim Portal; test client-side Merkle proof verification and zero-claim recovery.
-   - Click **`[Bob (60%)]`**: Verify multi-beneficiary independent claim isolation.
-   - Click **`[Guardian 1]`** / **`[Guardian 2]`**: Attest inactivity or review quorum consensus.
-2. **Locker Selector**:
-   - Toggle between **`Standard (90d)`** and **`Fast Demo (5m)`** to test on-chain state transitions without waiting months.
-3. **Interactive Cryptography Modal**:
-   - Click **"Architecture & Cryptography"** to view interactive diagrams of ECIES encryption, Merkle trees, and EIP-712 digests.
-4. **Keys & Faucets Drawer**:
-   - Pre-configured test accounts and 1-click Sepolia faucet links.
+1. **Owner Pulse & Fast Interval Adjustment (`/dashboard`)**:
+   - Connect your wallet as the vault owner.
+   - Inspect the real-time oscilloscope ECG monitor (`62 BPM Steady`).
+   - Click **`[⚡ Adjust Interval]`** on the hero rhythm card: select **`5 Min (Test)`** (300s) to update both the vault and `ProofOfLifeConsensus.sol` on-chain.
+   - Click **`[Send Heartbeat Check-In]`** to renew the on-chain pulse.
+2. **Guardian Inactivity Attestation (`/contest`)**:
+   - Switch to a guardian account in your wallet.
+   - After the 5-minute interval lapses without a check-in, review guardian attestation records and affirm inactivity.
+   - Quorum consensus triggers `ClaimPending` and begins the 72-hour Contest Window; the ECG switches to an amber arrhythmia (`92 BPM Erratic`).
+3. **Zero-Gas Stealth Cancellation (`/contest`)**:
+   - While in `ClaimPending`, click **`[RESET PROTOCOL: I'M ALIVE]`**.
+   - The owner signs an off-chain **EIP-712 typed digest** (`cancelClaimWithSig`).
+   - Any relayer can broadcast the cancellation with **zero gas linkage** to the owner's account, instantly returning the vault to `Active` status.
+4. **Beneficiary Claim Portal & Safe Key Derivation (`/claim`)**:
+   - Connect as a beneficiary (e.g. Alice).
+   - **Zero Raw Private Key Exposure**: Alice signs a Web3 wallet authorization message (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory.
+   - Browser decrypts her allocation and verifies her Merkle proof off-chain.
+   - Click **`[Claim Share]`** to receive the exact pro-rata payout atomically on Sepolia.
 
 ---
 
@@ -113,13 +120,14 @@ The Cadence UI includes a sticky **"Judge Fast-Track"** bar engineered for insta
 | **0:30 - 1:15** | Vault Creation Flow (`/vault/create`) | *"Let's create a vault. Notice what happens when I add Alice at 40% and Bob at 60%. Cadence doesn't write their balances on-chain. Instead, our client encrypts their shares off-chain using their public keys with ECIES-secp256k1, and computes a 32-byte Merkle Root. On Sepolia Etherscan, observers only see an unreadable root hash. Beneficiaries receive their encrypted proofs directly."* |
 | **1:15 - 1:55** | Pulse Dashboard & Heartbeat (`/dashboard`) | *"Here is the Pulse Dashboard with a live oscilloscope ECG monitor. As owner, I can send an on-chain heartbeat. Notice the toast: with ERC-4337, this check-in can be gaslessly sponsored by a paymaster. If I miss my check-ins, the protocol requires an M-of-N guardian quorum before any window opens."* |
 | **1:55 - 2:30** | Contest Window & EIP-712 Stealth Cancel (`/contest`) | *"Now, suppose an attacker tries to grief my locker or I'm temporarily incapacitated. The 72-hour Contest Window opens. Even if an attacker drains all ETH from my main wallet, I am protected. I sign an off-chain EIP-712 cancellation typed digest. Any relayer can broadcast this without a single wei coming from my wallet — instantly restoring my vault to Active status."* |
-| **2:30 - 3:00** | Claim Portal & Conclusion (`/claim`) | *"Finally, when a locker finalizes, beneficiaries connect their wallet to the Claim Portal. Alice generates her Merkle proof client-side and claims her exact 40% share in one atomic transaction. Cadence is fully tested with 182 Foundry tests, verified on Sepolia, and ready for production."* |
+| **2:30 - 3:00** | Claim Portal & Conclusion (`/claim`) | *"Finally, when a locker finalizes, beneficiaries connect their wallet to the Claim Portal. Beneficiaries derive their ECIES decryption key in-memory via a simple wallet signature with zero raw private key inputs, generate their Merkle proof client-side, and claim their exact share in one atomic transaction. Cadence is fully tested with 197 Foundry tests, verified on Sepolia, and ready for production."* |
 
 ---
 
 ## 7. Technical Accolades & Standard Compliance
 
-- **EIP-712 (Typed Structured Signatures)**: Zero-gas-linkage stealth cancellation digests with domain separator replay protection.
+- **EIP-712 (Typed Structured Signatures)**: Zero-gas-linkage stealth cancellation digests and cross-chain attestation replay defense with domain separator protection.
+- **Safe In-Memory Key Derivation**: Client-side ECIES private key derivation from Web3 wallet signatures (`keccak256(sig)`), eliminating raw private key inputs in UI forms.
 - **ERC-4337 (Account Abstraction)**: Smart contract account sponsorship and user operation gas sponsorship for proof-of-life check-ins.
 - **EIP-5564 (Stealth Addresses)**: Support for ephemeral stealth addresses, preventing on-chain linking between vault owners and beneficiary payouts.
 - **Cryptographic Merkle Proofs**: Efficient $O(\log n)$ on-chain proof verification (`MerkleProof.verify`) saving gas and preserving absolute privacy.
@@ -132,9 +140,10 @@ The Cadence UI includes a sticky **"Judge Fast-Track"** bar engineered for insta
 ## 8. Hackathon Submission Checklist
 
 - [x] **Smart Contracts Verified on Sepolia**: All 7 contracts compiled, deployed, and verified with source code on Etherscan.
-- [x] **Foundry Test Suite**: 182 / 182 unit and integration tests passing (`forge test`).
-- [x] **Backend Test Suite**: 11 / 11 email notification and signature binding tests passing.
+- [x] **Foundry Test Suite**: 197 / 197 unit, integration, and security regression tests passing across 13 suites (`forge test`).
+- [x] **Backend Test Suite**: 15 / 15 unit and security tests (`npm test`) and 10 / 10 live e2e tests (`npm run test:e2e`).
 - [x] **Zero TypeScript Errors**: Clean `tsc --noEmit` build on frontend and backend.
 - [x] **Next.js Production Build**: Clean static output bundle without build warnings.
-- [x] **Interactive Judge Mode**: 1-click persona switcher and cryptographic architecture modal.
+- [x] **Safe In-Memory Key Derivation**: Zero raw private key inputs in the UI; in-memory derivation via Web3 wallet signatures.
+- [x] **Authentic On-Chain Evaluation**: Native 5m/10m check-in presets on `/vault/create` and runtime interval adjustment on `/dashboard`.
 - [x] **Complete Documentation**: PRD, Architecture, Design System, Pitch Kit, and Handoff specifications.

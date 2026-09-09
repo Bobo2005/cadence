@@ -58,15 +58,22 @@ DEMO_CHECK_IN_INTERVAL=180 DEMO_CONTEST_DURATION=900 forge script script/DeployD
 
 ## Testing & Verification
 
-Run the comprehensive Foundry test suite (10 suites, 182 tests):
+Run the comprehensive Foundry test suite (13 suites, 197 tests):
 ```bash
 forge build
 forge test -vvv
 ```
 
-All 182 tests pass covering:
-- EIP-712 typed-data digests and stealth recovery.
-- Merkle allocation proofs and tampered share rejection.
-- Inactivity timeouts and M-of-N guardian thresholds.
-- Dual-path paymaster check-in handling.
-- Slither static analysis: **0 High, 0 Medium vulnerabilities**.
+All 197 tests pass with 0 failures, covering:
+- **`SecurityAudit.t.sol` (Phase 1 Security Hardening)**:
+  - `test_RevertIf_UnauthorizedConsensusRegistration`: Prevents front-running of consensus registry configuration (`GuardianRegistry.setConsensusForVault`).
+  - `test_RevertIf_CrossChainAttestationReplay`: Validates EIP-712 domain separation (`verifyingContract`, `block.chainid`, `deadline`), strictly reverting cross-chain and cross-contract signature replays.
+  - `test_Claim_Succeeds_EvenIfOneTokenReverts`: Validates token claim isolation in `InheritanceVault._safeTransferCatching` (a reverting or paused ERC-20 token emits `TokenTransferFailed` without blocking ETH or healthy token payouts).
+  - `test_RevertIf_UnauthorizedBalanceCommitment`: Enforces `onlyAuthorized(vault)` access control and OpenZeppelin `Ownable` on `BalanceCommitment.sol`.
+- **Core Security Invariants**:
+  - EIP-712 typed-data digests and zero-gas-linkage stealth cancellation (`ContestableClaim.t.sol`).
+  - Merkle allocation proofs and tampered share rejection (`AllocationPrivacy.t.sol`).
+  - Inactivity timeouts, state transitions, and M-of-N guardian thresholds (`ProofOfLifeConsensus.t.sol`, `GuardianAttestation.t.sol`).
+  - Dual-path paymaster check-in handling and ERC-4337 social recovery (`BeneficiarySmartAccount.t.sol`).
+  - Strict beneficiary backup claim delegation (`BeneficiaryBackupClaim.t.sol`).
+  - Slither static analysis: **0 High, 0 Medium vulnerabilities**.

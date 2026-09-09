@@ -39,7 +39,7 @@ Run this with real time left before your deadline — Slither/Mythril findings s
 1. **Backend on Render**:
    - Push repository to GitHub.
    - Deploy as a Render Blueprint using the root `render.yaml`.
-   - The `/health` endpoint serves uptime; demo wallets auto-seed on fresh container boots.
+   - The `/health` endpoint serves uptime; configure persistent disk storage via `DATA_DIR` for production durability.
 2. **Frontend on Vercel**:
    - Import the repository on Vercel (Root Directory: `frontend` or leave blank to use root `vercel.json`).
    - Copy variables from `frontend/.env.production.example` into Vercel Environment Variables.

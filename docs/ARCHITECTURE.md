@@ -110,6 +110,50 @@ interfaces/
   IChainlinkAutomation.sol
 ```
 
+## Security Hardening Architecture (Phases 1–3)
+
+Cadence implements a defense-in-depth security model across smart contracts, the notification microservice, and client key derivation:
+
+### 1. Smart Contract Access Control, Replay Defense & Claim Isolation (Phase 1)
+- **Front-Run Defense on Consensus Initialization (`GuardianRegistry.sol`)**:
+  `setConsensusForVault(address vault, address _consensus)` enforces that `vaultOwners[vault] != address(0)` (the vault has been registered) AND `msg.sender == vaultOwners[vault] || msg.sender == vault`. This eliminates front-running exploits where an attacker pre-registers a malicious consensus contract before vault deployment.
+- **EIP-712 Domain Separation for Guardian Attestations (`GuardianRegistry.sol`)**:
+  `attestWithSig` replaces raw hashing with standard EIP-712 domain separation:
+  - Domain: `name: "GuardianRegistry"`, `version: "1"`, `chainId: block.chainid`, `verifyingContract: address(this)`.
+  - Typehash: `keccak256("GuardianAttestation(address vault,address guardian,uint256 cycle,uint256 deadline)")`.
+  - Enforces `block.timestamp <= deadline`. Prevents cross-chain, cross-contract, and expired attestation replays.
+- **Strict Access Control on Balance Commitments (`BalanceCommitment.sol`)**:
+  Inherits OpenZeppelin `Ownable(msg.sender)`, implements an authorized vault mapping (`isAuthorizedVault[vault]`), and applies the `onlyAuthorized(vault)` modifier across `recordDeposit`, `commitTransparentBalance`, and `deductPayout`.
+- **Token Claim Isolation via Catching Safe Transfers (`InheritanceVault.sol`)**:
+  In `claim()`, token distributions execute via `_safeTransferCatching(token, beneficiary, amount)`, which catches any revert from defective, blacklisting, or paused ERC-20 tokens and emits `TokenTransferFailed(token, beneficiary, amount)`. A single failing token can **never** block the beneficiary from receiving ETH or other healthy token balances.
+- **Token Whitelist Bounds**:
+  `MAX_WHITELISTED_TOKENS = 20` bounds iteration loops in `claim()` and `getBalances()`, with $O(1)$ swap-and-pop removal in `removeWhitelistedToken`.
+- **Stealth Registration Replay Defense (`StealthAddressRegistry.sol`)**:
+  `registerKeysOnBehalf` binds `deadline`, `block.chainid`, and `address(this)` in the signed authorization digest.
+
+### 2. Notification Backend Hardening, PII Privacy & Rate Limiting (Phase 2)
+- **Canonical Email-Bound Signature Verification**:
+  `getBindingMessage(walletAddress, email, nonce)` strictly includes the lowercase email address in the signed plaintext body:
+  `Cadence Notification Verification\nWallet: ${walletAddress}\nEmail: ${email.toLowerCase()}\nNonce: ${nonce}\nTimestamp: ${timestamp}`.
+  `POST /api/bind` strictly validates that the recovered signer signed for the exact email in the request, preventing email-substitution attacks.
+- **Protected Endpoints & PII Privacy**:
+  - `GET /api/outbox` requires an `Authorization: Bearer <ADMIN_API_KEY>` header and is disabled when `NODE_ENV === 'production'`, preventing public PII enumeration.
+  - Internal notification triggers (`/api/trigger-claim-notice` and `/api/notify/*`) enforce an internal secret header (`x-cadence-internal-key`).
+- **Tiered Rate Limiting (`express-rate-limit`)**:
+  - Global limiter: 100 requests per 15 minutes per IP.
+  - Sensitive endpoint limiter: 10 requests per 15 minutes per IP on `/api/bind`, `/api/suggest`, and `/api/remind-wallet`.
+- **Strict CORS Origin Whitelist**:
+  Restricts incoming API calls strictly to approved web frontends and local environments.
+
+### 3. Safe Key Management & Client Derivation (Phase 3)
+- **Safe In-Memory Key Derivation (`ClaimPortal.tsx`)**:
+  Zero raw private key inputs in the UI. Beneficiaries sign a cryptographic challenge (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory, ensuring private keys are never exposed, pasted, or stored in browser state.
+- **Automated Security Regression Test Suites**:
+  - Foundry: `contracts/test/SecurityAudit.t.sol` (4/4 tests passing).
+  - Backend: `notifications/test/security.test.ts` (3/3 test categories passing).
+
+---
+
 ## State Machine (ProofOfLifeConsensus)
 
 ```
@@ -133,45 +177,54 @@ Active ──(timeout expired + guardian M-of-N)──> ClaimPending ──(canc
     /interfaces
   /script
     Deploy.s.sol
+    DeployDemoVault.s.sol
   /test
+    SecurityAudit.t.sol          — Phase 1 security regression test suite
     InheritanceVault.t.sol
     ProofOfLifeConsensus.t.sol
     ContestableClaim.t.sol       — must use real stealth keys per Constraint #2
     GuardianAttestation.t.sol
     AllocationPrivacy.t.sol
     BalanceCommitment.t.sol
+    BeneficiaryClaimFlow.t.sol
+    BeneficiaryBackupClaim.t.sol
+    BeneficiarySmartAccount.t.sol
+    StealthAddressRegistry.t.sol
   foundry.toml
   .env.example
 
 /frontend
   /app (Next.js app router)
     /vault/create
-    /vault/[id]
+    /dashboard
+    /contest
     /claim
   /components
     VaultPulseDashboard.tsx
     ContestWindowPanel.tsx
+    ClaimPortal.tsx
+    CreateVaultForm.tsx
     CheckInButton.tsx
-    GuardianSetupForm.tsx
-    BeneficiarySetupForm.tsx
-    ClaimFlow.tsx
-    ui/ (shared design-system primitives — see DESIGN-SYSTEM.md)
+    AppShell.tsx
   /lib
-    contracts.ts        — viem contract clients
+    contracts.ts        — viem contract clients & multi-RPC failover pool
     stealth.ts           — EIP-5564 keygen/derivation
     encryption.ts         — ECIES encrypt/decrypt (EthCrypto)
     merkle.ts             — allocationRoot + guardian Merkle tree builders
-    paymaster.ts          — Pimlico permissionless.js client (see PROJECT-PLAN.md snippet)
+    paymaster.ts          — Pimlico permissionless.js client
     eip712.ts             — cancelClaimWithSig digest builder
   /styles
     tokens.css            — design tokens, see DESIGN-SYSTEM.md
   package.json
 
 /notifications
-  index.ts              — event listener (watches Chainlink Automation/vault events)
-  emailService.ts       — sends check-in reminders, beneficiary-added, and claim-ready emails
-  bindingVerifier.ts    — verifies the wallet signature confirming an email→wallet binding before storing/activating it
-  db.ts                 — minimal store: wallet address, email, verified flag, binding signature — one verified binding per wallet
+  index.ts              — event listener & hardened Express API microservice
+  emailService.ts       — live Resend/SMTP delivery
+  bindingVerifier.ts    — canonical email-bound signature verification
+  db.ts                 — persistent binding store
+  /test
+    security.test.ts     — Phase 2 security regression test suite
+    notifications.test.mjs — Constraint #6 integration suite
   .env.example
 
 /docs

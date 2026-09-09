@@ -421,13 +421,15 @@ Given the custom-identity direction and solo frontend build, the design scope is
 
 | Milestone / Component | Target | Status | Verification Detail |
 |---|---|---|---|
-| **Core Protocol Contracts** | Week 1 | **COMPLETED** | 10 Foundry suites, 182/182 tests passing. Deployed to Sepolia. |
+| **Core Protocol Contracts** | Week 1 | **COMPLETED** | 13 Foundry suites, 197/197 tests passing. Deployed & verified on Sepolia. |
 | **Proof-of-Life Consensus Primitive** | Week 1–2 | **COMPLETED** | Decoupled `ProofOfLifeConsensus.sol`. Timeout + M-of-N guardian attestations. |
 | **EIP-712 Stealth Cancel (Constraint #1)** | Week 2 | **COMPLETED** | Zero gas-linkage relayer cancellation. `cancelClaimWithSig()` validated. |
 | **ECIES Private Allocations (Constraint #3)** | Week 2 | **COMPLETED** | 32-byte Merkle commitment on-chain; client-side browser decryption. |
 | **ERC-4337 Smart Account Recovery (Constraint #5)** | Week 2 | **COMPLETED** | `BeneficiarySmartAccount.sol` EntryPoint 0.7 + social recovery. |
-| **Constraint #6 Notification Service** | Week 3 | **COMPLETED** | Signature-verified bindings, live Resend/SMTP delivery, wrong-wallet recovery. |
+| **Constraint #6 Notification Service** | Week 3 | **COMPLETED** | Canonical email-bound signatures, live Resend/SMTP delivery, wrong-wallet recovery. |
 | **Fast Heartbeat Testing Presets** | Week 3 | **COMPLETED** | Native 5m & 10m presets on `/vault/create`; on-chain `[⚡ Adjust Interval]` on `/dashboard`. |
-| **Phase 1: Production Cloud Readiness** | Week 3 | **COMPLETED** | Render backend (`render.yaml`, `tsc` build, auto-seed), Vercel frontend (`vercel.json`, multi-RPC failover pool). |
-| **Phase 2: Hackathon Top 1 UX & Demo Polish** | Week 3 | **REMOVED** | Judge Mode demo bar, HowItWorks modal, and Toast provider removed per user request. |
-| **Phase 3: Hackathon Submission Packaging** | Week 3 | **COMPLETED** | Submission Pitch Kit, 3-minute video demo script (`docs/HACKATHON-PITCH.md`), 182/182 Foundry tests, clean Next.js 16 build. |
+| **Production Cloud Infrastructure** | Week 3 | **COMPLETED** | Render backend (`render.yaml`, `tsc` build), Vercel frontend (`vercel.json`, multi-RPC failover pool). |
+| **Removal of Mock Demo Personas** | Week 3 | **COMPLETED** | Deleted Judge Mode bar, HowItWorks modal, Toast provider, and all mock persona switches in favor of authentic Web3 wallets. |
+| **Security Hardening Phase 1: Smart Contract Access Control & Claim Isolation** | Security Audit | **COMPLETED** | Front-run defense on `setConsensusForVault`, EIP-712 domain separation on `attestWithSig`, OpenZeppelin `Ownable` on `BalanceCommitment`, token claim isolation via `_safeTransferCatching` (`TokenTransferFailed`). 4/4 tests in `SecurityAudit.t.sol`. (Commit `706266f`) |
+| **Security Hardening Phase 2: Backend Hardening, PII Privacy & Rate Limiting** | Security Audit | **COMPLETED** | Canonical email-bound signatures (`getBindingMessage`), admin bearer token on `/api/outbox`, internal secret header on hooks, global & sensitive endpoint rate limiting (`express-rate-limit`), strict CORS. (Commit `0234950`) |
+| **Security Hardening Phase 3: Safe Key Management & Automated Regression Testing** | Security Audit | **COMPLETED** | In-memory ECIES key derivation via Web3 wallet signatures (`keccak256(sig)`) in `ClaimPortal.tsx`; zero raw key inputs in UI; automated test suites (`SecurityAudit.t.sol` + `security.test.ts`). 197 contract tests, 15 notification tests, 10 e2e tests passing. (Commit `4f5f51b`) |

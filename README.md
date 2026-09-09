@@ -52,31 +52,33 @@ All contracts are compiled with Solidity 0.8.28 (Via-IR enabled) and verified wi
 
 ## 3. 3-Minute Walkthrough Guide
 
-The Cadence interface features built-in demo persona switching (in the persistent header wallet pill) and pre-deployed Sepolia test lockers for rapid evaluation. Follow this sequential guide:
+The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby, Coinbase Wallet, etc.) and pre-deployed Sepolia test lockers for rapid evaluation. Follow this sequential guide:
 
 ```
 [ Step 1: Owner Pulse ]  ──>  [ Step 2: Guardian Quorum ]  ──>  [ Step 3: Beneficiary Claim ]  ──>  [ Step 4: Stealth Cancel ]
-   Heartbeat & Interval          Attest Inactivity Lapses          ECIES Decrypt & Merkle Payout        EIP-712 Zero-Gas Recovery
+   Heartbeat & Interval          Attest Inactivity Lapses          In-Memory ECIES Decrypt & Payout     EIP-712 Zero-Gas Recovery
 ```
 
 ### Step 1: Connect as Owner $\rightarrow$ View Heartbeat $\rightarrow$ Test Interval Adjustment (5m)
-1. Connect as **Owner** (`0xC09C...77e4`) using your wallet or the demo persona switcher in the header.
+1. Connect as **Owner** (`0xC09C...77e4` or your own testnet wallet) using your Web3 wallet.
 2. Open [`/dashboard`](https://cadence-protocol.vercel.app/dashboard) to inspect the **Locker Heartbeat Rhythm**:
    - The live oscilloscope ECG line visualizes heartbeat status (`62 BPM Steady`).
    - Click **`[⚡ Adjust Interval]`** on the hero rhythm card. Select the **`5 Min (Test)`** preset (300s) and confirm the on-chain update on Sepolia.
    - Click **`[Send Heartbeat Check-In]`**: Confirms on-chain timestamp renewal with Etherscan receipt link.
 
 ### Step 2: Switch to Guardian $\rightarrow$ Attest Inactivity Lapse
-1. Switch to **Guardian 1** or **Guardian 2** (`0x81C3...91a2` or `0x34d7...A1F0`) via your wallet or the header persona switcher.
+1. Switch to **Guardian 1** or **Guardian 2** (`0x81C3...91a2` or `0x34d7...A1F0`) in your wallet.
 2. Navigate to [`/contest`](https://cadence-protocol.vercel.app/contest):
    - Review guardian attestation records queried directly from `GuardianRegistry.sol`.
    - If the 5-minute interval lapses without a check-in, guardians affirm inactivity. Once the M-of-N threshold is reached, the locker transitions to `ClaimPending` and starts the 72-hour Contest Window.
    - The ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`).
 
-### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via ECIES $\rightarrow$ Execute Claim
-1. Connect as **Alice** (`0x7099...79C8`) via your wallet or the header persona switcher.
+### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via In-Memory ECIES $\rightarrow$ Execute Claim
+1. Connect as **Alice** (`0x7099...79C8` or your beneficiary wallet).
 2. Open [`/claim`](https://cadence-protocol.vercel.app/claim):
-   - Notice that Alice's 40% share is **not public on Etherscan**. The browser automatically decrypts her allocation off-chain using her private key via **ECIES-secp256k1** and generates her cryptographic Merkle proof against `allocationRoot`.
+   - Notice that Alice's 40% share is **not public on Etherscan**.
+   - **Safe In-Memory Key Derivation**: Alice signs a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory—**zero raw private keys are ever pasted or exposed in UI text fields**.
+   - The browser decrypts her allocation off-chain and generates her cryptographic Merkle proof against `allocationRoot`.
    - Once the locker enters finalized status, click **`[Claim Share]`**.
    - Alice receives her exact pro-rata ETH payout atomically on Sepolia.
 
@@ -161,7 +163,7 @@ forge install
 forge build
 forge test -vvv
 ```
-*Expected: 10 test suites, 179/179 passed with 0 failures.*
+*Expected: 13 test suites, 197/197 passed with 0 failures.*
 
 ### 3. Deploy Protocol to Sepolia
 Execute the automated deployment script [`Deploy.s.sol`](contracts/script/Deploy.s.sol):
@@ -318,7 +320,8 @@ Cadence features automated testing across smart contracts, cryptographic routine
 cd contracts
 forge test
 ```
-- **11 Test Suites / 182 Tests Passing (0 Failures)**:
+- **13 Test Suites / 197 Tests Passing (0 Failures)**:
+  - `SecurityAuditTest`: Front-run protection on consensus registration, cross-chain/cross-contract EIP-712 attestation replay defense, independent token claim isolation, and authorized balance commitments.
   - `InheritanceVaultTest`: Deposits, check-ins, token whitelists, upkeep triggers.
   - `ProofOfLifeConsensusTest`: Timeout expiration, consensus state machines.
   - `ContestableClaimTest`: EIP-712 stealth cancellations, challenge deadlines, replay protection.
@@ -357,16 +360,62 @@ node scripts/test-sepolia-lifecycle.mjs
 *Validates 21/21 checks including deposit, gasless check-in, silence timeout, guardian attestations, contest challenge window, off-chain EIP-712 cancellation, and ECIES beneficiary decryption.*
 *The frontend also incorporates `parseUserFriendlyError` to ensure graceful in-modal pause and retry handling if transactions are declined or cancelled in connected browser wallets.*
 
-### 4. Notification Service & Constraint #6 Suite
+### 4. Notification Service & Security Test Suite
 ```bash
 cd ../notifications
-npm test
+npm test            # Runs unit tests + security regression tests (15/15 passed)
+npm run test:e2e    # Runs end-to-end HTTP integration tests (10/10 passed)
 ```
-*Validates 11/11 tests covering canonical signature verification, forged signature rejection, unverified recipient blocking, claim notices, instant welcome confirmation emails with live Resend/SMTP delivery support, wallet-revealing notices, and wrong-wallet recovery lookups.*
+*Validates 15/15 unit and security tests (`notifications.test.mjs` and `security.test.ts`) covering canonical email-bound signature verification, forged signature rejection, unverified recipient blocking, claim notices, instant welcome confirmation emails, wallet-revealing notices, wrong-wallet recovery lookups, email substitution rejection, internal secret verification, admin outbox bearer authorization, and IP rate limiting. Also passes 10/10 live e2e integration tests.*
 
 ---
 
 ## 12. Security Audit & Analysis Summary
+
+### Comprehensive 3-Phase Security Hardening Completed
+
+Cadence has undergone an exhaustive multi-layer security audit and hardening process across contracts, backend services, and client applications:
+
+#### Phase 1: Smart Contract Access Control, Replay Defense & Claim Isolation
+1. **Front-Run Defense in Consensus Initialization (`GuardianRegistry.sol`)**:
+   - `setConsensusForVault(address vault, address _consensus)` strictly reverts if `vaultOwners[vault] == address(0)` (unregistered vault) or if `msg.sender != vaultOwners[vault] && msg.sender != vault`.
+   - Prevents unauthenticated front-running of consensus registrations.
+2. **Cross-Chain / Cross-Contract Attestation Replay Defense (`GuardianRegistry.sol`)**:
+   - `attestWithSig` enforces standard EIP-712 domain separation incorporating `name: "GuardianRegistry"`, `version: "1"`, `chainId: block.chainid`, and `verifyingContract: address(this)`.
+   - Typed data struct: `GuardianAttestation(address vault,address guardian,uint256 cycle,uint256 deadline)`.
+   - Enforces `block.timestamp <= deadline`. Attestation signatures cannot be replayed across different contracts or chains.
+3. **Strict Access Control on Balance Commitments (`BalanceCommitment.sol`)**:
+   - Inherits OpenZeppelin `Ownable(msg.sender)`.
+   - Maintains an authorized vault registry (`isAuthorizedVault` mapping).
+   - Enforces `onlyAuthorized(vault)` modifier across `recordDeposit`, `commitTransparentBalance`, and `deductPayout`.
+4. **Resilient Token Claim Isolation (`InheritanceVault.sol`)**:
+   - Token distributions execute via `_safeTransferCatching`, catching any low-level token revert and emitting `TokenTransferFailed(token, beneficiary, amount)`.
+   - A single paused, blacklisting, or defective ERC-20 token can **never** revert the overall claim transaction or trap the beneficiary's ETH or other healthy token payouts.
+   - Enforces a `MAX_WHITELISTED_TOKENS = 20` cap with $O(1)$ swap-and-pop removal to prevent unbounded gas loops.
+5. **Stealth Registration Replay Protection (`StealthAddressRegistry.sol`)**:
+   - `registerKeysOnBehalf` strictly binds `deadline`, `block.chainid`, and `address(this)` within the signed digest.
+
+#### Phase 2: Notification Backend Hardening, PII Privacy & Rate Limiting
+1. **Canonical Email-Bound Signature Payload (`bindingVerifier.ts` & `index.ts`)**:
+   - `getBindingMessage(walletAddress, email, nonce)` strictly includes the lowercase email address in the message text.
+   - `POST /api/bind` verifies that the wallet signature was produced specifically for the requested email address, preventing email-substitution attacks.
+2. **Sensitive Endpoint Protection & PII Privacy (`index.ts`)**:
+   - `GET /api/outbox` requires an `Authorization: Bearer <ADMIN_API_KEY>` header and is disabled when `NODE_ENV === 'production'`, preventing public PII enumeration.
+   - Internal notification hooks (`/api/trigger-claim-notice` and `/api/notify/*`) require internal shared secret verification (`x-cadence-internal-key`).
+3. **Tiered Rate Limiting (`express-rate-limit`)**:
+   - Global rate limiter (100 requests / 15 minutes).
+   - Sensitive endpoint limiter (10 requests / 15 minutes) applied strictly to `/api/bind`, `/api/suggest`, and `/api/remind-wallet` to defeat brute-force email enumeration and spamming.
+4. **Strict CORS Origin Whitelist**:
+   - Restricts API access exclusively to trusted origins (`CLIENT_URL`, localhost, `*.vercel.app`, and server-to-server requests).
+
+#### Phase 3: Safe Key Management & Automated Regression Testing
+1. **Safe In-Memory Key Derivation (`ClaimPortal.tsx`)**:
+   - Completely eliminates raw private key text boxes from the user interface.
+   - Derives the 32-byte ECIES decryption key strictly in-memory from a Web3 wallet signature (`personal_sign` over deterministic salt `keccak256(sig)`).
+   - Retains local ephemeral signing fallback exclusively for headless automated test scripts (`KNOWN_HEADLESS_KEYS`).
+2. **Automated Security Regression Suites**:
+   - `contracts/test/SecurityAudit.t.sol`: 4 Foundry tests validating front-run protection, domain separation, token claim isolation, and unauthorized balance commitment rejection.
+   - `notifications/test/security.test.ts`: 3 test categories validating email substitution rejection, admin outbox protection, internal secret enforcement, and rate limiting.
 
 ### Static Analysis (Slither)
 Slither static analysis was executed across all smart contracts in `contracts/src/`:

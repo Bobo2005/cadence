@@ -36,19 +36,22 @@ A vault smart contract + web app where:
 | Contestable Claim + `cancelClaimWithSig` (EIP-712) | Reversibility — flagship differentiator |
 | Shielded balance (Pedersen commitment) | Balance privacy — subject to Day 13 go/no-go gate |
 | Encrypted-to-beneficiary allocation (ECIES) + `allocationRoot` Merkle commitment | Allocation privacy, correctly enforced on-chain |
+| Safe In-Memory Key Derivation | Derives ECIES private seed via Web3 signatures without raw key UI inputs |
 | Beneficiary Smart Account (ERC-4337) + recovery guardians | Solves beneficiary-side wallet loss (common case) |
 | Beneficiary backup-claim address | Secondary fallback for wallet loss |
 | Gasless check-ins (Pimlico paymaster) | Removes gas-as-adoption-blocker |
 | Vault Pulse dashboard (heartbeat design motif) | Design centerpiece |
-| Judge Mode demo control | Live-demo memorability |
+| Fast Heartbeat Testing Presets (5m/10m) & Interval Adjustment | Authentic on-chain evaluation without mock delays |
+| Comprehensive Security Hardening & Regression Testing | Eliminates front-running, cross-chain replay, and claim blockage |
 | Slither/Mythril static analysis pass | Technical credibility |
 
 ## Explicitly Out of Scope for MVP
 Full ZK-SNARK guardian proofs, multi-chain deployment (BTC/XRP/Solana — roadmap only, see ARCHITECTURE.md), DeFi position unwinding, external legal/oracle death-record integration beyond a mock EAS attestation, mainnet deployment.
 
 ## Success Criteria (demo day)
-- Full lifecycle demonstrable live on Sepolia in under 2 minutes via Judge Mode: deposit → check-in → simulated silence → guardian confirm → contest window → cancel or finalize → beneficiary claim.
-- Zero critical findings from Slither/Mythril.
+- Full lifecycle demonstrable live on Sepolia in under 3 minutes via authentic wallet connections and fast interval presets: deposit → check-in → interval adjustment / silence → guardian confirm → contest window → stealth cancel or finalize → safe in-memory ECIES beneficiary claim.
+- 100% automated test coverage passing: 197 Foundry contract tests across 13 suites, 15 notification microservice tests, and 10 live e2e integration tests.
+- Zero critical or high findings from Slither static analysis.
 - Pitch deck leads with the composable-primitive reframe, not just "another inheritance app."
 
 ## Non-Goals / Honest Limitations (state these proactively, don't let judges find them)

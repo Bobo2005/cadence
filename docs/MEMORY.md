@@ -808,6 +808,67 @@
   - `frontend`: `npx tsc --noEmit` passed with 0 errors; `next build` succeeded across all 8 routes.
   - `contracts`: `forge test` passed 182/182 tests.
 
+### Session 28 — Removal of Demo Personas, Judge Mode Bar & Toast Provider
+- **User Directive**: Cleaned up the interface by removing simulated demo personas, Judge Fast-Track bar, and demo-specific toasts.
+- **Actions Taken**:
+  - Deleted `frontend/components/JudgeModeBanner.tsx` and `frontend/components/HowItWorksModal.tsx`.
+  - Deleted `frontend/components/ToastProvider.tsx` and removed mock toast injections across `AppShell.tsx`, `providers.tsx`, `CheckInButton.tsx`, `VaultPulseDashboard.tsx`, `ContestWindowPanel.tsx`, and `ClaimPortal.tsx`.
+  - Replaced all mock persona dropdowns with direct, standard Web3 wallet connection (MetaMask, Rabby, Coinbase Wallet).
+  - Preserved authentic rapid testing presets (5m & 10m on-chain check-in intervals).
+- **Verification**: Clean compilation with 0 TypeScript errors.
+
+### Session 29 — Security Hardening Phase 1: Smart Contract Access Control & Claim Isolation
+- **Commit**: `706266f`
+- **Smart Contract Hardening**:
+  - `GuardianRegistry.sol`:
+    - `setConsensusForVault(address vault, address _consensus)` strictly reverts if `vaultOwners[vault] == address(0)` (unregistered vault) or if `msg.sender != vaultOwners[vault] && msg.sender != vault`. Prevents third-party front-running of consensus initialization.
+    - `attestWithSig`: Replaced raw hash recovery with EIP-712 typed data domain separation (`verifyingContract: address(this)`, `chainId: block.chainid`, `deadline`). Prevents cross-chain and cross-contract signature replays.
+  - `BalanceCommitment.sol`:
+    - Inherits OpenZeppelin `Ownable(msg.sender)`.
+    - Added `isAuthorizedVault` mapping and `onlyAuthorized(vault)` modifier to `recordDeposit`, `commitTransparentBalance`, and `deductPayout`.
+  - `InheritanceVault.sol`:
+    - Implemented `_safeTransferCatching(address token, address to, uint256 amount)`: catches low-level ERC-20 transfer reverts and emits `TokenTransferFailed(token, to, amount)`. Prevents a single failing token from reverting the claim and blocking ETH or other healthy token payouts.
+    - Added `MAX_WHITELISTED_TOKENS = 20` cap with $O(1)$ swap-and-pop removal in `removeWhitelistedToken`.
+  - `StealthAddressRegistry.sol`:
+    - Added `deadline`, `block.chainid`, and `address(this)` to `registerKeysOnBehalf`.
+- **Foundry Regression Test Suite**:
+  - Created `contracts/test/SecurityAudit.t.sol`:
+    - `test_RevertIf_UnauthorizedConsensusRegistration`
+    - `test_RevertIf_CrossChainAttestationReplay`
+    - `test_Claim_Succeeds_EvenIfOneTokenReverts`
+    - `test_RevertIf_UnauthorizedBalanceCommitment`
+  - Total smart contract tests increased from 182 to **197/197 passing** across 13 suites.
+
+### Session 30 — Security Hardening Phase 2: Notification Backend Hardening & PII Privacy
+- **Commit**: `0234950`
+- **Backend Hardening (`/notifications`)**:
+  - `bindingVerifier.ts`: Updated `getBindingMessage(walletAddress, email, nonce)` to strictly bind lowercase email into the signed payload (`Cadence Notification Verification\nWallet: ...\nEmail: ...\nNonce: ...\nTimestamp: ...`).
+  - `index.ts`: `POST /api/bind` enforces that the recovered signer signed for the exact target email. Prevents email-substitution attacks.
+  - Endpoint Access Control:
+    - `GET /api/outbox` requires `Authorization: Bearer <ADMIN_API_KEY>` and is disabled when `NODE_ENV === 'production'` to protect PII.
+    - Internal notification triggers (`/api/trigger-claim-notice` and `/api/notify/*`) enforce an internal secret header (`x-cadence-internal-key`).
+  - Rate Limiting: Integrated `express-rate-limit`:
+    - Global limiter: 100 requests per 15 minutes per IP.
+    - Sensitive endpoint limiter: 10 requests per 15 minutes per IP on `/api/bind`, `/api/suggest`, and `/api/remind-wallet`.
+  - Strict CORS whitelist restricting origins to authorized web frontends.
+
+### Session 31 — Security Hardening Phase 3: Safe Key Derivation & Regression Verification
+- **Commit**: `4f5f51b`
+- **Frontend Safe Key Management (`ClaimPortal.tsx`)**:
+  - Removed raw private key text boxes from the user interface.
+  - Implemented safe in-memory ECIES key derivation: beneficiaries sign a deterministic salt (`Cadence Inheritance Decryption Key\nWallet: ${normalized}\nSalt: cadence-ecies-v1`) using their Web3 wallet (`personal_sign`), deriving the 32-byte private key via `keccak256(sig)`.
+  - Retained ephemeral fallback strictly for headless test scripts (`KNOWN_HEADLESS_KEYS`).
+- **Backend Security Test Suite (`notifications/test/security.test.ts`)**:
+  - Test 1: Rejects binding if signature was made for a different email address.
+  - Test 2: Enforces admin bearer token on `/api/outbox` and internal key on `/api/trigger-claim-notice`.
+  - Test 3: Enforces rate limiting on sensitive binding endpoints.
+- **Verification Across All Subsystems**:
+  - `forge test`: 197/197 passing across 13 suites.
+  - `npm test` in notifications: 15/15 passing (`notifications.test.mjs` + `security.test.ts`).
+  - `npm run test:e2e` in notifications: 10/10 passing.
+  - `npx tsc --noEmit` in frontend: 0 errors.
+  - `npm run build` in frontend: Next.js 16 production build succeeded across all 8 routes.
+
 
 
 

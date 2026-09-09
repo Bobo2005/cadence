@@ -237,7 +237,7 @@ function simulateRoleDetection(userAddress) {
   return { isOwner, isBeneficiary, isGuardian, isNewUser, roles, primaryRole, recommendedRoute, roleBadge };
 }
 
-test("Detects Vault Owner persona correctly", () => {
+test("Detects Vault Owner role correctly", () => {
   const ownerAddr = TEST_ADDRESSES.owner; // 0xC09C394336D4Ed967B70a4C1C1110493673f77e4
   const res = simulateRoleDetection(ownerAddr);
 
@@ -249,7 +249,7 @@ test("Detects Vault Owner persona correctly", () => {
   assert(res.roleBadge.includes("Owner"));
 });
 
-test("Detects Beneficiary personas (Alice & Bob) correctly", () => {
+test("Detects Beneficiary roles (Alice & Bob) correctly", () => {
   const aliceAddr = TEST_ADDRESSES.alice; // 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
   const resAlice = simulateRoleDetection(aliceAddr);
   assert.strictEqual(resAlice.isBeneficiary, true, "Alice should be detected as beneficiary");
@@ -268,7 +268,7 @@ test("Detects Beneficiary personas (Alice & Bob) correctly", () => {
   assert.strictEqual(resBob.recommendedRoute, "/claim");
 });
 
-test("Detects Guardian personas (Guardian 1 & Guardian 2) correctly", () => {
+test("Detects Guardian roles (Guardian 1 & Guardian 2) correctly", () => {
   const g1Addr = TEST_ADDRESSES.guardian1; // 0x81C3D582F3473F71C4C8bF394E1d32BA218991a2
   const resG1 = simulateRoleDetection(g1Addr);
   assert.strictEqual(resG1.isGuardian, true, "Guardian 1 should be detected as guardian");

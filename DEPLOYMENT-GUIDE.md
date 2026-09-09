@@ -158,7 +158,7 @@ The backend microservice handles cryptographic signature verification, rate-limi
 3. Connect your repository. Render will automatically detect [`render.yaml`](render.yaml):
    - **Name**: `cadence-notifications`
    - **Runtime**: `Node`
-   - **Build Command**: `cd notifications && npm install && npm run build`
+   - **Build Command**: `cd notifications && npm install --include=dev && npm run build`
    - **Start Command**: `cd notifications && npm start`
    - **Health Check Path**: `/health`
 4. Render automatically generates secure values for `ADMIN_API_KEY` and `CADENCE_INTERNAL_API_KEY`.
@@ -175,7 +175,7 @@ The backend microservice handles cryptographic signature verification, rate-limi
 3. Configure the following fields:
    - **Root Directory**: `notifications`
    - **Environment**: `Node`
-   - **Build Command**: `npm install && npm run build`
+   - **Build Command**: `npm install --include=dev && npm run build`
    - **Start Command**: `npm start`
    - **Plan**: `Free`
 4. Under **Environment Variables**, add:

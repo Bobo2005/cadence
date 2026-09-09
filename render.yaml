@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: cd notifications && npm install && npm run build
+    buildCommand: cd notifications && npm install --include=dev && npm run build
     startCommand: cd notifications && npm start
     healthCheckPath: /health
     autoDeploy: true

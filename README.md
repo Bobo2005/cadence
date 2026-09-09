@@ -432,6 +432,7 @@ Slither static analysis was executed across all smart contracts in `contracts/sr
 
 | Document | Description |
 |---|---|
+| [`DEPLOYMENT-GUIDE.md`](DEPLOYMENT-GUIDE.md) | Complete step-by-step production deployment runbook (Sepolia contracts, Render microservice, Vercel frontend, Preflight tool) |
 | [`docs/HACKATHON-PITCH.md`](docs/HACKATHON-PITCH.md) | Hackathon Top-1 pitch kit, submission metadata, and 3-minute video demo script |
 | [`docs/PRD.md`](docs/PRD.md) | Product requirements and hackathon MVP scope |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Technical architecture and 9 core constraints |

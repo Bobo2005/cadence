@@ -8,6 +8,7 @@ import {BalanceCommitment} from "../src/BalanceCommitment.sol";
 import {ProofOfLifeConsensus} from "../src/ProofOfLifeConsensus.sol";
 import {InheritanceVault} from "../src/InheritanceVault.sol";
 import {BeneficiaryAccountFactory} from "../src/BeneficiarySmartAccount.sol";
+import {VaultFactory} from "../src/VaultFactory.sol";
 
 /// @title Deploy
 /// @notice Foundry deployment script for all Cadence contracts to Sepolia.
@@ -50,10 +51,18 @@ contract Deploy is Script {
         );
         console2.log("Demo InheritanceVault deployed at:", address(demoVault));
 
+        // Commit initial guardian root (deployer as initial guardian) so vault is registered in GuardianRegistry
+        bytes32 defaultGuardianRoot = keccak256(abi.encodePacked(deployer));
+        guardianRegistry.commitGuardianRoot(address(demoVault), defaultGuardianRoot, 1, 1);
+
         // Configure consensus address in GuardianRegistry for demo vault
         guardianRegistry.setConsensusForVault(address(demoVault), address(consensus));
 
-        // 6. Deploy BeneficiaryAccountFactory (passes EntryPoint v0.7)
+        // 6. Deploy VaultFactory
+        VaultFactory vaultFactory = new VaultFactory();
+        console2.log("VaultFactory deployed at:", address(vaultFactory));
+
+        // 7. Deploy BeneficiaryAccountFactory (passes EntryPoint v0.7)
         BeneficiaryAccountFactory accountFactory = new BeneficiaryAccountFactory(ENTRY_POINT_07);
         console2.log("BeneficiaryAccountFactory deployed at:", address(accountFactory));
 
@@ -65,6 +74,8 @@ contract Deploy is Script {
         console2.log("NEXT_PUBLIC_CONSENSUS_ADDRESS=", address(consensus));
         console2.log("NEXT_PUBLIC_GUARDIAN_REGISTRY_ADDRESS=", address(guardianRegistry));
         console2.log("NEXT_PUBLIC_STEALTH_REGISTRY_ADDRESS=", address(stealthRegistry));
+        console2.log("NEXT_PUBLIC_BALANCE_COMMITMENT_ADDRESS=", address(balanceCommitment));
+        console2.log("NEXT_PUBLIC_VAULT_FACTORY_ADDRESS=", address(vaultFactory));
         console2.log("NEXT_PUBLIC_FACTORY_ADDRESS=", address(accountFactory));
     }
 }

@@ -867,7 +867,29 @@
   - `npm test` in notifications: 15/15 passing (`notifications.test.mjs` + `security.test.ts`).
   - `npm run test:e2e` in notifications: 10/10 passing.
   - `npx tsc --noEmit` in frontend: 0 errors.
-  - `npm run build` in frontend: Next.js 16 production build succeeded across all 8 routes.
+### Session 32 — Production Deployment Readiness, Deployment Script Hardening & Launch Runbook
+- **User Directive**: Make the entire repository 100% production deployment-ready and provide a comprehensive step-by-step process to deploy and launch.
+- **Contract Deployment Script Hardening**:
+  - `contracts/script/Deploy.s.sol`:
+    - Added `VaultFactory` deployment to provide full protocol coverage.
+    - Committed guardian root on `demoVault` *before* calling `setConsensusForVault` so deployer is registered as `vaultOwners[demoVault]`, satisfying `GuardianRegistry` front-run access control without reverting.
+  - `contracts/script/DeployDemoVault.s.sol`:
+    - Reordered `_commitDemoGuardians` before `setConsensusForVault` to resolve `Unauthorized()` revert.
+  - Simulated both scripts using Foundry (`forge script` dry run): 0 reverts, 100% clean EVM execution.
+- **Cloud Configuration Hardening**:
+  - `render.yaml`: Hardened microservice blueprint with auto-generated secrets (`ADMIN_API_KEY`, `CADENCE_INTERNAL_API_KEY`), production port 3001, data directory mount, and CORS client URL.
+  - `vercel.json`: Added production security headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy`) and static asset cache-control.
+- **Automated Preflight Verification Tool**:
+  - Created `scripts/preflight-check.mjs`: Automated 4-stage validation runner checking:
+    1. Smart Contract Test Suite (197/197 passing).
+    2. Foundry Deployment Script Simulation (0 reverts).
+    3. Notification Microservice Build & Test Suite (15/15 passing).
+    4. Frontend Next.js Production Build & TypeScript checking (all 8 routes prerendered).
+  - Executed tool: All 4 stages passed cleanly (`✓ SYSTEM IS 100% DEPLOYMENT READY!`).
+- **Comprehensive Step-by-Step Launch Runbook**:
+  - Created `DEPLOYMENT-GUIDE.md`: Full production guide detailing architecture topology, credential preparation, Sepolia contract deployment, Render microservice setup (Blueprint & manual), Vercel edge deployment, post-deployment smoke testing checklist, and troubleshooting matrix.
+  - Updated `README.md` Documentation Index to link `DEPLOYMENT-GUIDE.md`.
+
 
 
 

@@ -72,17 +72,18 @@ contract DeployDemoVault is Script {
         );
         console2.log("Deployed Demo InheritanceVault at:", address(demoVault));
 
-        // 4. Configure consensus for this vault in GuardianRegistry
+        // 4. Commit Demo Guardian Merkle Root (2-of-2 threshold met by Guardian 1 & 2)
+        // Sets deployer as authorized vaultOwner in GuardianRegistry
+        _commitDemoGuardians(guardianRegistry, address(demoVault));
+
+        // 5. Configure consensus for this vault in GuardianRegistry
         guardianRegistry.setConsensusForVault(address(demoVault), address(consensus));
 
-        // 5. If contestDuration differs from default 72 hours, set it
+        // 6. If contestDuration differs from default 72 hours, set it
         if (contestDuration != 72 hours) {
             consensus.setContestWindow(address(demoVault), contestDuration);
             console2.log("Configured custom contest window:", contestDuration, "seconds");
         }
-
-        // 6. Commit Demo Guardian Merkle Root (2-of-2 threshold met by Guardian 1 & 2)
-        _commitDemoGuardians(guardianRegistry, address(demoVault));
 
         // 7. Commit Demo Allocation Merkle Root (Alice 40%, Bob 60%)
         _commitDemoAllocations(demoVault);

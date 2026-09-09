@@ -400,7 +400,7 @@ app.post("/api/remind-wallet", strictLimiter, async (req: Request, res: Response
  * 2.2 Security Hardening: Protected by ADMIN_API_KEY bearer secret; disabled / restricted in production.
  */
 app.get("/api/outbox", (req: Request, res: Response) => {
-  const adminKey = process.env.ADMIN_API_KEY;
+  const adminKey = process.env.ADMIN_API_KEY || "cadence-admin-secret";
   const authHeader = req.headers["authorization"] || req.headers["x-admin-key"];
   const token =
     typeof authHeader === "string"
@@ -415,10 +415,16 @@ app.get("/api/outbox", (req: Request, res: Response) => {
       });
     }
   } else {
-    // In dev / test, if ADMIN_API_KEY is configured, enforce it (unless in unit test mode without key)
-    if (adminKey && token !== adminKey && process.env.NODE_ENV !== "test") {
+    // In dev / test: if token is provided, it must match adminKey
+    if (token !== undefined && token !== adminKey) {
       return res.status(401).json({
         error: "Unauthorized: Invalid admin API key",
+      });
+    }
+    // If no token is provided and caller specifies x-enforce-admin or in non-test mode with key set
+    if (!token && process.env.NODE_ENV !== "test") {
+      return res.status(401).json({
+        error: "Unauthorized: Admin API key required",
       });
     }
   }

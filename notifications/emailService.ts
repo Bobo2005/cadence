@@ -1,3 +1,4 @@
+import "dotenv/config";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -57,7 +58,7 @@ class EmailService {
     const resendKey = process.env.RESEND_API_KEY;
     const smtpHost = process.env.SMTP_HOST;
     const smtpUser = process.env.SMTP_USER;
-    const smtpPass = process.env.SMTP_PASS;
+    const rawPass = process.env.SMTP_PASS;
 
     if (resendKey) {
       this.transporter = nodemailer.createTransport({
@@ -71,8 +72,9 @@ class EmailService {
       });
       this.isLiveSmtpConfigured = true;
       console.log("[EmailService] Configured live SMTP transport via Resend.");
-    } else if (smtpHost && smtpUser && smtpPass) {
-      const port = parseInt(process.env.SMTP_PORT || "465", 10);
+    } else if (smtpHost && smtpUser && rawPass) {
+      const cleanPass = rawPass.replace(/^["']|["']$/g, "").replace(/\s+/g, "");
+      const port = parseInt(process.env.SMTP_PORT || "587", 10);
       const secure = process.env.SMTP_SECURE === "true" || port === 465;
       this.transporter = nodemailer.createTransport({
         host: smtpHost,
@@ -80,11 +82,14 @@ class EmailService {
         secure,
         auth: {
           user: smtpUser,
-          pass: smtpPass,
+          pass: cleanPass,
+        },
+        tls: {
+          rejectUnauthorized: false,
         },
       });
       this.isLiveSmtpConfigured = true;
-      console.log(`[EmailService] Configured live SMTP transport via ${smtpHost}:${port}`);
+      console.log(`[EmailService] Configured live SMTP transport via ${smtpHost}:${port} (secure: ${secure})`);
     } else {
       this.isLiveSmtpConfigured = false;
       console.log("[EmailService] Running in Local Outbox mode (data/outbox.json). Set RESEND_API_KEY or SMTP_* in .env to enable live inbox delivery.");

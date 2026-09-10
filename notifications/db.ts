@@ -50,46 +50,6 @@ class NotificationDatabase {
     } catch (err) {
       console.error("[DB] Failed to load bindings file:", err);
     }
-
-    // Auto-seed default verified demo personas if database is empty on initial container boot
-    if (this.bindings.size === 0) {
-      this.seedDefaultDemoBindings();
-    }
-  }
-
-  private seedDefaultDemoBindings(): void {
-    const demoBindings: WalletBinding[] = [
-      {
-        walletAddress: getAddress("0xC09C394336D4Ed967B70a4C1C1110493673f77e4"), // Owner
-        email: "owner@cadence-protocol.io",
-        verified: true,
-        signature: "0x01",
-        createdAt: new Date().toISOString(),
-        verifiedAt: new Date().toISOString(),
-      },
-      {
-        walletAddress: getAddress("0x70997970C51812dc3A010C7d01b50e0d17dc79C8"), // Alice
-        email: "alice@cadence-protocol.io",
-        verified: true,
-        signature: "0x02",
-        createdAt: new Date().toISOString(),
-        verifiedAt: new Date().toISOString(),
-      },
-      {
-        walletAddress: getAddress("0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"), // Bob
-        email: "bob@cadence-protocol.io",
-        verified: true,
-        signature: "0x03",
-        createdAt: new Date().toISOString(),
-        verifiedAt: new Date().toISOString(),
-      },
-    ];
-
-    for (const b of demoBindings) {
-      this.bindings.set(b.walletAddress.toLowerCase(), b);
-    }
-    this.persist();
-    console.log(`[DB] Auto-seeded fresh notification database with ${demoBindings.length} default demo bindings.`);
   }
 
   private persist(): void {

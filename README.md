@@ -262,7 +262,7 @@ The backend microservice is fully configured for Render via the root [`render.ya
 The frontend is optimized for Next.js 16 on Vercel with automated security headers and multi-RPC resilience:
 1. In the [Vercel Dashboard](https://vercel.com), click **Add New...** $\rightarrow$ **Project**.
 2. Select your Cadence repository.
-   - If importing from repo root, set **Root Directory** to `frontend` (or leave blank; root [`vercel.json`](vercel.json) routes automatically).
+   - Click **Edit** next to **Root Directory** and select **`frontend`** (leave Build & Output settings at default).
 3. Open `frontend/.env.production.example` and paste the pre-configured variables into **Environment Variables**:
    - `NEXT_PUBLIC_CHAIN_ID`: `11155111`
    - `NEXT_PUBLIC_RPC_URL`: `https://ethereum-sepolia-rpc.publicnode.com`

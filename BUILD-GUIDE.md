@@ -41,7 +41,7 @@ Run this with real time left before your deadline — Slither/Mythril findings s
    - Deploy as a Render Blueprint using the root `render.yaml`.
    - The `/health` endpoint serves uptime; configure persistent disk storage via `DATA_DIR` for production durability.
 2. **Frontend on Vercel**:
-   - Import the repository on Vercel (Root Directory: `frontend` or leave blank to use root `vercel.json`).
+   - Import the repository on Vercel (Set Root Directory to `frontend`, leave Build Settings at default).
    - Copy variables from `frontend/.env.production.example` into Vercel Environment Variables.
    - Vercel automatically deploys with multi-RPC failover pooling across 4 Sepolia nodes.
 

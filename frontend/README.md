@@ -43,7 +43,7 @@ To prevent HTTP 429 rate-limiting during high-volume hackathon judging, `lib/con
 ## Deployment on Vercel
 
 1. In the [Vercel Dashboard](https://vercel.com), import your repository.
-2. If deploying from the repository root, the root `vercel.json` will automatically configure the build. Otherwise, set **Root Directory** to `frontend`.
+2. Set **Root Directory** to `frontend` (leave Build & Output settings at default).
 3. Copy environment variables from `.env.production.example`:
    ```env
    NEXT_PUBLIC_CHAIN_ID=11155111

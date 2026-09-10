@@ -219,9 +219,10 @@ The user interface is built on Next.js 16 (App Router + Turbopack) and connects 
 
 1. In the [Vercel Dashboard](https://vercel.com), click **Add New...** $\rightarrow$ **Project**.
 2. Select your GitHub repository.
-3. If importing the full monorepo:
-   - Set **Root Directory** to `frontend` (or leave as root; the root [`vercel.json`](vercel.json) routes automatically).
-   - Framework preset: **Next.js**.
+3. In the project configuration:
+   - Click **Edit** next to **Root Directory** and select **`frontend`**.
+   - Framework preset: **Next.js** (detected automatically).
+   - Under **Build and Output Settings**: Leave all toggles **OFF** / default. Do not set a custom build command. Vercel automatically runs native `next build`.
 
 ### Step 3.2: Configure Vercel Environment Variables
 

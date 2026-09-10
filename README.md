@@ -28,7 +28,7 @@ Cadence is a non-custodial, privacy-preserving inheritance protocol on Ethereum 
 ## 2. Live Deployments & Deployed Contracts (Ethereum Sepolia)
 
 ### Live Production Deployments
-- 🚀 **Live Web App (Vercel)**: [`https://cadence-protocol.vercel.app`](https://cadence-protocol.vercel.app)
+- 🚀 **Live Web App (Vercel)**: [`https://cadence-ebon-six.vercel.app`](https://cadence-ebon-six.vercel.app)
 - ⚡ **Live API Service (Render)**: [`https://cadence-notifications.onrender.com`](https://cadence-notifications.onrender.com)
   - Microservice Health Check: [`https://cadence-notifications.onrender.com/health`](https://cadence-notifications.onrender.com/health)
 - 🏆 **Hackathon Pitch Kit & 3-Min Video Script**: [`docs/HACKATHON-PITCH.md`](docs/HACKATHON-PITCH.md)
@@ -61,21 +61,21 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
 
 ### Step 1: Connect as Owner $\rightarrow$ View Heartbeat $\rightarrow$ Test Interval Adjustment (5m)
 1. Connect as **Owner** (`0xC09C...77e4` or your own testnet wallet) using your Web3 wallet.
-2. Open [`/dashboard`](https://cadence-protocol.vercel.app/dashboard) to inspect the **Locker Heartbeat Rhythm**:
+2. Open [`/dashboard`](https://cadence-ebon-six.vercel.app/dashboard) to inspect the **Locker Heartbeat Rhythm**:
    - The live oscilloscope ECG line visualizes heartbeat status (`62 BPM Steady`).
    - Click **`[⚡ Adjust Interval]`** on the hero rhythm card. Select the **`5 Min (Test)`** preset (300s) and confirm the on-chain update on Sepolia.
    - Click **`[Send Heartbeat Check-In]`**: Confirms on-chain timestamp renewal with Etherscan receipt link.
 
 ### Step 2: Switch to Guardian $\rightarrow$ Attest Inactivity Lapse
 1. Switch to **Guardian 1** or **Guardian 2** (`0x81C3...91a2` or `0x34d7...A1F0`) in your wallet.
-2. Navigate to [`/contest`](https://cadence-protocol.vercel.app/contest):
+2. Navigate to [`/contest`](https://cadence-ebon-six.vercel.app/contest):
    - Review guardian attestation records queried directly from `GuardianRegistry.sol`.
    - If the 5-minute interval lapses without a check-in, guardians affirm inactivity. Once the M-of-N threshold is reached, the locker transitions to `ClaimPending` and starts the 72-hour Contest Window.
    - The ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`).
 
 ### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via In-Memory ECIES $\rightarrow$ Execute Claim
 1. Connect as **Alice** (`0x7099...79C8` or your beneficiary wallet).
-2. Open [`/claim`](https://cadence-protocol.vercel.app/claim):
+2. Open [`/claim`](https://cadence-ebon-six.vercel.app/claim):
    - Notice that Alice's 40% share is **not public on Etherscan**.
    - **Safe In-Memory Key Derivation**: Alice signs a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory—**zero raw private keys are ever pasted or exposed in UI text fields**.
    - The browser decrypts her allocation off-chain and generates her cryptographic Merkle proof against `allocationRoot`.
@@ -83,7 +83,7 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
    - Alice receives her exact pro-rata ETH payout atomically on Sepolia.
 
 ### Step 4: Stealth Cancel Demo $\rightarrow$ Demonstrate EIP-712 Zero-Gas Cancellation
-1. If testing false-positive or key-compromise defense, open [`/contest`](https://cadence-protocol.vercel.app/contest) while in `ClaimPending` state.
+1. If testing false-positive or key-compromise defense, open [`/contest`](https://cadence-ebon-six.vercel.app/contest) while in `ClaimPending` state.
 2. Click **`[RESET PROTOCOL: I'M ALIVE]`**:
    - The owner signs an off-chain **EIP-712 typed digest** (`cancelClaimWithSig`).
    - The cancellation is relayed by any third party with **zero gas linkage** to the owner's primary account, protecting compromised wallets from frontrunning.

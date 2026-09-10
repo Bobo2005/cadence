@@ -13,6 +13,11 @@ const DATA_DIR = process.env.DATA_DIR
   : path.join(__dirname, "data");
 const OUTBOX_FILE = path.join(DATA_DIR, "outbox.json");
 
+export function getClientBaseUrl(): string {
+  const url = process.env.CLIENT_URL || "https://cadence-ebon-six.vercel.app";
+  return url.replace(/\/$/, "");
+}
+
 function formatTruncatedAddress(address: string): string {
   if (!address || address.length < 10) return address;
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
@@ -209,8 +214,9 @@ class EmailService {
     walletAddress: string;
     email: string;
   }): Promise<SendResult> {
+    const appUrl = getClientBaseUrl();
     const subject = `[Cadence Protocol] Email Verified & Bound to Wallet`;
-    const bodyText = `Welcome to Cadence Protocol.\n\nYour email address (${params.email}) has been successfully verified and cryptographically bound to wallet ${params.walletAddress}.\n\nYou will receive timely, privacy-preserving alerts whenever your vault check-in deadline approaches or when an inheritance allocation becomes ready to claim.\n\nDashboard: http://localhost:3000/dashboard`;
+    const bodyText = `Welcome to Cadence Protocol.\n\nYour email address (${params.email}) has been successfully verified and cryptographically bound to wallet ${params.walletAddress}.\n\nYou will receive timely, privacy-preserving alerts whenever your vault check-in deadline approaches or when an inheritance allocation becomes ready to claim.\n\nDashboard: ${appUrl}/dashboard`;
 
     const bodyHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
@@ -228,7 +234,7 @@ class EmailService {
           <li>An inheritance allocation challenge period has passed and funds are claimable.</li>
         </ul>
         <div style="margin: 28px 0;">
-          <a href="http://localhost:3000/dashboard" style="background: #2EE6A8; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Open Vault Dashboard</a>
+          <a href="${appUrl}/dashboard" style="background: #2EE6A8; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Open Vault Dashboard</a>
         </div>
         <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
         <p style="font-size: 12px; color: #8993A6; margin: 0;">Cadence Protocol — Non-Custodial Inheritance &amp; Proof-of-Life Consensus</p>
@@ -253,15 +259,16 @@ class EmailService {
     daysRemaining: number;
     deadlineTimestamp?: number;
   }): Promise<SendResult> {
+    const appUrl = getClientBaseUrl();
     const subject = `[Cadence] Action Required: Check-in deadline in ${params.daysRemaining} days`;
-    const bodyText = `Your Cadence inheritance vault heartbeat check-in deadline is approaching in ${params.daysRemaining} days.\n\nPlease connect your wallet at https://cadenceprotocol.io/dashboard and record your heartbeat to maintain active locker status.`;
+    const bodyText = `Your Cadence inheritance vault heartbeat check-in deadline is approaching in ${params.daysRemaining} days.\n\nPlease connect your wallet at ${appUrl}/dashboard and record your heartbeat to maintain active locker status.`;
     const bodyHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
         <h2 style="color: #00E5FF; margin-top: 0;">Cadence Protocol Heartbeat Reminder</h2>
         <p>Your vault heartbeat check-in deadline is approaching in <strong>${params.daysRemaining} days</strong>.</p>
         <p>If you fail to check in before your deadline, the guardian attestation consensus countdown will commence.</p>
         <div style="margin: 28px 0;">
-          <a href="https://cadenceprotocol.io/dashboard" style="background: #00E5FF; color: #0B0E14; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">Record Heartbeat Now</a>
+          <a href="${appUrl}/dashboard" style="background: #00E5FF; color: #0B0E14; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">Record Heartbeat Now</a>
         </div>
         <p style="font-size: 12px; color: #8B949E;">Vault ID: ${params.vaultId || "Default"} | Owner: ${params.ownerAddress}</p>
       </div>
@@ -287,10 +294,11 @@ class EmailService {
     vaultId?: string;
     shareBps?: number;
   }): Promise<SendResult> {
+    const appUrl = getClientBaseUrl();
     const trunc = formatTruncatedAddress(params.beneficiaryAddress);
     const shareText = params.shareBps ? ` (${(params.shareBps / 100).toFixed(1)}% allocation)` : "";
     const subject = `[Cadence] You've been listed as a beneficiary (Wallet ${trunc})`;
-    const bodyText = `You've been listed as a beneficiary on a Cadence vault, linked to wallet ${trunc} (full address: ${params.beneficiaryAddress})${shareText}.\n\nConnect that wallet at http://localhost:3000/dashboard to confirm.\n\nDesignated by owner: ${params.ownerAddress}`;
+    const bodyText = `You've been listed as a beneficiary on a Cadence vault, linked to wallet ${trunc} (full address: ${params.beneficiaryAddress})${shareText}.\n\nConnect that wallet at ${appUrl}/dashboard to confirm.\n\nDesignated by owner: ${params.ownerAddress}`;
     const bodyHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
         <h2 style="color: #00E5FF; margin-top: 0;">Cadence Protocol — Beneficiary Notice</h2>
@@ -308,11 +316,11 @@ class EmailService {
         </div>
 
         <p style="color: #8993A6; font-size: 14px; line-height: 1.5;">
-          Connect that wallet at <a href="http://localhost:3000/dashboard" style="color: #00E5FF; text-decoration: underline;">http://localhost:3000/dashboard</a> to confirm your allocation.
+          Connect that wallet at <a href="${appUrl}/dashboard" style="color: #00E5FF; text-decoration: underline;">${appUrl}/dashboard</a> to confirm your allocation.
         </p>
 
         <div style="margin: 24px 0;">
-          <a href="http://localhost:3000/dashboard" style="background: #00E5FF; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Open Cadence Dashboard</a>
+          <a href="${appUrl}/dashboard" style="background: #00E5FF; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Open Cadence Dashboard</a>
         </div>
 
         <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
@@ -340,9 +348,10 @@ class EmailService {
     claimableAmount?: string;
     reason?: string;
   }): Promise<SendResult> {
+    const appUrl = getClientBaseUrl();
     const trunc = formatTruncatedAddress(params.beneficiaryAddress);
     const subject = `[Cadence] Immediate Notice: Vault allocation ready to claim (Wallet ${trunc})`;
-    const bodyText = `A Cadence inheritance vault has finalized. Your allocation is ready to claim, linked to wallet ${trunc} (full address: ${params.beneficiaryAddress}).\n\nConnect that wallet at http://localhost:3000/claim to claim your funds.\n${params.claimableAmount ? `Claimable Allocation: ${params.claimableAmount}` : ""}`;
+    const bodyText = `A Cadence inheritance vault has finalized. Your allocation is ready to claim, linked to wallet ${trunc} (full address: ${params.beneficiaryAddress}).\n\nConnect that wallet at ${appUrl}/claim to claim your funds.\n${params.claimableAmount ? `Claimable Allocation: ${params.claimableAmount}` : ""}`;
     const bodyHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
         <h2 style="color: #00E5FF; margin-top: 0;">Cadence Vault Claim Portal Ready</h2>
@@ -362,11 +371,11 @@ class EmailService {
         ${params.claimableAmount ? `<p style="font-size: 18px; color: #2EE6A8; margin: 16px 0;"><strong>Claimable Allocation: ${params.claimableAmount}</strong></p>` : ""}
 
         <p style="color: #8993A6; font-size: 14px; line-height: 1.5;">
-          Connect that wallet at <a href="http://localhost:3000/claim" style="color: #00E5FF; text-decoration: underline;">http://localhost:3000/claim</a> to claim your inheritance.
+          Connect that wallet at <a href="${appUrl}/claim" style="color: #00E5FF; text-decoration: underline;">${appUrl}/claim</a> to claim your inheritance.
         </p>
 
         <div style="margin: 24px 0;">
-          <a href="http://localhost:3000/claim" style="background: #00E5FF; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Open Claim Portal</a>
+          <a href="${appUrl}/claim" style="background: #00E5FF; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Open Claim Portal</a>
         </div>
 
         <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
@@ -392,13 +401,14 @@ class EmailService {
     email: string;
     wallets: `0x${string}`[];
   }): Promise<SendResult> {
+    const appUrl = getClientBaseUrl();
     const subject = `[Cadence Protocol] Reminder: Your Registered Inheritance Wallet Address`;
 
     const formattedWalletsText = params.wallets
       .map((w, i) => `Wallet ${i + 1}: ${w} (${formatTruncatedAddress(w)})`)
       .join("\n");
 
-    const bodyText = `Here is a reminder of the Ethereum wallet address(es) registered with Cadence inheritance for this email:\n\n${formattedWalletsText}\n\nPlease connect the appropriate wallet at http://localhost:3000/claim to view and execute your inheritance allocations.`;
+    const bodyText = `Here is a reminder of the Ethereum wallet address(es) registered with Cadence inheritance for this email:\n\n${formattedWalletsText}\n\nPlease connect the appropriate wallet at ${appUrl}/claim to view and execute your inheritance allocations.`;
 
     const walletCardsHtml = params.wallets
       .map(
@@ -430,7 +440,7 @@ class EmailService {
         </p>
         
         <div style="margin: 24px 0;">
-          <a href="http://localhost:3000/claim" style="background: #00E5FF; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Open Claim Portal</a>
+          <a href="${appUrl}/claim" style="background: #00E5FF; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Open Claim Portal</a>
         </div>
         <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
         <p style="font-size: 12px; color: #8993A6; margin: 0;">If you did not request this reminder, no action is needed. Your vault allocations remain private and secure.</p>

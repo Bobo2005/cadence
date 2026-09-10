@@ -15,6 +15,8 @@ const PORT = process.env.PORT || 3001;
 // 2.3 Strict & Configurable CORS
 const allowedOrigins = [
   process.env.CLIENT_URL,
+  "https://cadence-ebon-six.vercel.app",
+  "https://cadence-protocol.vercel.app",
   "http://localhost:3000",
   "http://localhost:3001",
   "http://127.0.0.1:3000",

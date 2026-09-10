@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import CadenceLogo from "./ui/CadenceLogo";
 
-import { useAccount, useDisconnect, useConnect } from "wagmi";
+import { useAccount, useDisconnect, useConnect, useSwitchChain } from "wagmi";
 import { useWalletModal } from "./ui/ConnectWalletModal";
 import { useUserRole } from "../hooks/useUserRole";
 import { publicClient } from "../lib/contracts";
@@ -22,11 +22,14 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
   const router = useRouter();
 
   // Wagmi wallet state
-  const { address, isConnected, isConnecting, isReconnecting } = useAccount();
+  const { address, isConnected, isConnecting, isReconnecting, chain } = useAccount();
   const { disconnect } = useDisconnect();
   const { connect, connectors } = useConnect();
+  const { switchChain } = useSwitchChain();
   const { openWalletModal } = useWalletModal();
   const { isOwner, isBeneficiary, isGuardian, isNewUser, roleBadge, recommendedRoute } = useUserRole();
+
+  const isWrongNetwork = Boolean(isConnected && chain && chain.id !== 11155111);
 
   // Determine active nav item from path or prop
   const currentTab: NavTabId = React.useMemo(() => {
@@ -194,8 +197,19 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
           })}
         </nav>
 
-        {/* Right: Connected Wallet Pill */}
+        {/* Right: Connected Wallet Pill & Network Guard */}
         <div className="flex items-center gap-3">
+          {isWrongNetwork && (
+            <button
+              type="button"
+              onClick={() => switchChain?.({ chainId: 11155111 })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#EF4444]/15 border border-[#EF4444]/50 hover:bg-[#EF4444]/25 transition-all text-xs font-mono text-[#EF4444] cursor-pointer animate-pulse"
+              title="Click to switch your wallet network to Ethereum Sepolia"
+            >
+              <span className="w-2 h-2 rounded-full bg-[#EF4444]" />
+              <span>Switch to Sepolia</span>
+            </button>
+          )}
 
           <div className="relative" ref={accountMenuRef}>
           {isConnected ? (
@@ -248,9 +262,20 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-[#8993A6]">
                     Connected Account
                   </span>
-                  <span className="text-[10px] font-mono text-[#2EE6A8] bg-[#2EE6A8]/10 px-2 py-0.5 rounded">
-                    Sepolia Testnet
-                  </span>
+                  {isWrongNetwork ? (
+                    <button
+                      type="button"
+                      onClick={() => switchChain?.({ chainId: 11155111 })}
+                      className="text-[10px] font-mono text-[#EF4444] bg-[#EF4444]/15 hover:bg-[#EF4444]/25 border border-[#EF4444]/40 px-2 py-0.5 rounded cursor-pointer transition-colors"
+                      title="Click to switch to Ethereum Sepolia"
+                    >
+                      ⚠️ Switch to Sepolia
+                    </button>
+                  ) : (
+                    <span className="text-[10px] font-mono text-[#2EE6A8] bg-[#2EE6A8]/10 px-2 py-0.5 rounded">
+                      Sepolia Testnet
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-mono text-xs text-[#E8ECF1] truncate">

@@ -88,6 +88,35 @@
 
 ---
 
+## Handoff — 2026-09-11 (1-Click Atomic Vault Setup & Fast Testing Presets)
+
+**Who/what worked this session:** Antigravity AI
+
+**What was completed:**
+- **1-Click Atomic Vault Provisioning (`OneClickInheritanceVault.sol`)**:
+  - Replaced legacy 4-step multi-transaction sequential queue (Deploy -> Deposit -> Allocation Root -> Guardian Root) with a unified, atomic `payable` smart contract constructor.
+  - Users now authorize the entire vault deployment, ETH funding (`msg.value`), beneficiary Merkle root commitment, guardian consensus pairing, and custom contest grace period with **exactly 1 single wallet signature**.
+  - Created Foundry test suite [`OneClickVault.t.sol`](contracts/test/OneClickVault.t.sol) (`test_oneClickDeployment` PASS). Total contract test suite: 14 suites, 198 tests passing.
+  - Updated [`CreateVaultForm.tsx`](frontend/components/CreateVaultForm.tsx) to deploy via `ONE_CLICK_VAULT_ABI` and `ONE_CLICK_VAULT_BYTECODE`, with a clean atomic setup checklist modal.
+- **5-Minute Contest Grace Period Preset**:
+  - Added `⚡ 5 Minutes (Fast Testing)` contest window duration option in `CreateVaultForm.tsx` (`GRACE_PERIOD_OPTIONS`).
+  - Added on-the-fly `[⚡ Set 5m Test Grace]` toggle button in [`ContestWindowPanel.tsx`](frontend/components/ContestWindowPanel.tsx) to allow testers/judges to immediately accelerate the contest countdown for fast claim testing.
+- **1-Click Finalize on Claim Portal & Contest Window Lifecycle**:
+  - Identified and resolved the "Locker Not Yet Finalized" blocker: EVM smart contracts cannot advance state automatically on clock time alone.
+  - Added live querying of `timeUntilFinalized` and `isTimeoutExpired` on `ClaimPortal.tsx`.
+  - Replaced dead disabled buttons with an active, highlighted **`[⚡ Finalize Contest on Sepolia & Unlock Claim]`** action when the contest grace period has elapsed.
+  - Added **`[⚡ Finalize Contest on Sepolia]`** and **`[⚡ Trigger Contest Challenge Window]`** in `ContestWindowPanel.tsx` to provide seamless on-chain state transition controls.
+  - Enhanced ETH balance calculation in `ClaimPortal.tsx` to read `distributionSnapshot[address(0)]` and `totalDeposited[address(0)]` so allocations remain 100% accurate across multi-heir distributions.
+  - Made the Claim Portal Hero status card and ECG monitor dynamically adapt to the connected beneficiary's locker state (`Active` steady green, `Contest Window` erratic amber, `Finalized` flatline red).
+- **Documentation Updates**:
+  - Updated `README.md`, `contracts/README.md`, `frontend/README.md`, `BUILD-GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/HANDOFF.md`, and `docs/MEMORY.md`.
+- **Verification**:
+  - `npx tsc --noEmit` in `frontend`: 0 TypeScript errors.
+  - `forge test --match-contract OneClickVaultTest -vvv`: 1/1 passed (0 failures).
+  - `node scripts/test-beneficiary-claim-flow.mjs`: 22/22 assertions passed.
+
+---
+
 ## Handoff — 2026-09-06 (Prompt 20 & Error Handling Fix)
 
 **Who/what worked this session:** Antigravity AI

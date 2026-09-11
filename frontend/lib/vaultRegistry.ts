@@ -312,6 +312,7 @@ export interface ProvisioningState {
     beneficiaries: Array<{ address: Address; percentage: number; label?: string; bps: number }>;
     guardians: Array<Address>;
     guardianThreshold: number;
+    gracePeriodSeconds?: number;
   };
   allocationRoot?: Hex;
   guardianRoot?: Hex;

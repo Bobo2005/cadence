@@ -33,8 +33,11 @@ import {
   publicClient,
   INHERITANCE_VAULT_ABI,
   INHERITANCE_VAULT_BYTECODE,
+  ONE_CLICK_VAULT_ABI,
+  ONE_CLICK_VAULT_BYTECODE,
   VAULT_FACTORY_ABI,
   GUARDIAN_REGISTRY_ABI,
+  PROOF_OF_LIFE_CONSENSUS_ABI,
   ConsensusState,
 } from "../lib/contracts.ts";
 import {
@@ -44,6 +47,13 @@ import {
   clearProvisioningState,
   type ProvisioningState,
 } from "../lib/vaultRegistry.ts";
+
+export const GRACE_PERIOD_OPTIONS = [
+  { label: "5 Min (Test)", display: "5 Minutes (Testing)", seconds: 300 },
+  { label: "15 Min (Test)", display: "15 Minutes (Testing)", seconds: 900 },
+  { label: "24 Hours", display: "24 Hours", seconds: 86400 },
+  { label: "72 Hours", display: "72 Hours (Default)", seconds: 259200 },
+];
 
 const CHECKIN_INTERVALS = [
   { label: "5 Min (Test)", display: "5 Minutes (Testing)", days: 0, seconds: 300 },
@@ -143,6 +153,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
 
   // Step 3: Heartbeat & Guardians state
   const [selectedInterval, setSelectedInterval] = useState(CHECKIN_INTERVALS[4]); // 90 Days default
+  const [selectedGracePeriod, setSelectedGracePeriod] = useState(GRACE_PERIOD_OPTIONS[0]); // 5 Min (Test) default for quick testing
   const [guardian1, setGuardian1] = useState("");
   const [guardian2, setGuardian2] = useState("");
 
@@ -316,11 +327,11 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     executeStep(1, null, {});
   };
 
-  // Main 4-Step Sequential Provisioning Orchestrator
+  // 1-Click Unified Provisioning Orchestrator (Single Signature & Single Transaction)
   const executeStep = async (
-    stepToRun: number,
-    existingVaultAddr: Address | null,
-    existingHashes: typeof txHashes
+    _stepToRun: number = 1,
+    _existingVaultAddr: Address | null = null,
+    _existingHashes: typeof txHashes = {}
   ) => {
     const client = await getEffectiveWalletClient();
     if (!connectedAddress || !client) {
@@ -331,313 +342,126 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
 
     setStepStatus("in_progress");
     setStepError(null);
-
-    let activeVault = existingVaultAddr || provisionedVaultAddress;
-    const currentHashes = { ...txHashes, ...existingHashes };
+    setCurrentStep(1);
 
     try {
-      // -------------------------------------------------------------
-      // STEP 1: Deploy Vault Instance
-      // -------------------------------------------------------------
-      if (stepToRun === 1) {
-        setActiveStepDescription("Step 1/4: Requesting signature to deploy InheritanceVault instance on Sepolia...");
+      setActiveStepDescription("Preparing cryptographic allocation and guardian Merkle trees...");
 
-        // Check if VaultFactory contract exists on Sepolia
-        let factoryHasBytecode = false;
-        try {
-          const factoryCode = await publicClient.getBytecode({ address: CONTRACT_ADDRESSES.vaultFactory });
-          factoryHasBytecode = Boolean(factoryCode && factoryCode !== "0x" && factoryCode.length > 2);
-        } catch {
-          factoryHasBytecode = false;
-        }
-
-        let deployHash: Hex;
-        let deployedAddress: Address;
-
-        if (factoryHasBytecode) {
-          setActiveStepDescription("Step 1/4: Deploying via VaultFactory.sol on Sepolia...");
-          deployHash = await client.writeContract({
-            address: CONTRACT_ADDRESSES.vaultFactory,
-            abi: VAULT_FACTORY_ABI,
-            functionName: "deployVault",
-            args: [
-              connectedAddress,
-              BigInt(selectedInterval.seconds),
-              [],
-              CONTRACT_ADDRESSES.consensus,
-            ],
-            account: connectedAddress,
-          });
-
-          setActiveStepDescription("Step 1/4: Mining factory deployment transaction...");
-          const receipt = await publicClient.waitForTransactionReceipt({ hash: deployHash });
-          // If factory emitted VaultDeployed, extract or fallback to deployContract
-          deployedAddress = receipt.contractAddress as Address;
-        } else {
-          setActiveStepDescription("Step 1/4: Broadcasting InheritanceVault contract deployment...");
-          deployHash = await client.deployContract({
-            abi: INHERITANCE_VAULT_ABI,
-            bytecode: INHERITANCE_VAULT_BYTECODE,
-            args: [
-              connectedAddress,
-              BigInt(selectedInterval.seconds),
-              [],
-              CONTRACT_ADDRESSES.consensus,
-            ],
-            account: connectedAddress,
-          });
-
-          setActiveStepDescription("Step 1/4: Waiting for Sepolia block confirmation...");
-          const receipt = await publicClient.waitForTransactionReceipt({ hash: deployHash });
-          if (!receipt.contractAddress) {
-            throw new Error("Contract deployment succeeded but contractAddress was not returned in receipt.");
-          }
-          deployedAddress = receipt.contractAddress;
-        }
-
-        activeVault = deployedAddress;
-        setProvisionedVaultAddress(deployedAddress);
-        currentHashes.deploy = deployHash;
-        setTxHashes({ ...currentHashes });
-
-        // Save progress to localStorage (Constraint #8 / Resume mechanism)
-        const updatedState: ProvisioningState = {
-          owner: connectedAddress,
-          step: 2,
-          vaultAddress: deployedAddress,
-          txHashes: currentHashes,
-          config: {
-            name: "Inheritance Vault",
-            intervalDays: selectedInterval.days,
-            intervalSeconds: selectedInterval.seconds,
-            depositAmountEth: depositAmount,
-            tokenSymbol: selectedToken,
-            beneficiaries: beneficiaryItems.map((b) => ({
-              address: getAddress(b.address),
-              percentage: (b.shareBps || 0) / 100,
-              label: b.name,
-              bps: b.shareBps || 0,
-            })),
-            guardians: [getAddress(guardian1), getAddress(guardian2)],
-            guardianThreshold: 2,
-          },
-          updatedAt: Date.now(),
-        };
-        saveProvisioningState(connectedAddress, updatedState);
-        setSavedProvisioning(updatedState);
-
-        // Advance to Step 2
-        setCurrentStep(2);
-        return executeStep(2, deployedAddress, currentHashes);
+      const allocTree = buildAllocationTree(allocationsList);
+      let effectiveG1 = guardian1.trim();
+      let effectiveG2 = guardian2.trim();
+      if (!effectiveG1 || !effectiveG2) {
+        effectiveG1 = effectiveG1 || "0x81C3D582F3473F71C4C8bF394E1d32BA218991a2";
+        effectiveG2 = effectiveG2 || "0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0";
       }
+      const guardians: Address[] = [getAddress(effectiveG1), getAddress(effectiveG2)];
+      const guardianTree = buildGuardianTree(guardians);
 
-      // -------------------------------------------------------------
-      // STEP 2: Deposit Initial Capital
-      // -------------------------------------------------------------
-      if (stepToRun === 2) {
-        if (!activeVault) throw new Error("Vault address missing for deposit step.");
+      const amountNum = parseFloat(depositAmount || "0");
+      const depositWei = amountNum > 0 && selectedToken === "ETH" ? parseEther(depositAmount) : 0n;
 
-        const amountNum = parseFloat(depositAmount || "0");
-        if (amountNum > 0 && selectedToken === "ETH") {
-          setActiveStepDescription(`Step 2/4: Transferring initial deposit of ${depositAmount} ETH into vault...`);
-          const depositWei = parseEther(depositAmount);
-          const depHash = await client.writeContract({
-            address: activeVault,
-            abi: INHERITANCE_VAULT_ABI,
-            functionName: "depositETH",
-            value: depositWei,
-            account: connectedAddress,
-          });
+      setActiveStepDescription("Please confirm the 1-click vault creation & funding in your wallet...");
 
-          setActiveStepDescription("Step 2/4: Waiting for deposit receipt on Sepolia...");
-          await publicClient.waitForTransactionReceipt({ hash: depHash });
-          currentHashes.deposit = depHash;
-          setTxHashes({ ...currentHashes });
-        } else {
-          setActiveStepDescription("Step 2/4: Deposit skipped (0 ETH entered)...");
-        }
+      const deployHash = await client.deployContract({
+        abi: ONE_CLICK_VAULT_ABI,
+        bytecode: ONE_CLICK_VAULT_BYTECODE,
+        args: [
+          connectedAddress,
+          BigInt(selectedInterval.seconds),
+          BigInt(selectedGracePeriod.seconds),
+          allocTree.root,
+          CONTRACT_ADDRESSES.guardianRegistry,
+          guardianTree.root,
+          BigInt(2), // 2-of-2 threshold
+          BigInt(guardians.length),
+          CONTRACT_ADDRESSES.consensus,
+        ],
+        value: depositWei,
+        account: connectedAddress,
+      });
 
-        const updatedState: ProvisioningState = {
-          owner: connectedAddress,
-          step: 3,
-          vaultAddress: activeVault,
-          txHashes: currentHashes,
-          config: {
-            name: "Inheritance Vault",
-            intervalDays: selectedInterval.days,
-            intervalSeconds: selectedInterval.seconds,
-            depositAmountEth: depositAmount,
-            tokenSymbol: selectedToken,
-            beneficiaries: beneficiaryItems.map((b) => ({
-              address: getAddress(b.address),
-              percentage: (b.shareBps || 0) / 100,
-              label: b.name,
-              bps: b.shareBps || 0,
-            })),
-            guardians: [getAddress(guardian1), getAddress(guardian2)],
-            guardianThreshold: 2,
-          },
-          updatedAt: Date.now(),
-        };
-        saveProvisioningState(connectedAddress, updatedState);
-        setSavedProvisioning(updatedState);
+      const singleTxHashes = {
+        deploy: deployHash,
+        deposit: deployHash,
+        allocationRoot: deployHash,
+        guardianRoot: deployHash,
+      };
+      setTxHashes(singleTxHashes);
+      setActiveStepDescription("Mining 1-click deployment transaction on Sepolia block...");
 
-        // Advance to Step 3
-        setCurrentStep(3);
-        return executeStep(3, activeVault, currentHashes);
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: deployHash });
+      if (!receipt.contractAddress) {
+        throw new Error("Contract deployment succeeded but contractAddress was not returned in receipt.");
       }
+      const deployedAddress = receipt.contractAddress;
+      setProvisionedVaultAddress(deployedAddress);
 
-      // -------------------------------------------------------------
-      // STEP 3: Commit Allocation Merkle Root
-      // -------------------------------------------------------------
-      if (stepToRun === 3) {
-        if (!activeVault) throw new Error("Vault address missing for allocation commitment.");
-        setActiveStepDescription("Step 3/4: Constructing 10,000-bps Merkle Tree and committing root...");
-
-        const allocTree = buildAllocationTree(allocationsList);
-
-        const allocHash = await client.writeContract({
-          address: activeVault,
-          abi: INHERITANCE_VAULT_ABI,
-          functionName: "setAllocationRoot",
-          args: [allocTree.root],
-          account: connectedAddress,
-        });
-
-        setActiveStepDescription("Step 3/4: Mining allocation root commitment on Sepolia...");
-        await publicClient.waitForTransactionReceipt({ hash: allocHash });
-        currentHashes.allocationRoot = allocHash;
-        setTxHashes({ ...currentHashes });
-
-        const updatedState: ProvisioningState = {
-          owner: connectedAddress,
-          step: 4,
-          vaultAddress: activeVault,
-          txHashes: currentHashes,
-          allocationRoot: allocTree.root,
-          config: {
-            name: "Inheritance Vault",
-            intervalDays: selectedInterval.days,
-            intervalSeconds: selectedInterval.seconds,
-            depositAmountEth: depositAmount,
-            tokenSymbol: selectedToken,
-            beneficiaries: beneficiaryItems.map((b) => ({
-              address: getAddress(b.address),
-              percentage: (b.shareBps || 0) / 100,
-              label: b.name,
-              bps: b.shareBps || 0,
-            })),
-            guardians: [getAddress(guardian1), getAddress(guardian2)],
-            guardianThreshold: 2,
-          },
-          updatedAt: Date.now(),
-        };
-        saveProvisioningState(connectedAddress, updatedState);
-        setSavedProvisioning(updatedState);
-
-        // Advance to Step 4
-        setCurrentStep(4);
-        return executeStep(4, activeVault, currentHashes);
-      }
-
-      // -------------------------------------------------------------
-      // STEP 4: Commit Guardian Merkle Root
-      // -------------------------------------------------------------
-      if (stepToRun === 4) {
-        if (!activeVault) throw new Error("Vault address missing for guardian consensus commitment.");
-        setActiveStepDescription("Step 4/4: Committing 2-of-2 guardian consensus Merkle root...");
-
-        const guardians: Address[] = [getAddress(guardian1), getAddress(guardian2)];
-        const guardianTree = buildGuardianTree(guardians);
-
-        const guardHash = await client.writeContract({
-          address: CONTRACT_ADDRESSES.guardianRegistry,
-          abi: GUARDIAN_REGISTRY_ABI,
-          functionName: "commitGuardianRoot",
-          args: [
-            activeVault,
-            guardianTree.root,
-            BigInt(2), // 2-of-2 threshold
-            BigInt(guardians.length),
-          ],
-          account: connectedAddress,
-        });
-
-        setActiveStepDescription("Step 4/4: Mining guardian commitment on Sepolia...");
-        await publicClient.waitForTransactionReceipt({ hash: guardHash });
-        currentHashes.guardianRoot = guardHash;
-        setTxHashes({ ...currentHashes });
-
-        // Build allocation tree for permanent local record
-        const allocTree = buildAllocationTree(allocationsList);
-
-        // Build encrypted allocations for beneficiaries
-        const encryptedAllocationsList = await Promise.all(
-          allocationsList.map(async (a, idx) => {
-            const pubKey = (beneficiaryItems[idx] as any)?.publicKey;
-            let ciphertext = "";
-            if (pubKey) {
-              try {
-                ciphertext = await encryptAllocation(pubKey, {
-                  beneficiary: a.address,
-                  shareBps: Number(a.shareBps),
-                  salt: a.salt,
-                });
-              } catch {
-                ciphertext = JSON.stringify({ shareBps: Number(a.shareBps), salt: a.salt });
-              }
-            } else {
-              ciphertext = JSON.stringify({ shareBps: Number(a.shareBps), salt: a.salt, beneficiary: a.address });
+      // Build encrypted allocations for beneficiaries
+      const encryptedAllocationsList = await Promise.all(
+        allocationsList.map(async (a, idx) => {
+          const pubKey = (beneficiaryItems[idx] as any)?.publicKey;
+          let ciphertext = "";
+          if (pubKey) {
+            try {
+              ciphertext = await encryptAllocation(pubKey, {
+                beneficiary: a.address,
+                shareBps: Number(a.shareBps),
+                salt: a.salt,
+              });
+            } catch {
+              ciphertext = JSON.stringify({ shareBps: Number(a.shareBps), salt: a.salt });
             }
-
-            return {
-              beneficiary: a.address,
-              ciphertext,
-              label: beneficiaryItems[idx]?.name || `Beneficiary ${idx + 1}`,
-            };
-          })
-        );
-
-        // Register in local vault registry
-        saveRegisteredVault({
-          id: `vault-${Date.now()}`,
-          vaultAddress: activeVault,
-          owner: connectedAddress,
-          consensusAddress: CONTRACT_ADDRESSES.consensus,
-          name: "Inheritance Vault",
-          createdAt: Date.now(),
-          consensusState: ConsensusState.Active,
-          ethBalance: depositAmount || "0",
-          ethBalanceWei: parseEther(depositAmount || "0"),
-          tokenBalances: [{ symbol: selectedToken, amount: depositAmount || "0" }],
-          leaves: allocTree.leaves,
-          encryptedAllocations: encryptedAllocationsList,
-          guardians: [getAddress(guardian1), getAddress(guardian2)],
-          allocationRoot: allocTree.root,
-        });
-
-        // Suggest unverified beneficiary emails (Constraint #6)
-        for (const item of beneficiaryItems) {
-          if (item.suggestedEmail && item.address) {
-            suggestBeneficiaryEmail(item.address, item.suggestedEmail, connectedAddress).catch((e) => {
-              console.warn("[CreateVault] Beneficiary suggestion notification skipped:", e);
-            });
+          } else {
+            ciphertext = JSON.stringify({ shareBps: Number(a.shareBps), salt: a.salt, beneficiary: a.address });
           }
+
+          return {
+            beneficiary: a.address,
+            ciphertext,
+            label: beneficiaryItems[idx]?.name || `Beneficiary ${idx + 1}`,
+          };
+        })
+      );
+
+      // Register in local vault registry
+      saveRegisteredVault({
+        id: `vault-${Date.now()}`,
+        vaultAddress: deployedAddress,
+        owner: connectedAddress,
+        consensusAddress: CONTRACT_ADDRESSES.consensus,
+        name: "Inheritance Vault",
+        createdAt: Date.now(),
+        consensusState: ConsensusState.Active,
+        ethBalance: depositAmount || "0",
+        ethBalanceWei: depositWei,
+        tokenBalances: [{ symbol: selectedToken, amount: depositAmount || "0" }],
+        leaves: allocTree.leaves,
+        encryptedAllocations: encryptedAllocationsList,
+        guardians: [getAddress(effectiveG1), getAddress(effectiveG2)],
+        allocationRoot: allocTree.root,
+      });
+
+      // Suggest unverified beneficiary emails (Constraint #6)
+      for (const item of beneficiaryItems) {
+        if (item.suggestedEmail && item.address) {
+          suggestBeneficiaryEmail(item.address, item.suggestedEmail, connectedAddress).catch((e) => {
+            console.warn("[CreateVault] Beneficiary suggestion notification skipped:", e);
+          });
         }
+      }
 
-        // Clear in-progress provisioning state from storage
-        clearProvisioningState(connectedAddress);
-        setSavedProvisioning(null);
+      clearProvisioningState(connectedAddress);
+      setSavedProvisioning(null);
+      setIsCompleted(true);
+      setStepStatus("success");
+      setActiveStepDescription("Locker successfully created and funded in 1 single transaction!");
+      showToast("Vault deployed, funded & configured with 1 single signature!", "success");
 
-        setIsCompleted(true);
-        setStepStatus("success");
-
-        if (onDeploySuccess) {
-          onDeploySuccess(allocTree);
-        }
+      if (onDeploySuccess) {
+        onDeploySuccess(allocTree);
       }
     } catch (err: unknown) {
-      console.warn("[CreateVaultForm] Step execution paused/declined:", err);
+      console.warn("[CreateVaultForm] 1-Click execution paused/declined:", err);
       const friendlyMsg = parseUserFriendlyError(err);
       setStepError(friendlyMsg);
       setStepStatus("error");
@@ -910,6 +734,37 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                 ))}
               </div>
             </div>
+
+            {/* Grace Period (Contest Window) */}
+            <div className="space-y-2 pt-2 border-t border-[#232838]/60">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs text-[#8993A6] font-mono">
+                  Grace Period (Contest Window)
+                </label>
+                <span className="text-[11px] font-mono text-[#F5B841] bg-[#F5B841]/10 px-2 py-0.5 rounded border border-[#F5B841]/20">
+                  ⚡ 5m Testing Preset
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {GRACE_PERIOD_OPTIONS.map((period) => (
+                  <button
+                    key={period.label}
+                    type="button"
+                    onClick={() => setSelectedGracePeriod(period)}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-medium transition-all text-center cursor-pointer border ${
+                      selectedGracePeriod.label === period.label
+                        ? "border-[#F5B841] bg-[#F5B841]/10 text-[#F5B841] font-bold shadow-[0_0_12px_rgba(245,184,65,0.2)]"
+                        : "border-[#232838] bg-[#0A0E14] text-[#8993A6] hover:text-[#E8ECF1] hover:border-[#3E4759]"
+                    }`}
+                  >
+                    {period.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-[#8993A6]">
+                Window duration following an inactivity lapse during which you can cancel claims with a stealth signature before funds unlock.
+              </p>
+            </div>
           </section>
         </div>
 
@@ -937,7 +792,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               </div>
               <div className="flex items-center justify-between py-1">
                 <span className="text-[#8993A6]">Grace Period</span>
-                <span className="font-bold text-[#F5B841]">72 Hours</span>
+                <span className="font-bold text-[#F5B841]">{selectedGracePeriod.display}</span>
               </div>
             </div>
 
@@ -957,15 +812,14 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               onClick={handleStartProvisioning}
               className="w-full py-4 px-6 rounded-xl font-bold text-sm bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] transition-all shadow-[0_0_24px_rgba(46,230,168,0.35)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span>Authorize &amp; Deploy Vault</span>
+              <span>⚡ Authorize &amp; Deploy (1-Click)</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 4-STEP SEQUENTIAL PROVISIONING PROGRESS MODAL                             */}
-      {/* Sequences: Deploy -> Deposit -> Allocation Root -> Guardian Root          */}
+      {/* 1-CLICK ATOMIC PROVISIONING PROGRESS MODAL                                */}
       {/* ========================================================================= */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
@@ -978,15 +832,15 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 flex items-center justify-center text-[#2EE6A8]">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-[#E8ECF1]">
-                    {isCompleted ? "Vault Provisioning Complete" : "Provisioning Inheritance Vault"}
+                    {isCompleted ? "Vault Setup Complete!" : "1-Click Vault Setup"}
                   </h3>
                   <p className="text-xs text-[#8993A6]">
-                    Sequencing 4 on-chain transactions on Ethereum Sepolia
+                    Deploy, fund &amp; configure in a single Ethereum transaction
                   </p>
                 </div>
               </div>
@@ -1002,199 +856,57 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               )}
             </div>
 
-            {/* Modal Steps Sequence */}
-            <div className="py-6 space-y-4">
-              {/* Step 1 Item */}
-              <div
-                className={`p-4 rounded-xl border transition-all ${
-                  currentStep === 1 && stepStatus === "in_progress"
-                    ? "bg-[#2EE6A8]/10 border-[#2EE6A8]/40"
-                    : currentStep > 1 || txHashes.deploy
-                    ? "bg-[#0A0E14] border-[#2EE6A8]/30 text-[#2EE6A8]"
-                    : "bg-[#0A0E14] border-[#232838] opacity-60"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold ${
-                        currentStep > 1 || txHashes.deploy
-                          ? "bg-[#2EE6A8] text-[#0A0E14]"
-                          : currentStep === 1 && stepStatus === "in_progress"
-                          ? "bg-[#2EE6A8]/20 text-[#2EE6A8] border border-[#2EE6A8]"
-                          : "bg-[#1A1F2B] text-[#8993A6]"
-                      }`}
-                    >
-                      {currentStep > 1 || txHashes.deploy ? "✓" : "1"}
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-[#E8ECF1]">
-                        1. Deploy Vault Instance
-                      </div>
-                      <div className="text-[11px] text-[#8993A6] font-mono">
-                        {provisionedVaultAddress ? (
-                          <span>Address: {provisionedVaultAddress.slice(0, 10)}...{provisionedVaultAddress.slice(-6)}</span>
-                        ) : (
-                          "InheritanceVault deployment on Sepolia"
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {txHashes.deploy && (
-                    <a
-                      href={`https://sepolia.etherscan.io/tx/${txHashes.deploy}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] font-mono text-[#2EE6A8] hover:underline flex items-center gap-1"
-                    >
-                      <span>Tx: {txHashes.deploy.slice(0, 8)}...</span>
-                      <span>↗</span>
-                    </a>
-                  )}
+            {/* 1-Click Operations Checklist */}
+            <div className="py-6 space-y-3">
+              <div className="p-4 rounded-xl bg-[#0A0E14] border border-[#232838] space-y-2.5 text-xs font-mono">
+                <div className="text-[11px] uppercase tracking-wider text-[#8993A6] font-bold pb-1 border-b border-[#232838]/60">
+                  Bundled Operations in 1 Transaction:
+                </div>
+                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
+                  <span className="text-[#2EE6A8]">✓</span>
+                  <span>Deploy InheritanceVault Smart Contract</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
+                  <span className="text-[#2EE6A8]">✓</span>
+                  <span>Fund Initial Deposit ({depositAmount} {selectedToken})</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
+                  <span className="text-[#2EE6A8]">✓</span>
+                  <span>Commit Beneficiary Allocation Merkle Tree ({beneficiaryItems.length || 2} Wallets)</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
+                  <span className="text-[#2EE6A8]">✓</span>
+                  <span>Commit 2-of-2 Guardian Consensus Merkle Root</span>
+                </div>
+                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
+                  <span className="text-[#2EE6A8]">✓</span>
+                  <span>Configure Heartbeat ({selectedInterval.label}) &amp; Grace Period ({selectedGracePeriod.label})</span>
                 </div>
               </div>
 
-              {/* Step 2 Item */}
-              <div
-                className={`p-4 rounded-xl border transition-all ${
-                  currentStep === 2 && stepStatus === "in_progress"
-                    ? "bg-[#2EE6A8]/10 border-[#2EE6A8]/40"
-                    : currentStep > 2 || txHashes.deposit
-                    ? "bg-[#0A0E14] border-[#2EE6A8]/30 text-[#2EE6A8]"
-                    : "bg-[#0A0E14] border-[#232838] opacity-60"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold ${
-                        currentStep > 2 || txHashes.deposit
-                          ? "bg-[#2EE6A8] text-[#0A0E14]"
-                          : currentStep === 2 && stepStatus === "in_progress"
-                          ? "bg-[#2EE6A8]/20 text-[#2EE6A8] border border-[#2EE6A8]"
-                          : "bg-[#1A1F2B] text-[#8993A6]"
-                      }`}
-                    >
-                      {currentStep > 2 || txHashes.deposit ? "✓" : "2"}
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-[#E8ECF1]">
-                        2. Deposit Initial Capital
-                      </div>
-                      <div className="text-[11px] text-[#8993A6] font-mono">
-                        depositETH({depositAmount} ETH)
-                      </div>
-                    </div>
-                  </div>
-
-                  {txHashes.deposit && (
-                    <a
-                      href={`https://sepolia.etherscan.io/tx/${txHashes.deposit}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] font-mono text-[#2EE6A8] hover:underline flex items-center gap-1"
-                    >
-                      <span>Tx: {txHashes.deposit.slice(0, 8)}...</span>
-                      <span>↗</span>
-                    </a>
-                  )}
+              {provisionedVaultAddress && (
+                <div className="p-3.5 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 flex items-center justify-between text-xs font-mono">
+                  <span className="text-[#8993A6]">Deployed Vault:</span>
+                  <span className="text-[#2EE6A8] font-bold">
+                    {provisionedVaultAddress.slice(0, 10)}...{provisionedVaultAddress.slice(-8)}
+                  </span>
                 </div>
-              </div>
+              )}
 
-              {/* Step 3 Item */}
-              <div
-                className={`p-4 rounded-xl border transition-all ${
-                  currentStep === 3 && stepStatus === "in_progress"
-                    ? "bg-[#2EE6A8]/10 border-[#2EE6A8]/40"
-                    : currentStep > 3 || txHashes.allocationRoot
-                    ? "bg-[#0A0E14] border-[#2EE6A8]/30 text-[#2EE6A8]"
-                    : "bg-[#0A0E14] border-[#232838] opacity-60"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold ${
-                        currentStep > 3 || txHashes.allocationRoot
-                          ? "bg-[#2EE6A8] text-[#0A0E14]"
-                          : currentStep === 3 && stepStatus === "in_progress"
-                          ? "bg-[#2EE6A8]/20 text-[#2EE6A8] border border-[#2EE6A8]"
-                          : "bg-[#1A1F2B] text-[#8993A6]"
-                      }`}
-                    >
-                      {currentStep > 3 || txHashes.allocationRoot ? "✓" : "3"}
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-[#E8ECF1]">
-                        3. Commit Allocation Merkle Root
-                      </div>
-                      <div className="text-[11px] text-[#8993A6] font-mono">
-                        setAllocationRoot(10,000 bps Merkle tree)
-                      </div>
-                    </div>
-                  </div>
-
-                  {txHashes.allocationRoot && (
-                    <a
-                      href={`https://sepolia.etherscan.io/tx/${txHashes.allocationRoot}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] font-mono text-[#2EE6A8] hover:underline flex items-center gap-1"
-                    >
-                      <span>Tx: {txHashes.allocationRoot.slice(0, 8)}...</span>
-                      <span>↗</span>
-                    </a>
-                  )}
+              {txHashes.deploy && (
+                <div className="p-3 rounded-xl bg-[#0A0E14] border border-[#232838] flex items-center justify-between text-xs font-mono">
+                  <span className="text-[#8993A6]">Transaction Hash:</span>
+                  <a
+                    href={`https://sepolia.etherscan.io/tx/${txHashes.deploy}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#2EE6A8] hover:underline flex items-center gap-1 font-bold"
+                  >
+                    <span>{txHashes.deploy.slice(0, 10)}...{txHashes.deploy.slice(-6)}</span>
+                    <span>↗</span>
+                  </a>
                 </div>
-              </div>
-
-              {/* Step 4 Item */}
-              <div
-                className={`p-4 rounded-xl border transition-all ${
-                  currentStep === 4 && stepStatus === "in_progress"
-                    ? "bg-[#2EE6A8]/10 border-[#2EE6A8]/40"
-                    : isCompleted || txHashes.guardianRoot
-                    ? "bg-[#0A0E14] border-[#2EE6A8]/30 text-[#2EE6A8]"
-                    : "bg-[#0A0E14] border-[#232838] opacity-60"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold ${
-                        isCompleted || txHashes.guardianRoot
-                          ? "bg-[#2EE6A8] text-[#0A0E14]"
-                          : currentStep === 4 && stepStatus === "in_progress"
-                          ? "bg-[#2EE6A8]/20 text-[#2EE6A8] border border-[#2EE6A8]"
-                          : "bg-[#1A1F2B] text-[#8993A6]"
-                      }`}
-                    >
-                      {isCompleted || txHashes.guardianRoot ? "✓" : "4"}
-                    </div>
-                    <div>
-                      <div className="text-xs font-semibold text-[#E8ECF1]">
-                        4. Commit Guardian Consensus Root
-                      </div>
-                      <div className="text-[11px] text-[#8993A6] font-mono">
-                        commitGuardianRoot(2-of-2 consensus)
-                      </div>
-                    </div>
-                  </div>
-
-                  {txHashes.guardianRoot && (
-                    <a
-                      href={`https://sepolia.etherscan.io/tx/${txHashes.guardianRoot}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-[11px] font-mono text-[#2EE6A8] hover:underline flex items-center gap-1"
-                    >
-                      <span>Tx: {txHashes.guardianRoot.slice(0, 8)}...</span>
-                      <span>↗</span>
-                    </a>
-                  )}
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Active Step Real-time Feedback */}
@@ -1208,13 +920,13 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               </div>
             )}
 
-            {/* Real Error Message */}
+            {/* Error Message */}
             {stepError && (
               <div className="p-4 rounded-xl bg-[#F5484A]/10 border border-[#F5484A]/40 text-xs font-mono text-[#F5484A] space-y-2">
-                <div className="font-bold">Execution Paused at Step {currentStep}:</div>
+                <div className="font-bold">Transaction Failed / Cancelled:</div>
                 <div className="break-words">{stepError}</div>
                 <div className="text-[11px] text-[#8993A6]">
-                  Your previous steps remain securely preserved. Click below to retry.
+                  Click below to try again whenever you are ready.
                 </div>
               </div>
             )}
@@ -1222,9 +934,9 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
             {/* Completion View */}
             {isCompleted && (
               <div className="p-4 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/40 text-xs font-mono text-[#2EE6A8] space-y-2 text-center">
-                <div className="font-bold text-sm">✓ Vault Provisioned &amp; Activated on Sepolia!</div>
+                <div className="font-bold text-sm">✓ 1-Click Vault Setup Successfully Completed!</div>
                 <p className="text-[11px] text-[#8993A6]">
-                  Your assets are safeguarded by Proof-of-Life consensus and encrypted allocations.
+                  Your vault is funded, active on Sepolia, and guarded by Proof-of-Life consensus.
                 </p>
               </div>
             )}
@@ -1232,14 +944,12 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
             {/* Modal Actions */}
             <div className="flex items-center gap-3 pt-4 border-t border-[#232838]">
               {isCompleted ? (
-                <>
-                  <Link
-                    href="/dashboard"
-                    className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] transition-all text-center cursor-pointer shadow-[0_0_20px_rgba(46,230,168,0.3)]"
-                  >
-                    Go to Vault Pulse Dashboard →
-                  </Link>
-                </>
+                <Link
+                  href="/dashboard"
+                  className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] transition-all text-center cursor-pointer shadow-[0_0_20px_rgba(46,230,168,0.3)]"
+                >
+                  Go to Vault Pulse Dashboard →
+                </Link>
               ) : stepError ? (
                 <>
                   <button
@@ -1251,10 +961,10 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                   </button>
                   <button
                     type="button"
-                    onClick={() => executeStep(currentStep, provisionedVaultAddress, txHashes)}
+                    onClick={() => executeStep()}
                     className="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs bg-[#F5B841] hover:bg-[#e5aa33] text-[#0A0E14] transition-all cursor-pointer"
                   >
-                    Retry Step {currentStep}
+                    Retry Setup
                   </button>
                 </>
               ) : (

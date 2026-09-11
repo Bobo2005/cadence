@@ -890,6 +890,28 @@
   - Created `DEPLOYMENT-GUIDE.md`: Full production guide detailing architecture topology, credential preparation, Sepolia contract deployment, Render microservice setup (Blueprint & manual), Vercel edge deployment, post-deployment smoke testing checklist, and troubleshooting matrix.
   - Updated `README.md` Documentation Index to link `DEPLOYMENT-GUIDE.md`.
 
+### Session 33 — 1-Click Atomic Vault Setup, Fast Testing Grace Presets & Notification Resilience
+- **User Directive 1**: "now the step for creating a valute is too long users has to verify like 4 times with wallet can't we reduce the process to just 1"
+  - **Problem**: Vault creation previously prompted the user for 4 sequential signatures/transactions: Deploy $\rightarrow$ Deposit ETH $\rightarrow$ Set Allocation Root $\rightarrow$ Set Guardian Root.
+  - **Solution**:
+    - Created `contracts/src/OneClickInheritanceVault.sol`: An atomic `payable` smart contract constructor bundling:
+      1. Base `InheritanceVault` initialization and caller ownership.
+      2. Direct ETH deposit (`msg.value`) credited with `Deposit` event.
+      3. Beneficiary Merkle allocation root commitment.
+      4. Guardian Merkle root commitment and consensus registry pairing via `GuardianRegistry`.
+      5. Custom contest window setting via `ProofOfLifeConsensus.setContestWindow`.
+    - Created Foundry test suite `contracts/test/OneClickVault.t.sol` (`test_oneClickDeployment` PASS). Total contract test suite: 14 suites, 198 tests passing.
+    - Appended `ONE_CLICK_VAULT_ABI` and `ONE_CLICK_VAULT_BYTECODE` to `frontend/lib/contracts.ts`.
+    - Refactored `frontend/components/CreateVaultForm.tsx` to execute via `walletClient.deployContract` with a single wallet signature, plus a unified 1-Click checklist modal.
+- **User Directive 2**: "so now i want to add a grace period of 5 minute just for testing"
+  - Added `⚡ 5 Minutes (Fast Testing)` (300s) to `GRACE_PERIOD_OPTIONS` in `CreateVaultForm.tsx`.
+  - Added on-the-fly `[⚡ Set 5m Test Grace]` action button to `frontend/components/ContestWindowPanel.tsx` for immediate runtime acceleration during testing.
+- **Microservice & Notification Resilience**:
+  - Handled `TypeError: Failed to fetch` by adding an `AbortController` (4s timeout) and silent fallback in `frontend/lib/notifications.ts`.
+  - Resolved `EADDRINUSE: :::3001` port contention so the user's notification daemon runs stably.
+- **Documentation Updates**:
+  - Updated `README.md`, `contracts/README.md`, `frontend/README.md`, `BUILD-GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/HANDOFF.md`, and `docs/MEMORY.md`.
+
 
 
 

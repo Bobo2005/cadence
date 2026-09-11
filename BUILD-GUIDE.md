@@ -51,14 +51,18 @@ Run this with real time left before your deadline — Slither/Mythril findings s
 
 Testing heartbeat timeouts does NOT require waiting 30–90 days or hacking the smart contracts. Cadence natively supports rapid interval testing:
 
-1. **Native UI Presets (`/vault/create`)**:
-   - In Step 3 of vault creation, select **`5 Min (Test)`** or **`10 Min (Test)`**.
-   - Your newly deployed vault enforces a 300s or 600s check-in frequency on Sepolia.
-2. **On-Chain Dashboard Interval Adjustment (`/dashboard`)**:
-   - On any existing vault where you are the owner, click **`[⚡ Adjust Interval]`** next to `CHECK-IN INTERVAL:`.
-   - Select **`5 Min (Test)`** or **`10 Min (Test)`** and sign the on-chain transaction.
-   - Both the vault and `ProofOfLifeConsensus.sol` will immediately update on Sepolia. The ECG monitor speeds up to 95 BPM.
-3. **Pre-Staged Demo Script (`DeployDemoVault.s.sol`)**:
+1. **Native UI Presets & 1-Click Vault Creation (`/vault/create`)**:
+   - In vault configuration, select **`5 Min (Test)`** or **`10 Min (Test)`** for the Heartbeat Interval, and **`⚡ 5 Minutes (Fast Testing)`** for the Contest Window Grace Period.
+   - Click **`[⚡ Authorize & Deploy (1-Click)]`**: All 5 operations (deployment, deposit, allocation tree, guardian quorum, and contest grace period) are confirmed in **1 single wallet signature** via `OneClickInheritanceVault.sol`.
+   - Your newly deployed vault immediately enforces the 300s check-in frequency and 300s contest window on Sepolia.
+2. **On-Chain Dashboard Interval & Contest Grace Adjustment**:
+   - On [`/dashboard`](https://cadence-ebon-six.vercel.app/dashboard), click **`[⚡ Adjust Interval]`** next to `CHECK-IN INTERVAL:` to switch frequencies live on-chain.
+   - On [`/contest`](https://cadence-ebon-six.vercel.app/contest), use the **`[⚡ Set 5m Test Grace]`** fast-testing button to instantly set a 5-minute challenge window for immediate claim testing.
+3. **Triggering & Finalizing the Contest Lifecycle**:
+   - **Heartbeat Timeout Lapses**: When the check-in timer reaches 0, click **`[⚡ Trigger Contest Challenge Window]`** on [`/contest`](https://cadence-ebon-six.vercel.app/contest) to initiate `triggerClaimPending` on-chain.
+   - **Contest Grace Period Concludes**: When the contest countdown reaches 0, execute **`[⚡ Finalize Contest on Sepolia]`** directly from either [`/contest`](https://cadence-ebon-six.vercel.app/contest) or [`/claim`](https://cadence-ebon-six.vercel.app/claim).
+   - **Payout Execution**: The vault transitions to `FINALIZED` (3) and the beneficiary immediately clicks **`[Execute Inheritance Claim]`** to receive funds!
+4. **Pre-Staged Demo Script (`DeployDemoVault.s.sol`)**:
    - For live stage presentations where you want a vault pre-aged and sitting directly in the Contest Window, run:
      ```bash
      cd contracts

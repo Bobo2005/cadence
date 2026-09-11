@@ -108,6 +108,8 @@ export default function ContestWindowPanel({
   const [isLoadingOnChain, setIsLoadingOnChain] = useState(true);
   const [consensusState, setConsensusState] = useState<ConsensusState>(ConsensusState.Active);
   const [checkInIntervalSec, setCheckInIntervalSec] = useState<number>(180);
+  const [contestWindowSec, setContestWindowSec] = useState<number>(72 * 3600);
+  const [isSettingContestWindow, setIsSettingContestWindow] = useState<boolean>(false);
   const [isTimeoutExpired, setIsTimeoutExpired] = useState<boolean>(false);
   const [cancelNonce, setCancelNonce] = useState<bigint>(0n);
   const [vaultOwnerOnChain, setVaultOwnerOnChain] = useState<Address | null>(null);
@@ -180,6 +182,7 @@ export default function ContestWindowPanel({
           cClaimPendingTimestamp = Number(config[3]) || 0;
           cDeadline = Number(config[4]);
           setCheckInIntervalSec(cInterval);
+          setContestWindowSec(cWindowDuration);
         }
       } catch {
         // Fallback for demo candidate vaults
@@ -427,6 +430,92 @@ export default function ContestWindowPanel({
     }
   };
 
+  const handleSetContestWindow = async (durationSec: number) => {
+    if (!walletClient || !connectedAddress) return;
+    setIsSettingContestWindow(true);
+    try {
+      const hash = await walletClient.writeContract({
+        address: consensusAddress,
+        abi: PROOF_OF_LIFE_CONSENSUS_ABI,
+        functionName: "setContestWindow",
+        args: [selectedVaultAddress, BigInt(durationSec)],
+        account: connectedAddress,
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      setContestWindowSec(durationSec);
+      await fetchOnChainState();
+    } catch (err: unknown) {
+      console.warn("[ContestWindowPanel] Failed to set contest window:", err);
+    } finally {
+      setIsSettingContestWindow(false);
+    }
+  };
+
+  // Finalize contest once contest window duration has elapsed
+  const [isFinalizingContest, setIsFinalizingContest] = useState(false);
+  const [finalizeSuccessTx, setFinalizeSuccessTx] = useState<string | null>(null);
+
+  const handleFinalizeContest = async () => {
+    if (!walletClient || !connectedAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    setIsFinalizingContest(true);
+    setFinalizeSuccessTx(null);
+    setCancellationError(null);
+    try {
+      const hash = await (walletClient as any).writeContract({
+        chain: sepolia,
+        address: consensusAddress,
+        abi: PROOF_OF_LIFE_CONSENSUS_ABI,
+        functionName: "finalizeContest",
+        args: [selectedVaultAddress],
+        account: connectedAddress,
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      setFinalizeSuccessTx(hash);
+      await fetchOnChainState();
+      setConsensusState(ConsensusState.Finalized);
+    } catch (err: unknown) {
+      console.warn("[ContestWindowPanel] Failed to finalize contest:", err);
+      const msg = parseUserFriendlyError(err);
+      setCancellationError(msg);
+    } finally {
+      setIsFinalizingContest(false);
+    }
+  };
+
+  // Trigger ClaimPending when inactivity timeout expires
+  const [isTriggeringClaim, setIsTriggeringClaim] = useState(false);
+
+  const handleTriggerClaimPending = async () => {
+    if (!walletClient || !connectedAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    setIsTriggeringClaim(true);
+    setCancellationError(null);
+    try {
+      const hash = await (walletClient as any).writeContract({
+        chain: sepolia,
+        address: consensusAddress,
+        abi: PROOF_OF_LIFE_CONSENSUS_ABI,
+        functionName: "triggerClaimPending",
+        args: [selectedVaultAddress],
+        account: connectedAddress,
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      await fetchOnChainState();
+      setConsensusState(ConsensusState.ClaimPending);
+    } catch (err: unknown) {
+      console.warn("[ContestWindowPanel] Failed to trigger contest window:", err);
+      const msg = parseUserFriendlyError(err);
+      setCancellationError(msg);
+    } finally {
+      setIsTriggeringClaim(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E8ECF1] font-sans">
       {/* ========================================================================= */}
@@ -450,9 +539,27 @@ export default function ContestWindowPanel({
           </select>
         </div>
 
-        <div className="flex items-center gap-3 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-3 text-xs font-mono">
           <span className="text-[#8993A6]">Consensus:</span>
           <span className="text-[#2EE6A8]">{consensusAddress.slice(0, 10)}...</span>
+          <span className="px-2 py-0.5 rounded bg-[#F5B841]/10 border border-[#F5B841]/30 text-[#F5B841] font-semibold">
+            Grace: {contestWindowSec < 3600 ? `${Math.round(contestWindowSec / 60)}m` : `${Math.round(contestWindowSec / 3600)}h`}
+          </span>
+          {connectedAddress && (
+            <button
+              type="button"
+              onClick={() => handleSetContestWindow(contestWindowSec === 300 ? 72 * 3600 : 300)}
+              disabled={isSettingContestWindow}
+              className="px-2.5 py-1 rounded-lg bg-[#F5B841]/15 border border-[#F5B841]/35 text-[#F5B841] hover:bg-[#F5B841]/25 transition-colors cursor-pointer text-[11px] font-bold"
+              title="Toggle between 5-minute test grace period and 72-hour default"
+            >
+              {isSettingContestWindow
+                ? "Updating..."
+                : contestWindowSec === 300
+                ? "Restore 72h Grace"
+                : "⚡ Set 5m Test Grace"}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => fetchOnChainState()}
@@ -629,7 +736,7 @@ export default function ContestWindowPanel({
                       ? `${Math.round(checkInIntervalSec / 86400)} days`
                       : `${Math.round(checkInIntervalSec / 60)} minutes`
                   }. A contest challenge window only opens if the inactivity timeout expires AND ${guardianThreshold}-of-${guardianTotal} guardians attest to a lapse.`
-                : "The 72-hour challenge period elapsed without contestation from the vault owner. Assets are eligible for cryptographic beneficiary claims."}
+                : `The ${contestWindowSec < 3600 ? `${Math.round(contestWindowSec / 60)}-minute` : `${Math.round(contestWindowSec / 3600)}-hour`} challenge period elapsed without contestation from the vault owner. Assets are eligible for cryptographic beneficiary claims.`}
             </p>
             <p className="text-xs text-[#8993A6] pt-1">
               Architecture Constraint #1: Cancellations use off-chain EIP-712 stealth signatures,
@@ -709,32 +816,149 @@ export default function ContestWindowPanel({
             </div>
 
             <div className="space-y-3">
-              {/* Primary Action Button */}
-              <button
-                id="reset-protocol-contest-button"
-                type="button"
-                disabled={isContesting}
-                onClick={handleResetProtocol}
-                className="w-full py-4 px-6 rounded-xl font-bold text-sm bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] transition-all shadow-[0_0_24px_rgba(46,230,168,0.35)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isContesting ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    <span>Signing EIP-712 Liveness Proof...</span>
-                  </>
-                ) : (
-                  <span>RESET PROTOCOL: I&apos;M ALIVE</span>
-                )}
-              </button>
+              {/* Finalize Success Card */}
+              {finalizeSuccessTx && (
+                <div className="p-4 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/40 space-y-2 animate-in fade-in">
+                  <div className="text-xs font-bold text-[#2EE6A8]">
+                    ✓ Locker Finalized on Sepolia!
+                  </div>
+                  <p className="text-[11px] text-[#E8ECF1]">
+                    The contest window has concluded and the locker is marked Finalized. Beneficiaries can now execute their claim.
+                  </p>
+                  <Link
+                    href="/claim"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#2EE6A8] underline hover:text-[#3bf5b6] font-bold"
+                  >
+                    Go to Claim Portal →
+                  </Link>
+                </div>
+              )}
 
-              {/* Explanatory Caption */}
-              <p className="text-[11px] text-[#8993A6] text-center leading-relaxed">
-                Signs an off-chain EIP-712 CancelClaim digest and relays it to Sepolia.
-                Reverts state to ACTIVE and resets guardian attestations.
-              </p>
+              {/* State-Specific Action Buttons */}
+              {consensusState === ConsensusState.Finalized ? (
+                <div className="space-y-3">
+                  <div className="p-4 rounded-xl bg-[#2EE6A8]/15 border border-[#2EE6A8]/40 space-y-2 text-center">
+                    <div className="text-xs font-bold text-[#2EE6A8]">
+                      ✓ Locker Is Finalized &amp; Claimable
+                    </div>
+                    <p className="text-[11px] text-[#8993A6]">
+                      All contest requirements are complete. Heirs can claim their allocated shares immediately.
+                    </p>
+                  </div>
+                  <Link
+                    href="/claim"
+                    className="w-full py-4 px-6 rounded-xl font-bold text-sm bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] transition-all shadow-[0_0_24px_rgba(46,230,168,0.35)] flex items-center justify-center gap-2"
+                  >
+                    <span>Proceed to Claim Portal →</span>
+                  </Link>
+                </div>
+              ) : consensusState === ConsensusState.ClaimPending ? (
+                <div className="space-y-3">
+                  {/* If Contest Countdown reaches 0, show Finalize Button */}
+                  {secondsRemaining === 0 ? (
+                    <div className="p-3 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/40 space-y-2">
+                      <div className="text-xs font-bold text-[#2EE6A8]">
+                        ✓ Challenge Period Concluded
+                      </div>
+                      <p className="text-[11px] text-[#E8ECF1] leading-relaxed">
+                        The contest window has elapsed. Click below to execute the on-chain finalization transaction.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={isFinalizingContest}
+                        onClick={handleFinalizeContest}
+                        className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-gradient-to-r from-[#F5B841] to-[#2EE6A8] text-[#0A0E14] hover:opacity-90 active:scale-[0.98] transition-all shadow-[0_0_24px_rgba(46,230,168,0.35)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {isFinalizingContest ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>Finalizing on Sepolia...</span>
+                          </>
+                        ) : (
+                          <span>⚡ Finalize Contest on Sepolia</span>
+                        )}
+                      </button>
+                    </div>
+                  ) : null}
+
+                  {/* Owner Reset Protocol Button */}
+                  <button
+                    id="reset-protocol-contest-button"
+                    type="button"
+                    disabled={isContesting}
+                    onClick={handleResetProtocol}
+                    className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-[#12161F] border border-[#2EE6A8] text-[#2EE6A8] hover:bg-[#2EE6A8]/10 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    {isContesting ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-[#2EE6A8]" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Signing EIP-712 Liveness Proof...</span>
+                      </>
+                    ) : (
+                      <span>RESET PROTOCOL: I&apos;M ALIVE</span>
+                    )}
+                  </button>
+
+                  <p className="text-[11px] text-[#8993A6] text-center leading-relaxed">
+                    Living owner: signs an off-chain EIP-712 CancelClaim digest to dismiss the claim and reset the locker to ACTIVE.
+                  </p>
+                </div>
+              ) : (
+                /* ConsensusState.Active */
+                <div className="space-y-3">
+                  {isTimeoutExpired ? (
+                    <div className="p-3 rounded-xl bg-[#F5B841]/10 border border-[#F5B841]/40 space-y-2">
+                      <div className="text-xs font-bold text-[#F5B841]">
+                        ⚠️ Heartbeat Inactivity Lapsed
+                      </div>
+                      <p className="text-[11px] text-[#E8ECF1] leading-relaxed">
+                        The owner missed their check-in window. Click below to trigger the contest challenge window on Sepolia.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={isTriggeringClaim}
+                        onClick={handleTriggerClaimPending}
+                        className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-[#F5B841] text-[#0A0E14] hover:bg-[#ffc857] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(245,184,65,0.35)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {isTriggeringClaim ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>Triggering on Sepolia...</span>
+                          </>
+                        ) : (
+                          <span>⚡ Trigger Contest Challenge Window</span>
+                        )}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-[#12161F] border border-[#232838] text-center space-y-1">
+                      <div className="text-xs font-bold text-[#2EE6A8]">● Heartbeat Active</div>
+                      <p className="text-[11px] text-[#8993A6]">
+                        Owner is checking in regularly. The contest window only opens if the inactivity timeout expires.
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    id="reset-protocol-contest-button"
+                    type="button"
+                    disabled={isContesting}
+                    onClick={handleResetProtocol}
+                    className="w-full py-3 px-6 rounded-xl font-bold text-xs bg-[#1A1F2B] border border-[#232838] text-[#8993A6] hover:text-[#E8ECF1] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                  >
+                    <span>Emergency Reset / Heartbeat Test</span>
+                  </button>
+                </div>
+              )}
 
               {/* Optional Stealth Key Override */}
               <div className="space-y-1 pt-1">

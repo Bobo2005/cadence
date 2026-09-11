@@ -121,6 +121,8 @@ The core protocol contracts reside in `/contracts/src`:
 | [`StealthAddressRegistry.sol`](contracts/src/StealthAddressRegistry.sol) | EIP-5564 stealth key registry and announcement mechanism enabling non-linkable deposit addresses. |
 | [`BeneficiarySmartAccount.sol`](contracts/src/BeneficiarySmartAccount.sol) | ERC-4337 v0.7 compliant smart account with EntryPoint integration, M-of-N guardian recovery, and self-managed backup claim delegation. |
 | [`BalanceCommitment.sol`](contracts/src/BalanceCommitment.sol) | Pedersen balance commitment primitive enabling optional shielded vault balance verification. |
+| [`OneClickInheritanceVault.sol`](contracts/src/OneClickInheritanceVault.sol) | Atomic 1-Click vault deployment primitive. Consolidates contract creation, initial ETH deposit (`msg.value`), Merkle allocation commitment, guardian consensus quorum pairing, and custom contest window into a single atomic transaction (1 wallet confirmation). |
+| [`VaultFactory.sol`](contracts/src/VaultFactory.sol) | Deterministic factory deploying new standard `InheritanceVault` instances. |
 
 ---
 

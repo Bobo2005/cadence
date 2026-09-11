@@ -78,23 +78,50 @@ Public RPC endpoints frequently throttle or throw HTTP 429 errors during hackath
 
 If any single node fails or rate-limits, Viem automatically falls back to the next responsive node without dropping frontend state or interrupting user flows.
 
-## Vault Provisioning: Four Sequential Transactions, Not One Atomic Deploy
+## Vault Provisioning: 1-Click Atomic Deployment vs Multi-Step Architecture
 
-Creating a vault is NOT a single transaction. It's four successive on-chain actions, each signed by the connected owner wallet, each of which can independently succeed or fail:
+### 1-Click Atomic Vault Provisioning (`OneClickInheritanceVault.sol`)
+In production and hackathon environments, asking users to confirm 4 separate sequential wallet popups (Deploy $\rightarrow$ Deposit $\rightarrow$ Allocation Root $\rightarrow$ Guardian Root) creates unnecessary friction, gas delays, and partial-state drop-offs.
 
-1. **Deploy Vault Instance** — via `VaultFactory.sol` (initial owner, check-in interval, `ProofOfLifeConsensus` address), not the owner deploying raw bytecode themselves.
-2. **Deposit Initial Funds** — `vault.depositETH{value: amountWei}()`.
-3. **Commit Allocation Merkle Root** — `vault.setAllocationRoot(allocationRoot)` (the 10,000-bps root from Prompt 9, per constraint #3/#4 below).
-4. **Commit Guardian Merkle Root** — `guardianRegistry.commitGuardianRoot(...)` (built in Prompt 4).
+Cadence provides [`OneClickInheritanceVault.sol`](contracts/src/OneClickInheritanceVault.sol) to consolidate all 5 initialization actions into **a single atomic transaction with 1 wallet signature**:
+1. **Contract Instantiation & Ownership**: Deploys the vault and assigns ownership to `initialOwner`.
+2. **Atomic ETH Capital Deposit**: Constructor is `payable`, crediting `msg.value` directly to `totalDeposited[address(0)]` with a standard `Deposit` event.
+3. **Allocation Merkle Root Commitment**: Commits the 10,000-basis-point Merkle root directly into storage.
+4. **Guardian Quorum & Consensus Binding**: Registers the vault's guardian Merkle root and threshold with `GuardianRegistry` and pairs it with `ProofOfLifeConsensus`.
+5. **Custom Contest Window Setting**: Automatically configures the contest grace period (standard 72 hours, 24 hours, or the fast 5-minute testing option) via `consensus.setContestWindow(address(this), contestWindowDuration)`.
 
-**UI implication:** the Create Vault flow needs a step-by-step progress modal, not a single "Authorize & Deploy Vault" button that silently fires four transactions in sequence and hopes for the best. Each step needs its own real transaction hash, its own confirmation state, and its own failure handling.
+Because the constructor executes in the context of the newly created contract (`address(this)` is `msg.sender`), both `GuardianRegistry` and `ProofOfLifeConsensus` accept the registration with zero front-running risk.
 
-**Partial-failure recovery — a real Resume/Retry mechanism, not just "reflect it honestly."** If a step fails after an earlier step succeeded (e.g. Step 2 fails after Step 1 deployed the vault), the modal must: (a) persist which steps have already succeeded (the deployed vault's address, at minimum) so the state survives a page refresh, (b) show the vault as existing but unfunded/unconfigured rather than pretending nothing happened, and (c) present a "Resume" button that picks up from the first failed/incomplete step — never a "Retry" that silently restarts from Step 1 and attempts to redeploy a vault that already exists. See PROMPTS.md Prompt 25 for the exact build requirement.
+### Legacy Multi-Step Provisioning (`VaultFactory.sol`)
+For scenarios where multi-step staging or modular factory deployment is desired, `VaultFactory.sol` remains available to execute sequential provisioning (deploy vault, separate deposit, separate allocation root, separate guardian root) with client-side resume support.
+
+## Consensus Lifecycle State Machine & Finalization Flow
+
+EVM smart contracts do not automatically advance state when block time advances; state transitions require deliberate on-chain transactions:
+
+```
+[State 0: Active]
+       │
+       │  Condition: block.timestamp > lastActiveTimestamp + checkInInterval
+       ▼  Transaction: ProofOfLifeConsensus.triggerClaimPending(vault)
+[State 1: ClaimPending (Contest Window)]
+       │
+       │  Condition: block.timestamp >= contestDeadline (no cancelClaimWithSig received)
+       ▼  Transaction: ProofOfLifeConsensus.finalizeContest(vault)
+[State 3: Finalized]
+       │
+       ▼  Transaction: InheritanceVault.claim(shareBps, salt, proof) -> Payout Transferred
+```
+
+1. **Active $\rightarrow$ ClaimPending**: When a vault owner misses their check-in deadline (`isTimeoutExpired == true`), guardians attest the lapse to `GuardianRegistry` and `triggerClaimPending(vault)` is executed.
+2. **Contest Challenge Window**: Runs for the configured duration (default 72 hours, 24 hours, or 5-minute test grace). The living owner can cancel anytime via relayed off-chain EIP-712 stealth signature (`cancelClaimWithSig`).
+3. **ClaimPending $\rightarrow$ Finalized**: Once the challenge period expires without cancellation, any caller executes `finalizeContest(vault)`. The frontend exposes an instant **1-Click Finalize** button on both `/contest` and `/claim` so beneficiaries can immediately unlock their payout.
 
 ## Contract Structure
 
 ```
-VaultFactory.sol               — deploys new InheritanceVault instances (step 1 of vault provisioning above)
+OneClickInheritanceVault.sol   — atomic 1-click deployment primitive (bundles deploy, deposit, roots, contest window)
+VaultFactory.sol               — deploys new InheritanceVault instances (legacy multi-step provisioning)
 InheritanceVault.sol           — per-vault contract instance: deposit, check-in, allocationRoot storage, claim entrypoint
 ProofOfLifeConsensus.sol       — standalone consensus primitive (Spotlight C): timeout + guardian threshold + contest window state machine, called by the vault, not embedded in it
 GuardianRegistry.sol           — Merkle commitment storage + M-of-N attestation verification for guardians

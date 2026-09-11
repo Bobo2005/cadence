@@ -19,6 +19,7 @@ import LiveECGMonitor from "./ui/LiveECGMonitor";
 import {
   publicClient,
   INHERITANCE_VAULT_ABI,
+  PROOF_OF_LIFE_CONSENSUS_ABI,
   ConsensusState,
   CONTRACT_ADDRESSES,
 } from "../lib/contracts";
@@ -61,6 +62,8 @@ export interface ClaimableVaultItem {
   isClaimed: boolean;
   isProofValid: boolean;
   decryptedBeneficiary?: string;
+  timeUntilFinalizedSec?: number;
+  isTimeoutExpired?: boolean;
 }
 
 export default function ClaimPortal() {
@@ -77,6 +80,7 @@ export default function ClaimPortal() {
     amount: string;
   } | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
+  const [isFinalizingVaultId, setIsFinalizingVaultId] = useState<string | null>(null);
 
   // Phase 3.1: Secure In-Memory ECIES Decryption Key State (Zero raw private key UI inputs)
   const [derivedDecryptionKey, setDerivedDecryptionKey] = useState<Hex | null>(null);
@@ -296,20 +300,67 @@ export default function ClaimPortal() {
           }
         }
 
-        // Compute pro-rata share amount in ETH via live on-chain balance
-        let liveBalanceWei = 0n;
+        // Compute pro-rata share amount in ETH via live on-chain balance / snapshot
+        let totalEstateWei = 0n;
         try {
-          liveBalanceWei = await publicClient.getBalance({ address: v.vaultAddress });
+          // Check if distribution snapshot was taken on-chain
+          const snapshotEth = await publicClient.readContract({
+            address: v.vaultAddress,
+            abi: INHERITANCE_VAULT_ABI,
+            functionName: "distributionSnapshot",
+            args: ["0x0000000000000000000000000000000000000000"],
+          });
+          if (snapshotEth && (snapshotEth as bigint) > 0n) {
+            totalEstateWei = snapshotEth as bigint;
+          } else {
+            const deposited = await publicClient.readContract({
+              address: v.vaultAddress,
+              abi: INHERITANCE_VAULT_ABI,
+              functionName: "totalDeposited",
+              args: ["0x0000000000000000000000000000000000000000"],
+            });
+            if (deposited && (deposited as bigint) > 0n) {
+              totalEstateWei = deposited as bigint;
+            } else {
+              totalEstateWei = await publicClient.getBalance({ address: v.vaultAddress });
+            }
+          }
         } catch {
-          liveBalanceWei = v.ethBalanceWei || 0n;
+          totalEstateWei = v.ethBalanceWei || 0n;
+        }
+        if (totalEstateWei === 0n && v.ethBalanceWei) {
+          totalEstateWei = v.ethBalanceWei;
         }
 
         const calculatedEthWei = shareBps > 0
-          ? (liveBalanceWei * BigInt(shareBps)) / 10000n
-          : liveBalanceWei;
+          ? (totalEstateWei * BigInt(shareBps)) / 10000n
+          : totalEstateWei;
         const calculatedEth = `${parseFloat(formatEther(calculatedEthWei)).toFixed(4)} ETH`;
 
         const vaultNum = v.id.replace("vault-", "#").slice(0, 5).toUpperCase();
+
+        // Query live timeUntilFinalized and isTimeoutExpired from consensus contract
+        let timeUntilFinalizedSec = 0;
+        let isTimeoutExpiredOnChain = false;
+        try {
+          const tFinal = await publicClient.readContract({
+            address: v.consensusAddress,
+            abi: PROOF_OF_LIFE_CONSENSUS_ABI,
+            functionName: "timeUntilFinalized",
+            args: [v.vaultAddress],
+          });
+          timeUntilFinalizedSec = Number(tFinal);
+        } catch {}
+
+        try {
+          const tExpired = await publicClient.readContract({
+            address: v.consensusAddress,
+            abi: PROOF_OF_LIFE_CONSENSUS_ABI,
+            functionName: "isTimeoutExpired",
+            args: [v.vaultAddress],
+          });
+          isTimeoutExpiredOnChain = Boolean(tExpired);
+        } catch {}
 
         discovered.push({
           id: v.id,
@@ -327,6 +378,8 @@ export default function ClaimPortal() {
           isClaimed: isAlreadyClaimed,
           isProofValid,
           decryptedBeneficiary: normalizedAddress,
+          timeUntilFinalizedSec,
+          isTimeoutExpired: isTimeoutExpiredOnChain,
         });
       }
 
@@ -392,6 +445,48 @@ export default function ClaimPortal() {
       setReminderErrorMessage(msg || "Failed to submit reminder request.");
     } finally {
       setIsSendingReminder(false);
+    }
+  };
+
+  const handleFinalizeContest = async (vault: ClaimableVaultItem) => {
+    if (!connectedAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    setIsFinalizingVaultId(vault.id);
+    setClaimError(null);
+    try {
+      let client: any = walletClient;
+      if (!client && connectedAddress) {
+        const headlessKey = KNOWN_HEADLESS_KEYS[connectedAddress.toLowerCase()];
+        if (headlessKey) {
+          const localAccount = privateKeyToAccount(headlessKey);
+          client = createWalletClient({
+            account: localAccount,
+            chain: cadenceSepolia,
+            transport: sepoliaTransports,
+          });
+        }
+      }
+      if (!client) {
+        throw new Error("No connected wallet client found. Please connect your wallet.");
+      }
+      const hash = await client.writeContract({
+        chain: cadenceSepolia,
+        address: vault.consensusAddress,
+        abi: PROOF_OF_LIFE_CONSENSUS_ABI,
+        functionName: "finalizeContest",
+        args: [vault.vaultContractAddress],
+        account: client.account || connectedAddress,
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      await loadEligibleVaults();
+    } catch (err: unknown) {
+      console.warn("[ClaimPortal] Finalize contest error:", err);
+      const msg = parseUserFriendlyError(err);
+      setClaimError(msg);
+    } finally {
+      setIsFinalizingVaultId(null);
     }
   };
 
@@ -497,33 +592,105 @@ export default function ClaimPortal() {
     (v) => v.consensusState === ConsensusState.Finalized && !v.isClaimed
   ).length;
 
+  const primaryState = useMemo(() => {
+    if (vaults.length === 0) return ConsensusState.Finalized;
+    if (vaults.some((v) => v.consensusState === ConsensusState.Finalized)) {
+      return ConsensusState.Finalized;
+    }
+    if (vaults.some((v) => v.consensusState === ConsensusState.ClaimPending)) {
+      return ConsensusState.ClaimPending;
+    }
+    return ConsensusState.Active;
+  }, [vaults]);
+
+  const activeSuggester = vaults[0]?.originAddress || "the vault owner";
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E8ECF1] font-sans">
       {/* ========================================================================= */}
-      {/* HERO STATUS CARD (Flatlined State — matches beneficiary-claim.png)        */}
+      {/* HERO STATUS CARD (Dynamically reflects primary locker state)               */}
       {/* ========================================================================= */}
-      <div className="rounded-2xl bg-[#12161F] border border-[#F5484A] p-6 shadow-xl relative overflow-hidden">
+      <div
+        className={`rounded-2xl bg-[#12161F] p-6 shadow-xl relative overflow-hidden transition-all ${
+          primaryState === ConsensusState.Finalized
+            ? "border border-[#F5484A]"
+            : primaryState === ConsensusState.ClaimPending
+            ? "border border-[#F5B841]"
+            : "border border-[#2EE6A8]"
+        }`}
+      >
         {/* Top Header of Hero Card */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
             {/* Status Pill Badge */}
-            <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-[#F5484A]/10 text-[#F5484A] border border-[#F5484A]/40 uppercase tracking-wider inline-flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#F5484A]" />
-              HEARTBEAT EXPIRED
+            <span
+              className={`text-xs font-mono font-bold px-3 py-1 rounded-full uppercase tracking-wider inline-flex items-center gap-1.5 ${
+                primaryState === ConsensusState.Finalized
+                  ? "bg-[#F5484A]/10 text-[#F5484A] border border-[#F5484A]/40"
+                  : primaryState === ConsensusState.ClaimPending
+                  ? "bg-[#F5B841]/10 text-[#F5B841] border border-[#F5B841]/40"
+                  : "bg-[#2EE6A8]/10 text-[#2EE6A8] border border-[#2EE6A8]/40"
+              }`}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${
+                  primaryState === ConsensusState.Finalized
+                    ? "bg-[#F5484A]"
+                    : primaryState === ConsensusState.ClaimPending
+                    ? "bg-[#F5B841]"
+                    : "bg-[#2EE6A8]"
+                }`}
+              />
+              {primaryState === ConsensusState.Finalized
+                ? "HEARTBEAT EXPIRED"
+                : primaryState === ConsensusState.ClaimPending
+                ? "CLAIM CHALLENGE WINDOW OPEN"
+                : "ACTIVE SIGNAL"}
             </span>
             <h1 className="text-lg sm:text-xl font-bold text-[#E8ECF1] tracking-tight">
-              Locker Heartbeat Flatlined
+              {primaryState === ConsensusState.Finalized
+                ? "Locker Heartbeat Flatlined"
+                : primaryState === ConsensusState.ClaimPending
+                ? "Locker Heartbeat Erratic"
+                : "Locker Heartbeat Rhythm"}
             </h1>
           </div>
 
           {/* Right-aligned Status Label */}
-          <div className="text-xs font-mono text-[#F5484A] tracking-wider uppercase font-semibold">
-            STATUS: DISCHARGED
+          <div
+            className={`text-xs font-mono tracking-wider uppercase font-semibold ${
+              primaryState === ConsensusState.Finalized
+                ? "text-[#F5484A]"
+                : primaryState === ConsensusState.ClaimPending
+                ? "text-[#F5B841]"
+                : "text-[#2EE6A8]"
+            }`}
+          >
+            {primaryState === ConsensusState.Finalized
+              ? "STATUS: DISCHARGED"
+              : primaryState === ConsensusState.ClaimPending
+              ? "STATUS: CONTEST WINDOW"
+              : "STATUS: ACTIVE MONITORING"}
           </div>
         </div>
 
-        {/* Live Real-Time Flatline ECG Line with Residual Blips */}
-        <LiveECGMonitor state="flatline" bpm={0} />
+        {/* Live Real-Time ECG Line reacting dynamically to state */}
+        <LiveECGMonitor
+          state={
+            primaryState === ConsensusState.Finalized
+              ? "flatline"
+              : primaryState === ConsensusState.ClaimPending
+              ? "erratic"
+              : "active"
+          }
+          bpm={
+            primaryState === ConsensusState.Finalized
+              ? 0
+              : primaryState === ConsensusState.ClaimPending
+              ? 92
+              : 62
+          }
+        />
       </div>
 
       {/* ========================================================================= */}
@@ -584,7 +751,7 @@ export default function ClaimPortal() {
                 </div>
               ) : (
                 <p className="text-xs text-[#E8ECF1] font-sans leading-relaxed">
-                  An email (<span className="font-mono text-[#F5B841]">{suggestedEmail}</span>) was suggested for this wallet by <span className="font-mono text-[#2EE6A8]">0xC09C...77e4</span> — confirm it to receive future claim notices.
+                  An email (<span className="font-mono text-[#F5B841]">{suggestedEmail}</span>) was suggested for this wallet by <span className="font-mono text-[#2EE6A8]">{activeSuggester}</span> — confirm it to receive future claim notices.
                 </p>
               )}
 
@@ -898,40 +1065,100 @@ export default function ClaimPortal() {
                   </div>
                 </div>
 
-                {/* Action Button */}
+                {/* Action Button Section */}
                 <div className="pt-6">
-                  <button
-                    type="button"
-                    disabled={
-                      vault.isClaimed ||
-                      claimingVaultId === vault.id ||
-                      vault.consensusState !== ConsensusState.Finalized
-                    }
-                    onClick={() => handleExecuteClaim(vault)}
-                    className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                      vault.isClaimed
-                        ? "bg-[#1A1F2B] text-[#5A6478] border border-[#232838] cursor-not-allowed"
-                        : vault.consensusState !== ConsensusState.Finalized
-                        ? "bg-[#1A1F2B] text-[#8993A6] border border-[#232838] cursor-not-allowed"
-                        : "bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] shadow-[0_0_20px_rgba(46,230,168,0.3)] disabled:opacity-50"
-                    }`}
-                  >
-                    {claimingVaultId === vault.id ? (
-                      <>
-                        <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        <span>Submitting Claim to Sepolia...</span>
-                      </>
-                    ) : vault.isClaimed ? (
-                      <span>✓ Claim Already Executed</span>
-                    ) : vault.consensusState !== ConsensusState.Finalized ? (
-                      <span>Locker Not Yet Finalized</span>
+                  {vault.isClaimed ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-[#1A1F2B] text-[#5A6478] border border-[#232838] cursor-not-allowed"
+                    >
+                      ✓ Claim Already Executed
+                    </button>
+                  ) : vault.consensusState === ConsensusState.Finalized ? (
+                    <button
+                      type="button"
+                      disabled={claimingVaultId === vault.id}
+                      onClick={() => handleExecuteClaim(vault)}
+                      className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] shadow-[0_0_20px_rgba(46,230,168,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                    >
+                      {claimingVaultId === vault.id ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          <span>Submitting Claim to Sepolia...</span>
+                        </>
+                      ) : (
+                        <span>Execute Inheritance Claim</span>
+                      )}
+                    </button>
+                  ) : vault.consensusState === ConsensusState.ClaimPending ? (
+                    vault.timeUntilFinalizedSec === 0 ? (
+                      <div className="space-y-2.5">
+                        <div className="p-3 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-xs text-[#2EE6A8]">
+                          <div className="font-bold flex items-center gap-1.5">
+                            <span>✓ Challenge Grace Period Elapsed</span>
+                          </div>
+                          <p className="text-[11px] text-[#E8ECF1] font-sans pt-0.5">
+                            The contest window has elapsed without owner cancellation. Finalize the locker on Sepolia to unlock your claim.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          disabled={isFinalizingVaultId === vault.id}
+                          onClick={() => handleFinalizeContest(vault)}
+                          className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-gradient-to-r from-[#F5B841] to-[#2EE6A8] text-[#0A0E14] hover:opacity-90 active:scale-[0.98] shadow-[0_0_20px_rgba(46,230,168,0.35)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        >
+                          {isFinalizingVaultId === vault.id ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                              </svg>
+                              <span>Finalizing on Sepolia...</span>
+                            </>
+                          ) : (
+                            <span>⚡ Finalize Contest &amp; Unlock Claim</span>
+                          )}
+                        </button>
+                      </div>
                     ) : (
-                      <span>Execute Inheritance Claim</span>
-                    )}
-                  </button>
+                      <div className="space-y-2">
+                        <div className="p-3 rounded-xl bg-[#F5B841]/10 border border-[#F5B841]/30 text-xs text-[#F5B841] text-center font-mono">
+                          ⏳ Contest Window Active ({Math.ceil((vault.timeUntilFinalizedSec || 0) / 60)}m remaining)
+                        </div>
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full py-3 px-6 rounded-xl font-bold text-xs bg-[#1A1F2B] text-[#8993A6] border border-[#232838] cursor-not-allowed text-center"
+                        >
+                          Awaiting Challenge Expiration
+                        </button>
+                      </div>
+                    )
+                  ) : (
+                    /* ConsensusState.Active */
+                    <div className="space-y-2.5">
+                      <div className="p-3 rounded-xl bg-[#F5B841]/10 border border-[#F5B841]/30 text-xs text-[#F5B841]">
+                        <div className="font-bold flex items-center gap-1.5">
+                          <span>● Locker In Active Monitoring</span>
+                        </div>
+                        <p className="text-[11px] text-[#E8ECF1] font-sans pt-0.5">
+                          {vault.isTimeoutExpired
+                            ? "Heartbeat check-in has elapsed! Advance the locker through the Contest Window to finalize."
+                            : "Owner heartbeat is still active. Payouts require an elapsed heartbeat and completed contest window."}
+                        </p>
+                      </div>
+                      <Link
+                        href="/contest"
+                        className="w-full py-3 px-5 rounded-xl font-bold text-xs bg-[#F5B841] text-[#0A0E14] hover:bg-[#ffc857] transition-all flex items-center justify-center gap-2 shadow-[0_0_16px_rgba(245,184,65,0.25)]"
+                      >
+                        <span>⚡ Advance in Contest Window Portal →</span>
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             ))}

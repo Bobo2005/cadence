@@ -12,19 +12,23 @@ The web application for **Cadence Protocol**, built on **Next.js 16 (App Router 
    - Dynamic countdown ticker reflecting on-chain `lastActiveTimestamp` and `checkInInterval`.
    - **`[⚡ Adjust Interval]`**: Interactive on-chain modal to switch check-in frequency to **5 Min (Test)** or **10 Min (Test)** or back to production intervals directly on Sepolia.
 
-2. **Sequential Multi-Step Vault Provisioning (`/vault/create`)**:
-   - 4-step progressive disclosure: (1) Deploy Vault, (2) Deposit Capital, (3) Merkle Allocation Root, (4) Guardian Consensus Root.
-   - Step 3 features native **5 Min (Test)** and **10 Min (Test)** presets alongside 30d–180d intervals.
-   - Resilient `localStorage` session persistence with step-by-step resume.
+2. **1-Click Atomic Vault Provisioning (`/vault/create`)**:
+   - **Reduced from 4 wallet signatures to 1 single transaction**: Uses `OneClickInheritanceVault.sol` to atomically bundle: (1) Contract Deployment, (2) Capital Deposit (`msg.value`), (3) Beneficiary Merkle Root Commitment, (4) Guardian Consensus Quorum Pairing, and (5) Custom Contest Window Configuration in one seamless wallet confirmation.
+   - Built-in **Rapid Testing Presets**: Supports fast heartbeat intervals (**5 Min** and **10 Min**) as well as fast challenge grace periods (**⚡ 5 Minutes Fast Testing**).
+   - Resilient live status modal tracking the atomic setup and linking directly to Etherscan.
 
 3. **Contest Window & Stealth Cancellation (`/contest`)**:
-   - Live 72-hour challenge timer.
+   - Live challenge countdown timer reflecting dynamic on-chain state (`Active` $\rightarrow$ `ClaimPending` $\rightarrow$ `Finalized`).
+   - **Interactive State Transitions**:
+     - When heartbeat interval lapses: **`[⚡ Trigger Contest Challenge Window]`** initiates the challenge period on Sepolia.
+     - When challenge period elapses: **`[⚡ Finalize Contest on Sepolia]`** transitions the locker to `Finalized`.
    - Demonstrates **Constraint #1 (Zero Gas-Linkage)**: living owner cancels contested claims off-chain via an EIP-712 stealth signature relayed with zero owner gas payment.
 
 4. **Beneficiary Claim Portal (`/claim`)**:
    - Client-side **ECIES (secp256k1)** private allocation decryption — zero plaintext on-chain (Constraint #3).
    - **Safe In-Memory Key Derivation**: Completely eliminates raw private key text boxes from the user interface. Beneficiaries sign a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`) to derive the 32-byte ECIES decryption key strictly in-memory.
-   - Pro-rata execution via `InheritanceVault.claim()`.
+   - **1-Click Finalize on Claim Card**: Real-time querying of `timeUntilFinalized` and `isTimeoutExpired`. If the contest grace period has elapsed, the card displays an active **`⚡ Finalize Contest on Sepolia & Unlock Claim`** action so beneficiaries never face a dead-end disabled button.
+   - **Snapshot-Preserved Payouts**: Pro-rata execution via `InheritanceVault.claim()`, reading on-chain `distributionSnapshot` to preserve exact allocations across multi-heir claims.
    - **Wrong-Wallet Recovery**: Privacy-preserving reminder email dispatcher for beneficiaries with multiple addresses.
 
 ---

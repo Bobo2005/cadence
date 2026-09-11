@@ -80,21 +80,37 @@ export function getCanonicalBindingMessage(
 export async function getWalletNotificationStatus(
   walletAddress: string
 ): Promise<WalletBindingStatus | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
     const normalized = getAddress(walletAddress);
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    if (controller) {
+      timeoutId = setTimeout(() => controller.abort(), 4000);
+    }
+
     const res = await fetch(
       `${NOTIFICATION_SERVICE_URL}/api/status/${normalized}`,
       {
         method: "GET",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
+        ...(controller ? { signal: controller.signal } : {}),
       }
     );
     if (!res.ok) return null;
     return await res.json();
-  } catch (err) {
-    console.warn("[Notifications] Could not fetch status:", err);
+  } catch (err: unknown) {
+    // If service is offline or waking up, return null gracefully without noisy console traces
+    const isNetworkError =
+      (err instanceof TypeError && err.message === "Failed to fetch") ||
+      (typeof DOMException !== "undefined" && err instanceof DOMException && err.name === "AbortError");
+
+    if (!isNetworkError) {
+      console.warn("[Notifications] Status check error:", err);
+    }
     return null;
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
 }
 

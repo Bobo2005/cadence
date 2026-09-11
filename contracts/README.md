@@ -17,6 +17,7 @@ Cadence decouples **Proof-of-Life Consensus** into a standalone, composable on-c
 | [`BeneficiarySmartAccount.sol`](src/BeneficiarySmartAccount.sol) | ERC-4337 v0.7 smart account with EntryPoint integration. | Mandatory social recovery to eliminate catastrophic key-loss risk. |
 | [`BalanceCommitment.sol`](src/BalanceCommitment.sol) | Pedersen balance commitment primitive. | Enables shielded vault balance verification with transparent accounting fallback. |
 | [`VaultFactory.sol`](src/VaultFactory.sol) | Deterministic factory deploying new `InheritanceVault` instances. | Standardizes multi-step vault provisioning. |
+| [`OneClickInheritanceVault.sol`](src/OneClickInheritanceVault.sol) | Atomic 1-Click vault deployment contract. | Bundles contract deployment, ETH funding (`msg.value`), Merkle allocation commitment, guardian quorum registration, and custom contest window into a single atomic transaction (1 wallet signature). |
 
 ---
 
@@ -58,13 +59,15 @@ DEMO_CHECK_IN_INTERVAL=180 DEMO_CONTEST_DURATION=900 forge script script/DeployD
 
 ## Testing & Verification
 
-Run the comprehensive Foundry test suite (13 suites, 197 tests):
+Run the comprehensive Foundry test suite (14 suites, 198 tests):
 ```bash
 forge build
 forge test -vvv
 ```
 
-All 197 tests pass with 0 failures, covering:
+All 198 tests pass with 0 failures, covering:
+- **`OneClickVault.t.sol` (Atomic 1-Click Vault Setup)**:
+  - Validates atomic deployment, `msg.value` ETH deposit credit, custom contest window duration, beneficiary allocation Merkle root commitment, and guardian registry consensus pairing all in a single transaction.
 - **`SecurityAudit.t.sol` (Phase 1 Security Hardening)**:
   - `test_RevertIf_UnauthorizedConsensusRegistration`: Prevents front-running of consensus registry configuration (`GuardianRegistry.setConsensusForVault`).
   - `test_RevertIf_CrossChainAttestationReplay`: Validates EIP-712 domain separation (`verifyingContract`, `block.chainid`, `deadline`), strictly reverting cross-chain and cross-contract signature replays.

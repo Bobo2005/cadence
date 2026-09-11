@@ -70,17 +70,17 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
 1. Switch to **Guardian 1** or **Guardian 2** (`0x81C3...91a2` or `0x34d7...A1F0`) in your wallet.
 2. Navigate to [`/contest`](https://cadence-ebon-six.vercel.app/contest):
    - Review guardian attestation records queried directly from `GuardianRegistry.sol`.
-   - If the 5-minute interval lapses without a check-in, guardians affirm inactivity. Once the M-of-N threshold is reached, the locker transitions to `ClaimPending` and starts the 72-hour Contest Window.
+   - If the check-in interval lapses, click **`[⚡ Trigger Contest Challenge Window]`** (or use **`[⚡ Set 5m Test Grace]`** to set a 5-minute testing duration). Once M-of-N consensus is reached, the locker transitions to `ClaimPending` and starts the Contest Window.
    - The ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`).
 
-### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via In-Memory ECIES $\rightarrow$ Execute Claim
+### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via In-Memory ECIES $\rightarrow$ 1-Click Finalize & Claim
 1. Connect as **Alice** (`0x7099...79C8` or your beneficiary wallet).
 2. Open [`/claim`](https://cadence-ebon-six.vercel.app/claim):
    - Notice that Alice's 40% share is **not public on Etherscan**.
    - **Safe In-Memory Key Derivation**: Alice signs a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory—**zero raw private keys are ever pasted or exposed in UI text fields**.
    - The browser decrypts her allocation off-chain and generates her cryptographic Merkle proof against `allocationRoot`.
-   - Once the locker enters finalized status, click **`[Claim Share]`**.
-   - Alice receives her exact pro-rata ETH payout atomically on Sepolia.
+   - **1-Click Finalize on Claim Card**: When the contest grace period elapses, Alice clicks **`[⚡ Finalize Contest on Sepolia & Unlock Claim]`** right on her claim card to advance on-chain state to `Finalized`.
+   - The button immediately switches to **`[Execute Inheritance Claim]`**: Alice receives her exact pro-rata ETH payout atomically on Sepolia (with snapshot balance preservation across multi-heir distributions).
 
 ### Step 4: Stealth Cancel Demo $\rightarrow$ Demonstrate EIP-712 Zero-Gas Cancellation
 1. If testing false-positive or key-compromise defense, open [`/contest`](https://cadence-ebon-six.vercel.app/contest) while in `ClaimPending` state.

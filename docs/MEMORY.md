@@ -890,7 +890,7 @@
   - Created `DEPLOYMENT-GUIDE.md`: Full production guide detailing architecture topology, credential preparation, Sepolia contract deployment, Render microservice setup (Blueprint & manual), Vercel edge deployment, post-deployment smoke testing checklist, and troubleshooting matrix.
   - Updated `README.md` Documentation Index to link `DEPLOYMENT-GUIDE.md`.
 
-### Session 33 — 1-Click Atomic Vault Setup, Fast Testing Grace Presets & Notification Resilience
+### Session 33 — 1-Click Atomic Vault Setup, Fast Testing Grace Presets & Claim Portal Finalization
 - **User Directive 1**: "now the step for creating a valute is too long users has to verify like 4 times with wallet can't we reduce the process to just 1"
   - **Problem**: Vault creation previously prompted the user for 4 sequential signatures/transactions: Deploy $\rightarrow$ Deposit ETH $\rightarrow$ Set Allocation Root $\rightarrow$ Set Guardian Root.
   - **Solution**:
@@ -909,6 +909,25 @@
 - **Microservice & Notification Resilience**:
   - Handled `TypeError: Failed to fetch` by adding an `AbortController` (4s timeout) and silent fallback in `frontend/lib/notifications.ts`.
   - Resolved `EADDRINUSE: :::3001` port contention so the user's notification daemon runs stably.
+- **User Directive 3 & 4**: "scan the claim portal" & "the heartbeat stop, grass timer also but the Inheritance Claims is still saying locker not finalase"
+  - **Problem**: In EVM smart contracts, state transitions never advance automatically on clock time. When the heartbeat lapses, the consensus contract stays in State 0 (`Active`) until `triggerClaimPending(vault)` is executed. When the contest window elapses, the consensus contract stays in State 1 (`ClaimPending`) until `finalizeContest(vault)` is executed. Without on-chain finalization, `InheritanceVault.claim()` reverts with `LockerNotFinalized`. Previously, the UI lacked interactive buttons to trigger or finalize, leaving users stuck with a disabled "Claim Pending Contest" button even after the timer expired.
+  - **Solution**:
+    - **1-Click Finalize on Claim Card (`ClaimPortal.tsx`)**:
+      - Added real-time contract reads for `timeUntilFinalized` and `isTimeoutExpired`.
+      - When the contest grace period has reached 0 but the state is still `ClaimPending`, replaced the disabled button with a vibrant, clickable **`⚡ Finalize Contest on Sepolia & Unlock Claim`** action that directly calls `finalizeContest(vault)`.
+      - Once finalized, the button seamlessly switches to **`Execute Inheritance Claim`** to trigger the payout.
+    - **Contest Challenge & Finalize Controls (`ContestWindowPanel.tsx`)**:
+      - Added **`[⚡ Trigger Contest Challenge Window]`** (calls `triggerClaimPending`) when the heartbeat timeout has expired.
+      - Added **`[⚡ Finalize Contest on Sepolia]`** (calls `finalizeContest`) when the contest countdown finishes.
+    - **Preserving Payouts Across Multi-Heir Claims**:
+      - In `InheritanceVault.sol`, the contract snapshots `address(this).balance` into `distributionSnapshot[address(0)]` on the first claim.
+      - Updated `ClaimPortal.tsx` to read `distributionSnapshot` (with fallback to `totalDeposited` and `getBalance`), ensuring subsequent beneficiaries' calculated share amounts are never diminished by prior payouts.
+    - **Dynamic Hero Status Card & ECG Monitor**:
+      - Updated the Claim Portal hero card and ECG pulse to dynamically adapt to the connected beneficiary's selected locker state (`Active` steady green, `Contest Window` erratic amber, `Finalized` flatline red).
+- **Verification Across All Layers**:
+  - Smart contracts: 14 Foundry test suites, 198/198 passed (0 failures).
+  - Integration: `node scripts/test-beneficiary-claim-flow.mjs` — 22/22 assertions passed.
+  - Frontend: `npx tsc --noEmit` — 0 errors.
 - **Documentation Updates**:
   - Updated `README.md`, `contracts/README.md`, `frontend/README.md`, `BUILD-GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/HANDOFF.md`, and `docs/MEMORY.md`.
 

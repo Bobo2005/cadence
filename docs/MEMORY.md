@@ -945,6 +945,34 @@
 - **Documentation Updates**:
   - Updated `README.md`, `contracts/README.md`, `frontend/README.md`, `BUILD-GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/HANDOFF.md`, and `docs/MEMORY.md`.
 
+### Session 13 — Merkle Proof Validation & 1-Beneficiary Claim Fix (ClaimPortal.tsx)
+- **User Directive**: "i got this when i was trying to execute inheritance claim 'Cryptographic Merkle proof is not validated against the on-chain allocation root. Ensure your allocation is decrypted properly.'"
+- **Root Cause Analysis**:
+  1. **The 1-Beneficiary Zero-Length Proof Trap**:
+     - In `ClaimPortal.tsx`, `handleExecuteClaim` had:
+       `if (!vault.isProofValid || vault.merkleProof.length === 0)`
+     - In standard OpenZeppelin Merkle trees, whenever a vault has a single beneficiary (100% allocation or single leaf), the leaf is identical to the root (`leaf == root`), and the cryptographic Merkle proof is an empty array `[]` (`length === 0`).
+     - On-chain, `MerkleProof.verify([], root, leaf)` evaluates to `true`.
+     - In the frontend, `verifyProof([], root, leaf)` evaluates to `true`, and `vault.isProofValid` is `true`.
+     - However, the check `|| vault.merkleProof.length === 0` unconditionally rejected every single-beneficiary vault claim with the Merkle proof validation alert.
+  2. **Un-decrypted In-Memory Key State**:
+     - When allocations are ECIES-encrypted, if the user had not yet derived their in-memory decryption key via `personal_sign`, `shareBps` remained 0, causing `vault.isProofValid` to be false.
+     - Previously, the UI button still displayed "Execute Inheritance Claim" instead of prompting the user to unlock their allocation.
+  3. **Leaf & Salt Normalization**:
+     - Handled edge cases where `v.leaves` is empty or missing but `leaf == onChainRoot` by automatically treating it as a valid single-leaf tree with proof `[]`.
+     - Standardized salt parsing to ensure `0x` prefix is consistently enforced.
+- **Solution & Fixes**:
+  - In `ClaimPortal.tsx`:
+    - Removed `|| vault.merkleProof.length === 0` from `handleExecuteClaim`.
+    - Enhanced `handleExecuteClaim` to automatically prompt and trigger `handleDeriveDecryptionKey()` if an encrypted allocation is pending key derivation.
+    - Updated `loadEligibleVaults` to support single-leaf trees (`leaf.toLowerCase() === onChainRoot.toLowerCase()` => `merkleProof = []`, `isProofValid = true`).
+    - Added dynamic UI buttons on finalized vault cards: if un-decrypted, presents `[🔑 Unlock Allocation to Claim]` which triggers wallet key derivation in 1 click; once decrypted, transitions to `[Execute Inheritance Claim]`.
+    - Corrected the ECIES Decryption status indicator to accurately reflect `vault.shareBps > 0 ? "✓ Verified Locally" : "Pending Unlock"`.
+- **Verification**:
+  - Full frontend TypeScript compilation: `npx tsc --noEmit` exited 0 with 0 errors.
+  - Integration test suite: `node scripts/test-beneficiary-claim-flow.mjs` passed 22/22 tests.
+  - Single-leaf tree unit test verified: `Proof: []`, `verifyMerkleProof([], root, leaf) === true`.
+
 
 
 

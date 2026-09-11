@@ -268,14 +268,16 @@ export default function ClaimPortal() {
             if (allocRecord.ciphertext.startsWith("{")) {
               const parsed = JSON.parse(allocRecord.ciphertext);
               shareBps = Number(parsed.shareBps);
-              salt = parsed.salt as Hex;
+              const rawSalt = String(parsed.salt || "");
+              salt = (rawSalt.startsWith("0x") ? rawSalt : `0x${rawSalt}`) as Hex;
             } else if (keyToUse) {
               const decrypted: AllocationData = await decryptAllocation(
                 keyToUse,
                 allocRecord.ciphertext
               );
               shareBps = Number(decrypted.shareBps);
-              salt = decrypted.salt as Hex;
+              const rawSalt = String(decrypted.salt || "");
+              salt = (rawSalt.startsWith("0x") ? rawSalt : `0x${rawSalt}`) as Hex;
             }
           } catch (decErr) {
             // Headless fallback if keyToUse was not able to decrypt
@@ -287,16 +289,34 @@ export default function ClaimPortal() {
                   allocRecord.ciphertext
                 );
                 shareBps = Number(decrypted.shareBps);
-                salt = decrypted.salt as Hex;
+                const rawSalt = String(decrypted.salt || "");
+                salt = (rawSalt.startsWith("0x") ? rawSalt : `0x${rawSalt}`) as Hex;
               } catch {}
             }
           }
 
           // Generate cryptographic Merkle leaf & proof
-          if (shareBps > 0 && v.leaves && v.leaves.length > 0) {
-            const leaf = computeAllocationLeaf(normalizedAddress, shareBps, salt);
-            merkleProof = generateProofFromLeaves(v.leaves, leaf);
-            isProofValid = verifyProof(merkleProof, onChainRoot, leaf);
+          if (shareBps > 0) {
+            try {
+              const leaf = computeAllocationLeaf(normalizedAddress, shareBps, salt);
+              if (v.leaves && v.leaves.length > 0) {
+                try {
+                  merkleProof = generateProofFromLeaves(v.leaves, leaf);
+                  isProofValid = verifyProof(merkleProof, onChainRoot, leaf);
+                } catch {
+                  // Fallback for single-leaf tree or direct root match
+                  if (leaf.toLowerCase() === onChainRoot.toLowerCase()) {
+                    merkleProof = [];
+                    isProofValid = true;
+                  }
+                }
+              } else if (leaf.toLowerCase() === onChainRoot.toLowerCase()) {
+                merkleProof = [];
+                isProofValid = true;
+              }
+            } catch (leafErr) {
+              console.warn("[ClaimPortal] Merkle leaf calculation error:", leafErr);
+            }
           }
         }
 
@@ -507,7 +527,14 @@ export default function ClaimPortal() {
       return;
     }
 
-    if (!vault.isProofValid || vault.merkleProof.length === 0) {
+    if (!vault.isProofValid) {
+      if (!derivedDecryptionKey && hasEncryptedAllocations) {
+        alert(
+          "Your inheritance allocation is encrypted. Please authorize with your wallet in the next prompt to derive your claim key in-memory."
+        );
+        await handleDeriveDecryptionKey();
+        return;
+      }
       alert(
         "Cryptographic Merkle proof is not validated against the on-chain allocation root. Ensure your allocation is decrypted properly."
       );
@@ -1048,7 +1075,9 @@ export default function ClaimPortal() {
                   <div className="p-3 rounded-xl bg-[#0A0E14] border border-[#232838] space-y-1 text-xs font-mono">
                     <div className="flex items-center justify-between">
                       <span className="text-[#8993A6]">ECIES Decryption:</span>
-                      <span className="text-[#2EE6A8]">✓ Verified Locally</span>
+                      <span className={vault.shareBps > 0 ? "text-[#2EE6A8]" : "text-[#F5B841]"}>
+                        {vault.shareBps > 0 ? "✓ Verified Locally" : "Pending Unlock"}
+                      </span>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-[#8993A6]">Merkle Leaf Proof:</span>
@@ -1076,24 +1105,49 @@ export default function ClaimPortal() {
                       ✓ Claim Already Executed
                     </button>
                   ) : vault.consensusState === ConsensusState.Finalized ? (
-                    <button
-                      type="button"
-                      disabled={claimingVaultId === vault.id}
-                      onClick={() => handleExecuteClaim(vault)}
-                      className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] shadow-[0_0_20px_rgba(46,230,168,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                    >
-                      {claimingVaultId === vault.id ? (
-                        <>
-                          <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                          </svg>
-                          <span>Submitting Claim to Sepolia...</span>
-                        </>
-                      ) : (
-                        <span>Execute Inheritance Claim</span>
-                      )}
-                    </button>
+                    !vault.isProofValid && hasEncryptedAllocations && !derivedDecryptionKey ? (
+                      <button
+                        type="button"
+                        disabled={isDerivingKey}
+                        onClick={handleDeriveDecryptionKey}
+                        className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-gradient-to-r from-[#00E5FF] to-[#2EE6A8] text-[#0A0E14] hover:opacity-95 active:scale-[0.98] shadow-[0_0_20px_rgba(0,229,255,0.3)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      >
+                        {isDerivingKey ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>Authorizing Decryption...</span>
+                          </>
+                        ) : (
+                          <span>🔑 Unlock Allocation to Claim</span>
+                        )}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={claimingVaultId === vault.id || !vault.isProofValid}
+                        onClick={() => handleExecuteClaim(vault)}
+                        className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                          vault.isProofValid
+                            ? "bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] shadow-[0_0_20px_rgba(46,230,168,0.3)] cursor-pointer"
+                            : "bg-[#1A1F2B] text-[#5A6478] border border-[#232838] cursor-not-allowed"
+                        } disabled:opacity-50`}
+                      >
+                        {claimingVaultId === vault.id ? (
+                          <>
+                            <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                            </svg>
+                            <span>Submitting Claim to Sepolia...</span>
+                          </>
+                        ) : (
+                          <span>{vault.isProofValid ? "Execute Inheritance Claim" : "Proof Invalid for This Address"}</span>
+                        )}
+                      </button>
+                    )
                   ) : vault.consensusState === ConsensusState.ClaimPending ? (
                     vault.timeUntilFinalizedSec === 0 ? (
                       <div className="space-y-2.5">

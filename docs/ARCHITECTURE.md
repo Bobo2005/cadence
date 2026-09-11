@@ -180,9 +180,12 @@ Cadence implements a defense-in-depth security model across smart contracts, the
 
 ### 3. Safe Key Management & Client Derivation (Phase 3)
 - **Safe In-Memory Key Derivation (`ClaimPortal.tsx`)**:
-  Zero raw private key inputs in the UI. Beneficiaries sign a cryptographic challenge (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory, ensuring private keys are never exposed, pasted, or stored in browser state.
+  Zero raw private key inputs in the UI. Beneficiaries sign a cryptographic challenge (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory, ensuring private keys are never exposed, pasted, or stored in browser state. If un-decrypted, the UI presents an intuitive **`[🔑 Unlock Allocation to Claim]`** action.
+- **Merkle Proof Verification & 1-Beneficiary Single-Leaf Support**:
+  In OpenZeppelin Merkle trees, single-beneficiary vaults have `leaf == root` with proof array `[]` (length 0). The verification pipeline in `ClaimPortal.tsx` and `merkle.ts` natively validates both 0-length single-leaf proofs and multi-leaf branch proofs against on-chain `allocationRoot`, preventing false validation errors during claim execution.
 - **Automated Security Regression Test Suites**:
   - Foundry: `contracts/test/SecurityAudit.t.sol` (4/4 tests passing).
+  - Integration: `frontend/scripts/test-beneficiary-claim-flow.mjs` (22/22 tests passing).
   - Backend: `notifications/test/security.test.ts` (3/3 test categories passing).
 
 ---

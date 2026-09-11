@@ -77,11 +77,10 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
 ### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via In-Memory ECIES $\rightarrow$ 1-Click Finalize & Claim
 1. Connect as **Alice** (`0x7099...79C8` or your beneficiary wallet).
 2. Open [`/claim`](https://cadence-ebon-six.vercel.app/claim):
-   - Notice that Alice's 40% share is **not public on Etherscan**.
-   - **Safe In-Memory Key Derivation**: Alice signs a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory—**zero raw private keys are ever pasted or exposed in UI text fields**.
-   - The browser decrypts her allocation off-chain and generates her cryptographic Merkle proof against `allocationRoot`.
-   - **1-Click Finalize on Claim Card**: When the contest grace period elapses, Alice clicks **`[⚡ Finalize Contest on Sepolia & Unlock Claim]`** right on her claim card to advance on-chain state to `Finalized`.
-   - The button immediately switches to **`[Execute Inheritance Claim]`**: Alice receives her exact pro-rata ETH payout atomically on Sepolia (with snapshot balance preservation across multi-heir distributions).
+   - **Safe In-Memory Key Derivation**: Beneficiaries sign a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory—**zero raw private keys are ever pasted or exposed in UI text fields**. If encrypted allocations are detected, the card exposes a direct **`[🔑 Unlock Allocation to Claim]`** button.
+   - **Single- & Multi-Beneficiary Merkle Compliance**: OpenZeppelin-compliant proof verification natively handles both single-beneficiary vaults (where `leaf == root` with empty proof `[]`) and multi-beneficiary trees without false validation errors.
+   - **1-Click Finalize on Claim Card**: When the contest grace period elapses, the beneficiary clicks **`[⚡ Finalize Contest on Sepolia & Unlock Claim]`** right on their claim card to advance on-chain state to `Finalized`.
+   - The button immediately switches to **`[Execute Inheritance Claim]`**: The beneficiary receives their exact pro-rata ETH payout atomically on Sepolia (with snapshot balance preservation across multi-heir distributions).
 
 ### Step 4: Stealth Cancel Demo $\rightarrow$ Demonstrate EIP-712 Zero-Gas Cancellation
 1. If testing false-positive or key-compromise defense, open [`/contest`](https://cadence-ebon-six.vercel.app/contest) while in `ClaimPending` state.

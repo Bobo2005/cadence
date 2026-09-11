@@ -28,6 +28,8 @@ The web application for **Cadence Protocol**, built on **Next.js 16 (App Router 
 4. **Beneficiary Claim Portal (`/claim`)**:
    - Client-side **ECIES (secp256k1)** private allocation decryption — zero plaintext on-chain (Constraint #3).
    - **Safe In-Memory Key Derivation**: Completely eliminates raw private key text boxes from the user interface. Beneficiaries sign a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`) to derive the 32-byte ECIES decryption key strictly in-memory.
+   - **Intuitive Unlock Flow (`[🔑 Unlock Allocation to Claim]`)**: If an encrypted allocation is detected, the card replaces disabled or premature claim buttons with a direct 1-click key derivation trigger.
+   - **Single- & Multi-Beneficiary Merkle Support**: Correctly handles single-beneficiary vaults (`leaf == root` with empty proof array `[]`) adhering to OpenZeppelin's `MerkleProof.verify` without spurious verification rejections.
    - **1-Click Finalize on Claim Card**: Real-time querying of `timeUntilFinalized` and `isTimeoutExpired`. If the contest grace period has elapsed, the card displays an active **`⚡ Finalize Contest on Sepolia & Unlock Claim`** action so beneficiaries never face a dead-end disabled button.
    - **Snapshot-Preserved Payouts**: Pro-rata execution via `InheritanceVault.claim()`, reading on-chain `distributionSnapshot` to preserve exact allocations across multi-heir claims.
    - **Wrong-Wallet Recovery**: Privacy-preserving reminder email dispatcher for beneficiaries with multiple addresses.

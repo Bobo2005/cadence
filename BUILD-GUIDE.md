@@ -64,7 +64,7 @@ Testing heartbeat timeouts does NOT require waiting 30–90 days or hacking the 
    - **Guardian Quorum Attestation**: Switch wallet to **Guardian Node 1** and click **`[⚡ Attest Lapse]`**. Switch wallet to **Guardian Node 2** and click **`[⚡ Attest Lapse]`**.
    - **Initiate Contest Challenge Window**: Once 2-of-2 guardian attestations are recorded on-chain, click **`[⚡ Trigger Contest Challenge Window]`** to transition state to `ClaimPending` (5m test grace or 72h).
    - **Contest Grace Period Concludes**: When the contest countdown reaches 0, click **`[⚡ Finalize Contest on Sepolia]`** directly from either [`/contest`](https://cadence-ebon-six.vercel.app/contest) or [`/claim`](https://cadence-ebon-six.vercel.app/claim).
-   - **Payout Execution**: The vault transitions to `FINALIZED` (3) and the beneficiary immediately clicks **`[Execute Inheritance Claim]`** on [`/claim`](https://cadence-ebon-six.vercel.app/claim) to receive funds!
+   - **Payout Execution**: The vault transitions to `FINALIZED` (3) and the beneficiary immediately clicks **`[Execute Inheritance Claim]`** on [`/claim`](https://cadence-ebon-six.vercel.app/claim) to receive funds! If the allocation is encrypted, an intuitive **`[🔑 Unlock Allocation to Claim]`** prompt derives the in-memory key via wallet signature in 1 click. Both single-beneficiary (with OpenZeppelin zero-length Merkle proofs) and multi-beneficiary allocation trees claim smoothly.
 4. **Pre-Staged Demo Script (`DeployDemoVault.s.sol`)**:
    - For live stage presentations where you want a vault pre-aged and sitting directly in the Contest Window, run:
      ```bash

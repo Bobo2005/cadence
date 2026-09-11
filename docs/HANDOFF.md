@@ -4,6 +4,39 @@
 
 ---
 
+## Handoff — 2026-09-11 (1-Click Atomic Vault, Interactive Guardian Alerts, Contest Finalization & Claim Merkle Proof Fix)
+
+**Who/what worked this session:** Antigravity AI
+
+**What was completed:**
+1. **1-Click Atomic Vault Provisioning (`OneClickInheritanceVault.sol`)**:
+   - Reduced vault creation from 4 separate wallet signatures to **1 single transaction**.
+   - Atomically packages contract deployment, capital deposit, beneficiary allocation Merkle root commitment, guardian consensus quorum pairing, and custom contest window configuration.
+   - Foundry test suite passing (`OneClickVault.t.sol`).
+2. **Fast Testing Presets & Interactive Contest Finalization**:
+   - Added `⚡ 5 Minutes (Fast Testing)` (300s) challenge grace period preset in `CreateVaultForm.tsx` and runtime adjustment in `ContestWindowPanel.tsx`.
+   - Added **`[⚡ Finalize Contest on Sepolia & Unlock Claim]`** on both `/claim` and `/contest` to seamlessly transition lockers from `ClaimPending` to `Finalized` once the grace period reaches zero.
+   - Payout preservation: Reads on-chain `distributionSnapshot` (fallback to `totalDeposited`) to prevent subsequent inheritor claims from suffering proportional dilution after initial withdrawals.
+3. **Interactive Guardian Attestation & 2-Guardian Email Alert Dispatcher**:
+   - Built live guardian role detection on `/contest` with active **`[⚡ Attest Lapse]`** action buttons submitting cryptographic Merkle proofs to `GuardianRegistry.sol`.
+   - Enforced dynamic on-chain quorum validation (`0/2` to `2/2`), preventing premature `triggerClaimPending` reverts.
+   - Added distinct, personalized email notifications for **Guardian Node 1** and **Guardian Node 2** in `notifications/emailService.ts` (`GUARDIAN_ATTESTATION_REQUIRED`) and contest conclusion (`CONTEST_PERIOD_CONCLUDED`).
+   - Embedded `✉ Guardian Email Dispatcher` in `ContestWindowPanel.tsx` with dedicated backend routes in `notifications/index.ts`.
+4. **Merkle Proof Validation & 1-Beneficiary Zero-Length Proof Fix (`ClaimPortal.tsx`)**:
+   - Fixed the critical claim rejection error (*"Cryptographic Merkle proof is not validated against the on-chain allocation root"*).
+   - Removed the erroneous `|| vault.merkleProof.length === 0` check in `ClaimPortal.tsx:510`, enabling standard OpenZeppelin zero-length proofs (`[]`) for 1-beneficiary vaults where `leaf == root`.
+   - Enhanced `loadEligibleVaults` with fallback single-leaf root matching and standardized salt formatting.
+   - Added intuitive **`[🔑 Unlock Allocation to Claim]`** button for un-decrypted allocations, prompting deterministic in-memory key derivation via Web3 wallet signature before claim execution.
+   - Dynamic status indicator accurately reflects `✓ Verified Locally` vs `Pending Unlock`.
+5. **Full Verification Across All Layers**:
+   - Smart contracts: 14 Foundry test suites, **198/198 tests passing** (0 failures).
+   - Notifications: **15/15 tests passing** (`test/notifications.test.mjs` and `test/security.test.ts`).
+   - Claim flow integration: `scripts/test-beneficiary-claim-flow.mjs` **22/22 tests passing**.
+   - Single-leaf tree unit test: verified `proof = []` and `verifyMerkleProof([], root, leaf) === true`.
+   - Frontend: `npx tsc --noEmit` **0 errors**.
+
+---
+
 ## Handoff — 2026-09-09 (Security Hardening Phases 1–3, Safe Key Derivation & Comprehensive Documentation)
 
 **Who/what worked this session:** Antigravity AI

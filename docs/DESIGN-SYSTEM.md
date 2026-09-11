@@ -117,3 +117,39 @@ The "Record Heartbeat Now" button on the Dashboard must show which transaction p
 - **Plain EOA detected**: `--accent-warning` (amber) badge, text **"Direct Transaction · Normal Gas"**.
 
 Reuses the same two-color vocabulary as the email verification states above (teal = the good/no-friction outcome, amber = the "this requires something from you" outcome) — keep this pairing consistent across the app rather than introducing new color meanings per feature.
+
+## Claim Portal Action Hierarchy & In-Memory Key Derivation
+
+To avoid user friction and cryptographic error alerts, the Claim Portal (`/claim`) enforces a dynamic 3-tier action button hierarchy on finalized vault cards:
+
+1. **Pending In-Memory Decryption**:
+   - Badge: `ECIES Decryption: Pending Unlock` (`--accent-warning`, amber).
+   - Button: **`[🔑 Unlock Allocation to Claim]`** styled with a sleek cyan-to-pulse gradient (`from-[#00E5FF] to-[#2EE6A8]`, `--accent-info` to `--accent-pulse`) and pulse glow (`shadow-[0_0_20px_rgba(0,229,255,0.3)]`).
+   - Action: Triggers `personal_sign` over deterministic salt `keccak256(sig)` to derive the 32-byte key strictly in memory without ever exposing raw private keys.
+
+2. **Verified Merkle Proof (Claim Ready)**:
+   - Badges: `ECIES Decryption: ✓ Verified Locally` (`--accent-pulse`, teal) and `Merkle Leaf Proof: ✓ Root Membership Valid` (`--accent-pulse`, teal).
+   - Button: **`[Execute Inheritance Claim]`** in solid vibrant pulse teal (`bg-[#2EE6A8] text-[#0A0E14]`) with pulse glow (`shadow-[0_0_20px_rgba(46,230,168,0.3)]`).
+   - Supports both single-beneficiary (zero-length OpenZeppelin proofs `[]`) and multi-beneficiary allocation branches.
+
+3. **Contest Grace Elapsed (Pending Finalization)**:
+   - Banner: `✓ Challenge Grace Period Elapsed` in teal container (`--accent-pulse-glow`).
+   - Button: **`[⚡ Finalize Contest on Sepolia & Unlock Claim]`** in amber-to-pulse gradient (`from-[#F5B841] to-[#2EE6A8]`) advancing the consensus contract to `Finalized` directly from the claim card.
+
+## Contest Window Guardian Attestation & Email Dispatcher
+
+On `/contest`, the interface dynamically reflects guardian consensus and inactivity dispatching:
+
+1. **Interactive Attestation**:
+   - Detects whether the active wallet matches Guardian Node 1 or Node 2 and displays an immediate **`[⚡ Attest Lapse]`** action button.
+   - Quorum Tracking: Dynamic state button renders **`Awaiting Guardian Quorum (0/2)`** in `--accent-warning` (amber) with disabled state until 2-of-2 attestations are recorded on-chain, transitioning to **`[⚡ Trigger Contest Challenge Window]`** in vibrant pulse teal.
+
+2. **Dual-Guardian Email Dispatcher**:
+   - Two distinct input rows for **Guardian Node 1** and **Guardian Node 2** emails with instant dispatch action (`[✉ Send Attestation Email Alerts to Guardians]`).
+   - Dispatches separate, role-specific notification emails with direct links to attest on Sepolia.
+
+## 1-Click Atomic Vault Provisioning Modal
+
+On `/vault/create`, the provisioning state is represented by a unified cyberpunk checklist modal:
+- Bundles all 5 protocol actions (Deploy, Deposit, Allocation Root, Guardian Quorum, Contest Window) under a single on-chain transaction hash.
+- Real-time animated spinner transitions to solid green checkmarks (`--accent-pulse`) as the transaction confirms on Sepolia, accompanied by an instant Etherscan link.

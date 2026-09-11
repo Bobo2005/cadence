@@ -33,6 +33,7 @@ export const SEPOLIA_GUARDIAN_REGISTRY: Address = "0x5Bae89D1BE49f603c4f74dce54e
 export interface MonitoredVault {
   vaultAddress: Address;
   name?: string;
+  owner?: Address;
   guardians: Array<{
     address: Address;
     label: string;
@@ -73,6 +74,16 @@ const CONSENSUS_ABI = [
     name: "isTimeoutExpired",
     inputs: [{ name: "vault", type: "address", internalType: "address" }],
     outputs: [{ name: "", type: "bool", internalType: "bool" }],
+    stateMutability: "view",
+  },
+] as const;
+
+const VAULT_ABI = [
+  {
+    type: "function",
+    name: "owner",
+    inputs: [],
+    outputs: [{ name: "", type: "address", internalType: "address" }],
     stateMutability: "view",
   },
 ] as const;
@@ -231,12 +242,48 @@ export class VaultSentinel {
           const lastActive = Number(config[1]);
           const contestDeadline = Number(config[4]);
 
+          // Resolve vault owner
+          let vaultOwner: Address | undefined = vault.owner;
+          if (!vaultOwner) {
+            try {
+              vaultOwner = (await this.publicClient.readContract({
+                address: vault.vaultAddress,
+                abi: VAULT_ABI,
+                functionName: "owner",
+              })) as Address;
+            } catch {
+              // Ignore owner resolution errors
+            }
+          }
+
           // =========================================================================
-          // 1. Check Heartbeat Expiration (Active State)
+          // 1. Check Heartbeat Status (Active State)
           // =========================================================================
           if (state === 0 /* Active */ && lastActive > 0 && checkInInterval > 0) {
-            const isLapsed = nowSec > lastActive + checkInInterval;
+            const deadline = lastActive + checkInInterval;
+            const isLapsed = nowSec >= deadline;
+
+            // 1a. Heartbeat Overdue / Lapsed -> Alert Owner and Guardians
             if (isLapsed) {
+              // Alert Owner
+              if (vaultOwner) {
+                const ownerLapsedKey = `${key}_owner_overdue_${lastActive}`;
+                if (!this.sentCycles[ownerLapsedKey]) {
+                  console.log(
+                    `[Sentinel] ⚡ Heartbeat overdue for owner ${vaultOwner} (vault: ${vault.vaultAddress}). Dispatching urgent check-in notice...`
+                  );
+                  await emailService.sendOwnerReminder({
+                    ownerAddress: vaultOwner,
+                    vaultId: vault.name || vault.vaultAddress,
+                    daysRemaining: 0,
+                    isOverdue: true,
+                  });
+                  this.sentCycles[ownerLapsedKey] = new Date().toISOString();
+                  this.persist();
+                }
+              }
+
+              // Alert Guardians
               const cycleKey = `${key}_heartbeat_${lastActive}`;
               if (!this.sentCycles[cycleKey]) {
                 console.log(
@@ -263,6 +310,34 @@ export class VaultSentinel {
                 this.sentCycles[cycleKey] = new Date().toISOString();
                 this.persist();
                 console.log(`[Sentinel] ✓ Dispatched 2 guardian alerts for cycle ${cycleKey}`);
+              }
+            }
+            // 1b. Heartbeat Approaching Deadline -> Pre-emptive Reminder to Owner
+            else if (vaultOwner) {
+              const remainingSec = deadline - nowSec;
+              const isApproaching =
+                (checkInInterval <= 600 && remainingSec <= 120) ||
+                (checkInInterval > 600 &&
+                  (remainingSec <= 86400 * 3 || remainingSec <= checkInInterval * 0.25));
+
+              if (isApproaching) {
+                const ownerApproachingKey = `${key}_owner_approaching_${lastActive}`;
+                if (!this.sentCycles[ownerApproachingKey]) {
+                  const hoursRemaining = Math.max(1, Math.round(remainingSec / 3600));
+                  const daysRemaining = Math.max(1, Math.round(remainingSec / 86400));
+                  console.log(
+                    `[Sentinel] ⚡ Heartbeat check-in approaching for owner ${vaultOwner} (~${hoursRemaining}h remaining). Dispatching reminder...`
+                  );
+                  await emailService.sendOwnerReminder({
+                    ownerAddress: vaultOwner,
+                    vaultId: vault.name || vault.vaultAddress,
+                    daysRemaining,
+                    hoursRemaining,
+                    isOverdue: false,
+                  });
+                  this.sentCycles[ownerApproachingKey] = new Date().toISOString();
+                  this.persist();
+                }
               }
             }
           }

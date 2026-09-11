@@ -14,7 +14,12 @@ import { type VaultRoleMatch } from "../hooks/useUserRole";
 import CheckInButton from "./CheckInButton";
 import LiveECGMonitor from "./ui/LiveECGMonitor";
 import DashboardEmptyState from "./DashboardEmptyState";
-import { getWalletNotificationStatus, requestSignatureAndBind } from "../lib/notifications";
+import {
+  getWalletNotificationStatus,
+  requestSignatureAndBind,
+  triggerOwnerReminder,
+  registerMonitoredVault,
+} from "../lib/notifications";
 import { getRegisteredVaults } from "../lib/vaultRegistry";
 import { useToast } from "./ui/Toast";
 import { parseUserFriendlyError } from "./CreateVaultForm";
@@ -109,7 +114,8 @@ export default function VaultPulseDashboard({
   // Email Notification Binding state
   const [emailInput, setEmailInput] = useState("");
   const [emailStatus, setEmailStatus] = useState<EmailBindingStatus>("not_set");
-  const [confirmedEmail, setConfirmedEmail] = useState("");
+  const [confirmedEmail, setConfirmedEmail] = useState<string>("");
+  const [autoReminderDispatched, setAutoReminderDispatched] = useState<boolean>(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [isSigningEmail, setIsSigningEmail] = useState(false);
 
@@ -320,18 +326,92 @@ export default function VaultPulseDashboard({
           if (status.verified && status.email) {
             setEmailStatus("verified");
             setConfirmedEmail(status.email);
-          } else if (status.pendingSuggestion) {
+          } else if (status.email && !status.verified) {
             setEmailStatus("pending_signature");
+            setConfirmedEmail(status.email);
+          } else {
+            setEmailStatus("not_set");
+            setConfirmedEmail("");
           }
         })
-        .catch((err) => {
-          console.warn("[Dashboard] Could not fetch email status:", err);
+        .catch(() => {
+          if (isMounted) setEmailStatus("not_set");
         });
+    } else {
+      setEmailStatus("not_set");
+      setConfirmedEmail("");
     }
     return () => {
       isMounted = false;
     };
   }, [connectedAddress]);
+
+  // Sync active vault with autonomous backend Sentinel daemon
+  useEffect(() => {
+    if (!activeVaultAddress) return;
+    registerMonitoredVault({
+      vaultAddress: activeVaultAddress,
+      name: "Inheritance Vault",
+      guardians: guardiansList.map((g, idx) => ({
+        address: g.address,
+        label: g.label || `Guardian Node ${idx + 1}`,
+      })),
+    }).catch(() => {});
+  }, [activeVaultAddress, guardiansList]);
+
+  // Automated Owner Heartbeat Reminder Dispatch
+  useEffect(() => {
+    if (!connectedAddress || !activeVaultAddress) return;
+    if (consensusState !== ConsensusState.Active) return;
+    if (lastActiveTimestamp === 0 || checkInIntervalSec === 0) return;
+
+    // Check if remaining seconds is in reminder window or overdue
+    const isApproaching =
+      secondsRemaining > 0 &&
+      ((checkInIntervalSec <= 600 && secondsRemaining <= 120) ||
+        (checkInIntervalSec > 600 &&
+          (secondsRemaining <= 86400 * 3 || secondsRemaining <= checkInIntervalSec * 0.25)));
+    const isOverdue = secondsRemaining === 0;
+
+    if (!isApproaching && !isOverdue) return;
+
+    const cycleKey = isOverdue
+      ? `cadence_owner_alert_overdue_${activeVaultAddress}_${lastActiveTimestamp}`
+      : `cadence_owner_alert_approaching_${activeVaultAddress}_${lastActiveTimestamp}`;
+
+    if (typeof window !== "undefined" && sessionStorage.getItem(cycleKey)) {
+      setAutoReminderDispatched(true);
+      return;
+    }
+
+    const autoSendReminder = async () => {
+      try {
+        const daysRemaining = Math.max(0, Math.round(secondsRemaining / 86400));
+        const res = await triggerOwnerReminder({
+          ownerAddress: connectedAddress,
+          vaultId: activeVaultAddress,
+          daysRemaining,
+        });
+        if (res.success) {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(cycleKey, "true");
+          }
+          setAutoReminderDispatched(true);
+        }
+      } catch (err) {
+        console.warn("[VaultPulseDashboard] Auto owner reminder warning:", err);
+      }
+    };
+
+    autoSendReminder();
+  }, [
+    connectedAddress,
+    activeVaultAddress,
+    consensusState,
+    secondsRemaining,
+    lastActiveTimestamp,
+    checkInIntervalSec,
+  ]);
 
   // Wallet-signature email binding flow
   const handleVerifyEmail = async (e: React.FormEvent) => {
@@ -579,6 +659,19 @@ export default function VaultPulseDashboard({
                 </>
               )}
             </div>
+
+            {autoReminderDispatched && (
+              <div className="mb-2 p-2 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] text-[11px] font-mono flex items-center gap-1.5">
+                <span className="animate-pulse">⚡</span>
+                <span>Automated Heartbeat Reminder Sent to Your Inbox</span>
+              </div>
+            )}
+            {secondsRemaining === 0 && (
+              <div className="mb-2 p-2 rounded-lg bg-[#F5484A]/15 border border-[#F5484A]/40 text-[#F5484A] text-[11px] font-mono flex items-center gap-1.5 font-bold">
+                <span>🚨</span>
+                <span>Heartbeat Overdue! Record check-in now before guardians attest.</span>
+              </div>
+            )}
           </div>
 
           {/* Record Heartbeat Now Button with Dual-Path Execution */}

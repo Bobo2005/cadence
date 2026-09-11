@@ -157,8 +157,16 @@ class EmailService {
 
     const binding = db.getBinding(normalized);
 
-    // SECURITY CONSTRAINT #6: Reject unverified emails
-    if (!binding || !binding.verified || !binding.signature) {
+    let targetEmail: string | undefined =
+      binding && binding.verified && binding.signature ? binding.email : undefined;
+
+    // For OWNER_CHECKIN_REMINDER, if no verified binding exists, allow fallback to operator email
+    if (!targetEmail && params.type === "OWNER_CHECKIN_REMINDER") {
+      targetEmail = process.env.DEFAULT_OWNER_EMAIL || process.env.SMTP_USER;
+    }
+
+    // SECURITY CONSTRAINT #6: Reject unverified emails for beneficiary notices
+    if (!targetEmail) {
       console.warn(
         `[SECURITY GUARD] Constraint #6 violation blocked: Refusing to send ${params.type} to unverified wallet ${normalized}. Email is ${binding ? "pending confirmation" : "not registered"}.`
       );
@@ -173,7 +181,7 @@ class EmailService {
       id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
       type: params.type,
       recipientWallet: normalized,
-      recipientEmail: binding.email,
+      recipientEmail: targetEmail,
       subject: params.subject,
       bodyText: params.bodyText,
       bodyHtml: params.bodyHtml,
@@ -182,7 +190,7 @@ class EmailService {
     };
 
     this.recordOutbox(entry);
-    console.log(`[EMAIL DISPATCHED] Type: ${params.type} | To: ${binding.email} (${normalized}) | Subject: "${params.subject}"`);
+    console.log(`[EMAIL DISPATCHED] Type: ${params.type} | To: ${targetEmail} (${normalized}) | Subject: "${params.subject}"`);
 
     // Live SMTP transmission (if configured in .env)
     if (this.transporter && this.isLiveSmtpConfigured) {
@@ -190,14 +198,14 @@ class EmailService {
       try {
         const info = await this.transporter.sendMail({
           from,
-          to: binding.email,
+          to: targetEmail,
           subject: params.subject,
           text: params.bodyText,
           html: params.bodyHtml,
         });
-        console.log(`[LIVE SMTP DELIVERED] Message ID: ${info.messageId} | Recipient: ${binding.email}`);
+        console.log(`[LIVE SMTP DELIVERED] Message ID: ${info.messageId} | Recipient: ${targetEmail}`);
       } catch (err: any) {
-        console.error(`[LIVE SMTP ERROR] Failed to deliver email to ${binding.email}:`, err?.message || err);
+        console.error(`[LIVE SMTP ERROR] Failed to deliver email to ${targetEmail}:`, err?.message || err);
       }
     }
 
@@ -218,25 +226,23 @@ class EmailService {
   }): Promise<SendResult> {
     const appUrl = getClientBaseUrl();
     const subject = `[Cadence Protocol] Email Verified & Bound to Wallet`;
-    const bodyText = `Welcome to Cadence Protocol.\n\nYour email address (${params.email}) has been successfully verified and cryptographically bound to wallet ${params.walletAddress}.\n\nYou will receive timely, privacy-preserving alerts whenever your vault check-in deadline approaches or when an inheritance allocation becomes ready to claim.\n\nDashboard: ${appUrl}/dashboard`;
-
+    const bodyText = `Welcome to Cadence Protocol.\n\nYour wallet address ${params.walletAddress} has been successfully verified and bound to ${params.email}.\n\nYou will now receive timely cryptographic proof-of-life alerts, check-in reminders, and inheritance notices.`;
     const bodyHtml = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
-        <h2 style="color: #2EE6A8; margin-top: 0; font-size: 22px;">✓ Email Verified &amp; Bound</h2>
-        <p>Your email address <strong>${params.email}</strong> has been cryptographically confirmed and linked to wallet:</p>
-        <div style="background: #12161F; padding: 12px 16px; border-radius: 8px; font-family: monospace; color: #00E5FF; border: 1px solid #232838; margin: 16px 0; font-size: 13px;">
-          ${params.walletAddress}
+        <div style="display: inline-block; padding: 4px 10px; background: rgba(46, 230, 168, 0.15); border: 1px solid rgba(46, 230, 168, 0.35); border-radius: 6px; color: #2EE6A8; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">
+          ✓ Signature Verified · Constraint #6
         </div>
-        <p style="color: #8993A6; font-size: 14px; line-height: 1.6;">
-          You will now receive automated, privacy-preserving alerts whenever:
+        <h2 style="color: #2EE6A8; margin-top: 0;">Email Verified &amp; Bound to Wallet</h2>
+        <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
+          Your wallet address has been verified and bound to <strong>${params.email}</strong> via off-chain cryptographic signature.
         </p>
-        <ul style="color: #E6EDF3; font-size: 14px; line-height: 1.6; padding-left: 20px;">
-          <li>Your vault heartbeat check-in deadline is approaching.</li>
-          <li>A vault designates your wallet as a verified beneficiary.</li>
-          <li>An inheritance allocation challenge period has passed and funds are claimable.</li>
-        </ul>
-        <div style="margin: 28px 0;">
-          <a href="${appUrl}/dashboard" style="background: #2EE6A8; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Open Vault Dashboard</a>
+        <div style="background: #12161F; border: 1px solid #232838; border-radius: 8px; padding: 14px 16px; margin: 18px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #8993A6; margin-bottom: 6px;">
+            Bound Ethereum Wallet
+          </div>
+          <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #2EE6A8; font-size: 13px; word-break: break-all;">
+            ${params.walletAddress}
+          </div>
         </div>
         <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
         <p style="font-size: 12px; color: #8993A6; margin: 0;">Cadence Protocol — Non-Custodial Inheritance &amp; Proof-of-Life Consensus</p>
@@ -253,28 +259,63 @@ class EmailService {
   }
 
   /**
-   * 1. Owner check-in reminder before deadline
+   * 1. Owner check-in reminder before deadline or overdue
    */
   public async sendOwnerReminder(params: {
     ownerAddress: string;
     vaultId?: string;
     daysRemaining: number;
+    hoursRemaining?: number;
     deadlineTimestamp?: number;
+    isOverdue?: boolean;
   }): Promise<SendResult> {
     const appUrl = getClientBaseUrl();
-    const subject = `[Cadence] Action Required: Check-in deadline in ${params.daysRemaining} days`;
-    const bodyText = `Your Cadence inheritance vault heartbeat check-in deadline is approaching in ${params.daysRemaining} days.\n\nPlease connect your wallet at ${appUrl}/dashboard and record your heartbeat to maintain active locker status.`;
-    const bodyHtml = `
-      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
-        <h2 style="color: #00E5FF; margin-top: 0;">Cadence Protocol Heartbeat Reminder</h2>
-        <p>Your vault heartbeat check-in deadline is approaching in <strong>${params.daysRemaining} days</strong>.</p>
-        <p>If you fail to check in before your deadline, the guardian attestation consensus countdown will commence.</p>
-        <div style="margin: 28px 0;">
-          <a href="${appUrl}/dashboard" style="background: #00E5FF; color: #0B0E14; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">Record Heartbeat Now</a>
+    const isOverdue = params.isOverdue || params.daysRemaining <= 0;
+
+    let subject: string;
+    let bodyText: string;
+    let bodyHtml: string;
+
+    if (isOverdue) {
+      subject = `[Cadence Alert] URGENT: Vault Heartbeat Overdue — Check-In Required`;
+      bodyText = `URGENT Cadence Protocol Alert:\n\nYour inheritance vault (${params.vaultId || params.ownerAddress}) heartbeat check-in interval has elapsed without an on-chain check-in.\n\nGuardian nodes have been prompted to attest to inactivity. If you are active, please connect your wallet at ${appUrl}/dashboard immediately and click "Record Heartbeat" to reset your countdown and secure your vault.`;
+      bodyHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #F5484A; border-radius: 12px;">
+          <div style="display: inline-block; padding: 4px 10px; background: rgba(245, 72, 74, 0.15); border: 1px solid rgba(245, 72, 74, 0.35); border-radius: 6px; color: #F5484A; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">
+            🚨 Action Required Immediately · Heartbeat Overdue
+          </div>
+          <h2 style="color: #F5484A; margin-top: 0;">Heartbeat Check-In Lapsed</h2>
+          <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
+            Your scheduled check-in window for vault <strong>${params.vaultId || "Inheritance Vault"}</strong> has elapsed without an on-chain heartbeat.
+          </p>
+          <p style="color: #8993A6; font-size: 14px; line-height: 1.5;">
+            Guardian nodes have been requested to attest to inactivity. If this is a false alarm, connect your owner wallet immediately to record your heartbeat and keep your vault active:
+          </p>
+          <div style="margin: 28px 0;">
+            <a href="${appUrl}/dashboard" style="background: #2EE6A8; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 14px 28px; border-radius: 8px; display: inline-block; font-size: 14px;">Record Heartbeat Now →</a>
+          </div>
+          <p style="font-size: 12px; color: #8B949E;">Vault: ${params.vaultId || "Default"} | Owner: ${params.ownerAddress}</p>
         </div>
-        <p style="font-size: 12px; color: #8B949E;">Vault ID: ${params.vaultId || "Default"} | Owner: ${params.ownerAddress}</p>
-      </div>
-    `;
+      `;
+    } else {
+      const timeStr =
+        params.hoursRemaining !== undefined && params.hoursRemaining < 24
+          ? `${params.hoursRemaining} hours`
+          : `${params.daysRemaining} days`;
+      subject = `[Cadence] Action Required: Check-in deadline in ${timeStr}`;
+      bodyText = `Your Cadence inheritance vault heartbeat check-in deadline is approaching in ${timeStr}.\n\nPlease connect your wallet at ${appUrl}/dashboard and record your heartbeat to maintain active locker status.`;
+      bodyHtml = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
+          <h2 style="color: #00E5FF; margin-top: 0;">Cadence Protocol Heartbeat Reminder</h2>
+          <p>Your vault heartbeat check-in deadline is approaching in <strong>${timeStr}</strong>.</p>
+          <p>If you fail to check in before your deadline, the guardian attestation consensus countdown will commence.</p>
+          <div style="margin: 28px 0;">
+            <a href="${appUrl}/dashboard" style="background: #00E5FF; color: #0B0E14; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">Record Heartbeat Now</a>
+          </div>
+          <p style="font-size: 12px; color: #8B949E;">Vault ID: ${params.vaultId || "Default"} | Owner: ${params.ownerAddress}</p>
+        </div>
+      `;
+    }
 
     return this.dispatchNotification({
       type: "OWNER_CHECKIN_REMINDER",

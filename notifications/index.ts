@@ -6,6 +6,7 @@ import { getAddress } from "viem";
 import { db } from "./db.js";
 import { verifyWalletBindingSignature, getBindingMessage } from "./bindingVerifier.js";
 import { emailService } from "./emailService.js";
+import { sentinel } from "./sentinel.js";
 
 dotenv.config();
 
@@ -529,14 +530,44 @@ app.get("/api/outbox", (req: Request, res: Response) => {
   res.json({ total: outbox.length, outbox });
 });
 
+/**
+ * POST /api/monitor-vault
+ * Registers a vault with the autonomous Sentinel for automated on-chain monitoring.
+ */
+app.post("/api/monitor-vault", async (req: Request, res: Response) => {
+  try {
+    const { vaultAddress, name, guardians } = req.body;
+    if (!vaultAddress) {
+      return res.status(400).json({ error: "vaultAddress is required" });
+    }
+
+    const monitored = sentinel.registerVault({ vaultAddress, name, guardians });
+    res.json({ success: true, monitored });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Failed to register vault for monitoring" });
+  }
+});
+
+/**
+ * GET /api/monitored-vaults
+ * Returns all vaults currently monitored by the Sentinel.
+ */
+app.get("/api/monitored-vaults", (req: Request, res: Response) => {
+  const vaults = sentinel.getMonitoredVaults();
+  res.json({ count: vaults.length, vaults });
+});
+
 if (process.env.NODE_ENV !== "test") {
   const server = app.listen(PORT, () => {
     console.log(`[Cadence Notifications] Service running on http://localhost:${PORT}`);
     console.log(`[Cadence Notifications] Security Constraint #6 Active: Wallet signatures enforced.`);
+    // Start the autonomous Sentinel daemon
+    sentinel.start(20000);
   });
 
   const handleShutdown = (signal: string) => {
     console.log(`[Cadence Notifications] Received ${signal}, shutting down gracefully...`);
+    sentinel.stop();
     server.close(() => {
       console.log("[Cadence Notifications] HTTP server closed.");
       process.exit(0);

@@ -416,4 +416,28 @@ export async function triggerContestConcludedAlerts(params: {
   }
 }
 
+/**
+ * Register a vault and its guardian contacts with the autonomous backend Sentinel
+ */
+export async function registerMonitoredVault(params: {
+  vaultAddress: string;
+  name?: string;
+  guardians?: Array<{ address: string; label?: string; email?: string }>;
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${NOTIFICATION_SERVICE_URL}/api/monitor-vault`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      return { success: false, error: errData.error || "Failed to register monitored vault" };
+    }
+    return { success: true };
+  } catch (err: unknown) {
+    return { success: false, error: err instanceof Error ? err.message : "Network error" };
+  }
+}
+
 

@@ -23,6 +23,8 @@ import { getRegisteredVaults, saveRegisteredVault } from "../lib/vaultRegistry";
 import {
   triggerGuardianAttestationAlerts,
   triggerContestConcludedAlerts,
+  registerMonitoredVault,
+  type GuardianAlertTarget,
 } from "../lib/notifications";
 import { parseUserFriendlyError } from "./CreateVaultForm";
 
@@ -134,6 +136,8 @@ export default function ContestWindowPanel({
   const [isDispatchingAlerts, setIsDispatchingAlerts] = useState<boolean>(false);
   const [alertSuccessMsg, setAlertSuccessMsg] = useState<string | null>(null);
   const [isDispatchingConcludedAlert, setIsDispatchingConcludedAlert] = useState<boolean>(false);
+  const [autoDispatchedHeartbeat, setAutoDispatchedHeartbeat] = useState<boolean>(false);
+  const [autoDispatchedConcluded, setAutoDispatchedConcluded] = useState<boolean>(false);
 
   // Local ticker countdown
   const [secondsRemaining, setSecondsRemaining] = useState<number>(0);
@@ -670,6 +674,175 @@ export default function ContestWindowPanel({
     }
   };
 
+  // Load persisted guardian emails on vault change
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved1 =
+      localStorage.getItem(`cadence_guardian_email_1_${selectedVaultAddress}`) ||
+      localStorage.getItem("cadence_guardian_email_1") ||
+      "";
+    const saved2 =
+      localStorage.getItem(`cadence_guardian_email_2_${selectedVaultAddress}`) ||
+      localStorage.getItem("cadence_guardian_email_2") ||
+      "";
+    if (saved1) setGuardian1Email(saved1);
+    if (saved2) setGuardian2Email(saved2);
+  }, [selectedVaultAddress]);
+
+  const handleGuardian1EmailChange = (val: string) => {
+    setGuardian1Email(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`cadence_guardian_email_1_${selectedVaultAddress}`, val);
+      localStorage.setItem("cadence_guardian_email_1", val);
+    }
+  };
+
+  const handleGuardian2EmailChange = (val: string) => {
+    setGuardian2Email(val);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(`cadence_guardian_email_2_${selectedVaultAddress}`, val);
+      localStorage.setItem("cadence_guardian_email_2", val);
+    }
+  };
+
+  // Sync vault and guardian contacts to backend Sentinel for continuous background monitoring
+  useEffect(() => {
+    if (!selectedVaultAddress || guardiansList.length === 0) return;
+    registerMonitoredVault({
+      vaultAddress: selectedVaultAddress,
+      name: "Inheritance Vault",
+      guardians: guardiansList.map((g, idx) => ({
+        address: g.address,
+        label: g.label,
+        email: idx === 0 ? guardian1Email.trim() || undefined : guardian2Email.trim() || undefined,
+      })),
+    }).catch(() => {});
+  }, [selectedVaultAddress, guardiansList, guardian1Email, guardian2Email]);
+
+  // =========================================================================
+  // AUTOMATIC DISPATCH 1: Heartbeat Timer Expired (Active State)
+  // Automatically sends 2 distinct email alerts to Guardian 1 & Guardian 2
+  // =========================================================================
+  useEffect(() => {
+    if (consensusState !== ConsensusState.Active) return;
+    if (!isTimeoutExpired && secondsRemaining > 0) return;
+    if (isThresholdMet) return; // Threshold already satisfied
+    if (guardiansList.length === 0) return;
+
+    const cycleId = `cadence_auto_heartbeat_${selectedVaultAddress}_${checkInIntervalSec}`;
+    if (typeof window !== "undefined" && sessionStorage.getItem(cycleId)) {
+      setAutoDispatchedHeartbeat(true);
+      return;
+    }
+
+    const autoDispatchGuardianAlerts = async () => {
+      try {
+        setIsDispatchingAlerts(true);
+        const g1 = guardiansList[0];
+        const g2 = guardiansList[1];
+        const targets: GuardianAlertTarget[] = [];
+        if (g1) {
+          targets.push({
+            address: g1.address,
+            label: "Guardian Node 1",
+            email: guardian1Email.trim() || undefined,
+          });
+        }
+        if (g2) {
+          targets.push({
+            address: g2.address,
+            label: "Guardian Node 2",
+            email: guardian2Email.trim() || undefined,
+          });
+        }
+
+        const res = await triggerGuardianAttestationAlerts({
+          vaultAddress: selectedVaultAddress,
+          vaultName: "Inheritance Vault",
+          guardians: targets,
+        });
+
+        if (res.success) {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(cycleId, "true");
+          }
+          setAutoDispatchedHeartbeat(true);
+          setAlertSuccessMsg("⚡ System Auto-Dispatch: Heartbeat lapsed! 2 distinct email alerts automatically sent to Guardian Node 1 and Guardian Node 2.");
+        }
+      } catch (err) {
+        console.warn("[ContestWindowPanel] Auto-dispatch guardian alerts error:", err);
+      } finally {
+        setIsDispatchingAlerts(false);
+      }
+    };
+
+    autoDispatchGuardianAlerts();
+  }, [
+    consensusState,
+    isTimeoutExpired,
+    secondsRemaining,
+    isThresholdMet,
+    guardiansList,
+    selectedVaultAddress,
+    checkInIntervalSec,
+    guardian1Email,
+    guardian2Email,
+  ]);
+
+  // =========================================================================
+  // AUTOMATIC DISPATCH 2: Grace Timer Concluded (ClaimPending State)
+  // Automatically notifies guardians and heirs when contest countdown hits 0
+  // =========================================================================
+  useEffect(() => {
+    if (consensusState !== ConsensusState.ClaimPending) return;
+    if (secondsRemaining > 0) return; // Grace period timer still running
+    if (guardiansList.length === 0) return;
+
+    const cycleId = `cadence_auto_concluded_${selectedVaultAddress}`;
+    if (typeof window !== "undefined" && sessionStorage.getItem(cycleId)) {
+      setAutoDispatchedConcluded(true);
+      return;
+    }
+
+    const autoDispatchConcludedAlerts = async () => {
+      try {
+        setIsDispatchingConcludedAlert(true);
+        const recipients = guardiansList.map((g, idx) => ({
+          address: g.address,
+          role: `Guardian Node ${idx + 1}`,
+          email: idx === 0 ? guardian1Email.trim() || undefined : guardian2Email.trim() || undefined,
+        }));
+
+        const res = await triggerContestConcludedAlerts({
+          vaultAddress: selectedVaultAddress,
+          vaultName: "Inheritance Vault",
+          recipients,
+        });
+
+        if (res.success) {
+          if (typeof window !== "undefined") {
+            sessionStorage.setItem(cycleId, "true");
+          }
+          setAutoDispatchedConcluded(true);
+          setAlertSuccessMsg("⚡ System Auto-Dispatch: Challenge grace period concluded! Finalization notice automatically dispatched to guardians & heirs.");
+        }
+      } catch (err) {
+        console.warn("[ContestWindowPanel] Auto-dispatch concluded alerts error:", err);
+      } finally {
+        setIsDispatchingConcludedAlert(false);
+      }
+    };
+
+    autoDispatchConcludedAlerts();
+  }, [
+    consensusState,
+    secondsRemaining,
+    guardiansList,
+    selectedVaultAddress,
+    guardian1Email,
+    guardian2Email,
+  ]);
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E8ECF1] font-sans">
       {/* ========================================================================= */}
@@ -1003,7 +1176,7 @@ export default function ContestWindowPanel({
                       type="email"
                       placeholder="guardian1@example.com"
                       value={guardian1Email}
-                      onChange={(e) => setGuardian1Email(e.target.value)}
+                      onChange={(e) => handleGuardian1EmailChange(e.target.value)}
                       className="w-full bg-[#12161F] border border-[#232838] rounded-lg px-2.5 py-1.5 text-xs text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#F5B841]"
                     />
                   </div>
@@ -1015,10 +1188,15 @@ export default function ContestWindowPanel({
                       type="email"
                       placeholder="guardian2@example.com"
                       value={guardian2Email}
-                      onChange={(e) => setGuardian2Email(e.target.value)}
+                      onChange={(e) => handleGuardian2EmailChange(e.target.value)}
                       className="w-full bg-[#12161F] border border-[#232838] rounded-lg px-2.5 py-1.5 text-xs text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#F5B841]"
                     />
                   </div>
+                </div>
+
+                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] text-[11px] font-mono">
+                  <span className="animate-pulse text-sm">⚡</span>
+                  <span>System Auto-Dispatch Active: Emails dispatch automatically when heartbeat or grace timer concludes.</span>
                 </div>
 
                 <button
@@ -1039,6 +1217,13 @@ export default function ContestWindowPanel({
                     <span>✉ Send Attestation Email Alerts to Guardians (2 Distinct Alerts)</span>
                   )}
                 </button>
+
+                {autoDispatchedHeartbeat && (
+                  <div className="p-2.5 rounded-lg bg-[#2EE6A8]/15 border border-[#2EE6A8]/40 text-[#2EE6A8] text-[11px] flex items-center gap-1.5 font-mono">
+                    <span>⚡</span>
+                    <span>System Auto-Dispatched: Attestation emails delivered to Guardian 1 and Guardian 2!</span>
+                  </div>
+                )}
 
                 {alertSuccessMsg && (
                   <div className="p-2.5 rounded-lg bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[#2EE6A8] text-[11px] flex items-center gap-1.5">
@@ -1155,13 +1340,20 @@ export default function ContestWindowPanel({
                         )}
                       </button>
 
+                      {autoDispatchedConcluded && (
+                        <div className="p-2 rounded-lg bg-[#2EE6A8]/15 border border-[#2EE6A8]/40 text-[#2EE6A8] text-[11px] flex items-center gap-1.5 font-mono">
+                          <span>⚡</span>
+                          <span>System Auto-Dispatched: Grace period concluded notices sent!</span>
+                        </div>
+                      )}
+
                       <button
                         type="button"
                         disabled={isDispatchingConcludedAlert}
                         onClick={handleDispatchContestConcludedAlert}
                         className="w-full py-2 px-4 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[#2EE6A8] hover:bg-[#2EE6A8]/20 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 mt-1"
                       >
-                        {isDispatchingConcludedAlert ? "Sending Concluded Alerts..." : "✉ Notify Guardians & Heirs: Contest Concluded"}
+                        {isDispatchingConcludedAlert ? "Sending Concluded Alerts..." : "✉ Re-send Contest Concluded Notice"}
                       </button>
                     </div>
                   ) : null}

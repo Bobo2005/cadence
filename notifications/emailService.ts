@@ -560,6 +560,10 @@ class EmailService {
     }
 
     if (!targetEmail) {
+      targetEmail = process.env.DEFAULT_GUARDIAN_EMAIL || process.env.SMTP_USER;
+    }
+
+    if (!targetEmail) {
       return {
         success: false,
         reason: "NO_EMAIL_FOUND",
@@ -667,6 +671,10 @@ class EmailService {
         const b = db.getBinding(norm);
         if (b && b.email) targetEmail = b.email;
       } catch {}
+    }
+
+    if (!targetEmail) {
+      targetEmail = process.env.DEFAULT_GUARDIAN_EMAIL || process.env.SMTP_USER;
     }
 
     if (!targetEmail) {

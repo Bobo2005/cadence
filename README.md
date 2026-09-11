@@ -66,12 +66,13 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
    - Click **`[⚡ Adjust Interval]`** on the hero rhythm card. Select the **`5 Min (Test)`** preset (300s) and confirm the on-chain update on Sepolia.
    - Click **`[Send Heartbeat Check-In]`**: Confirms on-chain timestamp renewal with Etherscan receipt link.
 
-### Step 2: Switch to Guardian $\rightarrow$ Attest Inactivity Lapse
-1. Switch to **Guardian 1** or **Guardian 2** (`0x81C3...91a2` or `0x34d7...A1F0`) in your wallet.
-2. Navigate to [`/contest`](https://cadence-ebon-six.vercel.app/contest):
-   - Review guardian attestation records queried directly from `GuardianRegistry.sol`.
-   - If the check-in interval lapses, click **`[⚡ Trigger Contest Challenge Window]`** (or use **`[⚡ Set 5m Test Grace]`** to set a 5-minute testing duration). Once M-of-N consensus is reached, the locker transitions to `ClaimPending` and starts the Contest Window.
-   - The ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`).
+### Step 2: Switch to Guardian $\rightarrow$ Dispatch Email Alerts & Attest Inactivity Lapse
+1. Navigate to [`/contest`](https://cadence-ebon-six.vercel.app/contest):
+   - When the check-in interval lapses, use the **`✉ Guardian Email Dispatcher`** to send **2 distinct email alerts** to Guardian Node 1 and Guardian Node 2 with direct on-chain contest links.
+   - Switch wallet to **Guardian 1** (`0x81C3...91a2` or `0xC09C...77e4`): Click the interactive **`[⚡ Attest Lapse]`** button.
+   - Switch wallet to **Guardian 2** (`0x34d7...A1F0` or `0xA5b9...a8f1`): Click the interactive **`[⚡ Attest Lapse]`** button.
+   - Once 2-of-2 quorum is verified on-chain, click **`[⚡ Trigger Contest Challenge Window]`** (or use **`[⚡ Set 5m Test Grace]`** to set a fast 5-minute testing duration).
+   - The locker transitions to `ClaimPending` and the ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`).
 
 ### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via In-Memory ECIES $\rightarrow$ 1-Click Finalize & Claim
 1. Connect as **Alice** (`0x7099...79C8` or your beneficiary wallet).

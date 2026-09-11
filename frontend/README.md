@@ -19,9 +19,10 @@ The web application for **Cadence Protocol**, built on **Next.js 16 (App Router 
 
 3. **Contest Window & Stealth Cancellation (`/contest`)**:
    - Live challenge countdown timer reflecting dynamic on-chain state (`Active` $\rightarrow$ `ClaimPending` $\rightarrow$ `Finalized`).
-   - **Interactive State Transitions**:
-     - When heartbeat interval lapses: **`[⚡ Trigger Contest Challenge Window]`** initiates the challenge period on Sepolia.
-     - When challenge period elapses: **`[⚡ Finalize Contest on Sepolia]`** transitions the locker to `Finalized`.
+   - **Interactive Guardian Attestation**: Real-time connected guardian detection with **`[⚡ Attest Lapse]`** action buttons directly submitting on-chain Merkle proofs to `GuardianRegistry.sol`.
+   - **Dynamic Quorum Tracking**: Smart trigger button enforces `isThresholdMet` on-chain, tracking progress from `Awaiting Guardian Quorum (0/2)` to **`[⚡ Trigger Contest Challenge Window]`**.
+   - **Guardian Email Dispatcher (2 Distinct Alerts)**: Instant dispatcher allowing users/owners to send two separate, personalized email alerts to **Guardian Node 1** and **Guardian Node 2** when the heartbeat lapses, complete with vault address and direct links to attest.
+   - **Interactive Finalization & Concluded Alerts**: Once the contest countdown concludes, users can dispatch contest-concluded alert emails and execute **`[⚡ Finalize Contest on Sepolia]`** to advance the locker to `Finalized`.
    - Demonstrates **Constraint #1 (Zero Gas-Linkage)**: living owner cancels contested claims off-chain via an EIP-712 stealth signature relayed with zero owner gas payment.
 
 4. **Beneficiary Claim Portal (`/claim`)**:

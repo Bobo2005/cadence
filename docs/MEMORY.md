@@ -924,9 +924,23 @@
       - Updated `ClaimPortal.tsx` to read `distributionSnapshot` (with fallback to `totalDeposited` and `getBalance`), ensuring subsequent beneficiaries' calculated share amounts are never diminished by prior payouts.
     - **Dynamic Hero Status Card & ECG Monitor**:
       - Updated the Claim Portal hero card and ECG pulse to dynamically adapt to the connected beneficiary's selected locker state (`Active` steady green, `Contest Window` erratic amber, `Finalized` flatline red).
+    - **Interactive Guardian Attestation & Quorum Verification**:
+      - Enhanced `ContestWindowPanel.tsx` to detect whether the connected wallet is Guardian Node 1 or Guardian Node 2.
+      - Rendered an active **`[⚡ Attest Lapse]`** button for the connected guardian that dynamically calculates their Merkle proof on-the-fly (`buildGuardianTree.getProof`) and executes `GuardianRegistry.attest()`.
+      - Added live tracking of `isThresholdMet`, disabling the trigger button with `Awaiting Guardian Quorum (0/2)` until consensus is reached, preventing premature `GuardianThresholdNotMet()` reverts.
+- **User Directive 5: Guardian Inactivity Notifications (2 Distinct Alerts)**:
+  - "how will the guardian know when to attest can their be an email notification thats when the heartbeat and grace period is over note their should be 2 different email alet for 2 different guardian"
+  - **Solution**:
+    - **Dedicated Guardian Notification Types (`emailService.ts`)**: Added `GUARDIAN_ATTESTATION_REQUIRED` and `CONTEST_PERIOD_CONCLUDED`.
+    - **Distinct Guardian Alerts**: Configured personalized emails for Guardian Node 1 and Guardian Node 2:
+      - Subject: `[Cadence Alert] Action Required: Heartbeat Lapsed — Attestation Needed (Guardian Node 1 / 2)`
+      - Body contains target vault contract address, guardian role confirmation, and direct one-click button linking to the `/contest` portal.
+    - **Contest Concluded Alert**: Notifies both guardians and beneficiaries when the contest grace countdown reaches `00h : 00m : 00s`, linking to 1-click **Finalize Locker on Sepolia**.
+    - **Contest UI Guardian Dispatcher (`ContestWindowPanel.tsx`)**: Embedded a dedicated **`✉ Guardian Email Dispatcher`** section under Guardian Attestation Claims with inputs for Guardian 1 and Guardian 2 emails and instant dispatch button (`[✉ Send Attestation Email Alerts to Guardians]`).
+    - **Backend API Routes (`notifications/index.ts`)**: Added `POST /api/notify/guardian-attest-request` and `POST /api/notify/contest-concluded`.
 - **Verification Across All Layers**:
   - Smart contracts: 14 Foundry test suites, 198/198 passed (0 failures).
-  - Integration: `node scripts/test-beneficiary-claim-flow.mjs` — 22/22 assertions passed.
+  - Notifications Microservice: 15/15 tests passed (`test/notifications.test.mjs` and `test/security.test.ts`) with live SMTP transport.
   - Frontend: `npx tsc --noEmit` — 0 errors.
 - **Documentation Updates**:
   - Updated `README.md`, `contracts/README.md`, `frontend/README.md`, `BUILD-GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/HANDOFF.md`, and `docs/MEMORY.md`.

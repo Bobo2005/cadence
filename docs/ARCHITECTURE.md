@@ -102,20 +102,26 @@ EVM smart contracts do not automatically advance state when block time advances;
 ```
 [State 0: Active]
        │
-       │  Condition: block.timestamp > lastActiveTimestamp + checkInInterval
+       │  Condition 1: block.timestamp > lastActiveTimestamp + checkInInterval (isTimeoutExpired)
+       │  Condition 2: guardianRegistry.isThresholdMet(vault) (2-of-2 Guardian Attestations)
+       │  Notifications: 2 Distinct Email Alerts dispatched to Guardian Node 1 & Guardian Node 2
        ▼  Transaction: ProofOfLifeConsensus.triggerClaimPending(vault)
 [State 1: ClaimPending (Contest Window)]
        │
        │  Condition: block.timestamp >= contestDeadline (no cancelClaimWithSig received)
+       │  Notifications: Contest Concluded Alert dispatched to Guardians & Beneficiaries
        ▼  Transaction: ProofOfLifeConsensus.finalizeContest(vault)
 [State 3: Finalized]
        │
        ▼  Transaction: InheritanceVault.claim(shareBps, salt, proof) -> Payout Transferred
 ```
 
-1. **Active $\rightarrow$ ClaimPending**: When a vault owner misses their check-in deadline (`isTimeoutExpired == true`), guardians attest the lapse to `GuardianRegistry` and `triggerClaimPending(vault)` is executed.
-2. **Contest Challenge Window**: Runs for the configured duration (default 72 hours, 24 hours, or 5-minute test grace). The living owner can cancel anytime via relayed off-chain EIP-712 stealth signature (`cancelClaimWithSig`).
-3. **ClaimPending $\rightarrow$ Finalized**: Once the challenge period expires without cancellation, any caller executes `finalizeContest(vault)`. The frontend exposes an instant **1-Click Finalize** button on both `/contest` and `/claim` so beneficiaries can immediately unlock their payout.
+1. **Active $\rightarrow$ ClaimPending (Multi-Signal Invariant)**:
+   - When a vault owner misses their check-in deadline (`isTimeoutExpired == true`), the notification engine dispatches **2 distinct, personalized email alerts** to Guardian Node 1 and Guardian Node 2 containing the vault contract address and direct links to `/contest`.
+   - Each guardian connects their wallet and submits their cryptographic Merkle proof on-chain via `GuardianRegistry.attest()`.
+   - Once the M-of-N threshold is verified (`isThresholdMet == true`), `triggerClaimPending(vault)` transitions the contract into `ClaimPending`.
+2. **Contest Challenge Window**: Runs for the configured duration (default 72 hours, 24 hours, or 5-minute test grace). The living owner can cancel anytime via relayed off-chain EIP-712 stealth signature (`cancelClaimWithSig`) with zero gas linkage.
+3. **ClaimPending $\rightarrow$ Finalized**: Once the challenge period expires without cancellation, the notification service dispatches contest-concluded alerts, and any caller executes `finalizeContest(vault)`. The frontend exposes an instant **1-Click Finalize** button on both `/contest` and `/claim` so beneficiaries can immediately unlock their payout.
 
 ## Contract Structure
 

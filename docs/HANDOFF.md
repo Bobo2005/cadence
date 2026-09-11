@@ -108,10 +108,22 @@
   - Added **`[⚡ Finalize Contest on Sepolia]`** and **`[⚡ Trigger Contest Challenge Window]`** in `ContestWindowPanel.tsx` to provide seamless on-chain state transition controls.
   - Enhanced ETH balance calculation in `ClaimPortal.tsx` to read `distributionSnapshot[address(0)]` and `totalDeposited[address(0)]` so allocations remain 100% accurate across multi-heir distributions.
   - Made the Claim Portal Hero status card and ECG monitor dynamically adapt to the connected beneficiary's locker state (`Active` steady green, `Contest Window` erratic amber, `Finalized` flatline red).
+- **Interactive Guardian Attestation & Quorum Tracking**:
+  - Connected guardian detection in `ContestWindowPanel.tsx`: Highlights connected guardian nodes with an active **`[⚡ Attest Lapse]`** button.
+  - Automatically calculates guardian Merkle proof on-the-fly (`buildGuardianTree.getProof`) and submits directly to `GuardianRegistry.attest()`.
+  - Live quorum indicator: `Awaiting Guardian Quorum (0/2)` $\rightarrow$ `(1/2)` $\rightarrow$ **`[⚡ Trigger Contest Challenge Window]`**.
+- **Guardian Email Alert System (2 Distinct Alerts)**:
+  - Added `GUARDIAN_ATTESTATION_REQUIRED` and `CONTEST_PERIOD_CONCLUDED` notification types to `emailService.ts`.
+  - Dispatches 2 separate, personalized email alerts for Guardian Node 1 and Guardian Node 2 when the heartbeat check-in lapses, complete with vault address and direct links to `/contest` to attest.
+  - Added the **`✉ Guardian Email Dispatcher`** to the `/contest` portal UI, allowing testers/owners to input guardian emails and dispatch alerts with 1 click.
+  - Dispatches contest-concluded notifications when the challenge window concludes to prompt 1-click finalization on Sepolia.
+  - Added endpoints in `notifications/index.ts`: `POST /api/notify/guardian-attest-request` and `POST /api/notify/contest-concluded`.
 - **Documentation Updates**:
   - Updated `README.md`, `contracts/README.md`, `frontend/README.md`, `BUILD-GUIDE.md`, `docs/ARCHITECTURE.md`, `docs/HANDOFF.md`, and `docs/MEMORY.md`.
 - **Verification**:
   - `npx tsc --noEmit` in `frontend`: 0 TypeScript errors.
+  - `npm test` in `notifications`: 15/15 tests passed (100% live SMTP delivery and constraint #6 security checks).
+  - `npm run build` in `notifications`: clean compilation (0 errors).
   - `forge test --match-contract OneClickVaultTest -vvv`: 1/1 passed (0 failures).
   - `node scripts/test-beneficiary-claim-flow.mjs`: 22/22 assertions passed.
 

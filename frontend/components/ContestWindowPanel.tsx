@@ -11,6 +11,7 @@ import {
   signCancelClaim,
   type CancelClaimTypedData,
 } from "../lib/eip712";
+import { buildGuardianTree } from "../lib/merkle";
 import {
   CONTRACT_ADDRESSES,
   publicClient,
@@ -19,6 +20,10 @@ import {
   GUARDIAN_REGISTRY_ABI,
 } from "../lib/contracts";
 import { getRegisteredVaults, saveRegisteredVault } from "../lib/vaultRegistry";
+import {
+  triggerGuardianAttestationAlerts,
+  triggerContestConcludedAlerts,
+} from "../lib/notifications";
 import { parseUserFriendlyError } from "./CreateVaultForm";
 
 interface ContestWindowPanelProps {
@@ -118,7 +123,17 @@ export default function ContestWindowPanel({
   const [guardiansList, setGuardiansList] = useState<GuardianAttestationInfo[]>([]);
   const [guardianThreshold, setGuardianThreshold] = useState(2);
   const [guardianTotal, setGuardianTotal] = useState(2);
+  const [isThresholdMet, setIsThresholdMet] = useState(false);
+  const [attestingGuardian, setAttestingGuardian] = useState<Address | null>(null);
+  const [attestSuccessMessage, setAttestSuccessMessage] = useState<string | null>(null);
   const [customStealthKey, setCustomStealthKey] = useState<string>("");
+
+  // Guardian Email Dispatcher State
+  const [guardian1Email, setGuardian1Email] = useState<string>("");
+  const [guardian2Email, setGuardian2Email] = useState<string>("");
+  const [isDispatchingAlerts, setIsDispatchingAlerts] = useState<boolean>(false);
+  const [alertSuccessMsg, setAlertSuccessMsg] = useState<string | null>(null);
+  const [isDispatchingConcludedAlert, setIsDispatchingConcludedAlert] = useState<boolean>(false);
 
   // Local ticker countdown
   const [secondsRemaining, setSecondsRemaining] = useState<number>(0);
@@ -263,6 +278,21 @@ export default function ContestWindowPanel({
           setGuardianThreshold(Number(gConfig.threshold ?? gConfig[1] ?? 2));
           setGuardianTotal(Number(gConfig.totalGuardians ?? gConfig[2] ?? 2));
         }
+
+        let thresholdMet = false;
+        try {
+          thresholdMet = Boolean(
+            await publicClient.readContract({
+              address: guardianRegistryAddress,
+              abi: GUARDIAN_REGISTRY_ABI,
+              functionName: "isThresholdMet",
+              args: [selectedVaultAddress],
+            })
+          );
+        } catch {
+          thresholdMet = false;
+        }
+        setIsThresholdMet(thresholdMet);
 
         // Query configured guardians from registry or demo nodes
         const reg = getRegisteredVaults().find((v) => {
@@ -516,6 +546,125 @@ export default function ContestWindowPanel({
     }
   };
 
+  // Guardian Attestation Handler
+  const handleAttestGuardian = async (guardianAddress: Address, guardianIndex: number) => {
+    if (!walletClient || !connectedAddress) {
+      alert("Please connect your guardian wallet first.");
+      return;
+    }
+    setAttestingGuardian(guardianAddress);
+    setCancellationError(null);
+    setAttestSuccessMessage(null);
+    try {
+      const reg = getRegisteredVaults().find((v) => {
+        try {
+          return isAddressEqual(v.vaultAddress, selectedVaultAddress);
+        } catch {
+          return v.vaultAddress.toLowerCase() === selectedVaultAddress.toLowerCase();
+        }
+      });
+      const candidateG: Address[] = (reg?.guardians && reg.guardians.length > 0)
+        ? reg.guardians
+        : guardiansList.map((g) => g.address);
+
+      const guardianTree = buildGuardianTree(candidateG);
+      const proof = guardianTree.getProof(guardianIndex);
+
+      const hash = await (walletClient as any).writeContract({
+        chain: sepolia,
+        address: guardianRegistryAddress,
+        abi: GUARDIAN_REGISTRY_ABI,
+        functionName: "attest",
+        args: [selectedVaultAddress, proof],
+        account: connectedAddress,
+      });
+      await publicClient.waitForTransactionReceipt({ hash });
+      setAttestSuccessMessage(`✓ Guardian attestation confirmed on Sepolia! (${guardianAddress.slice(0, 6)}...${guardianAddress.slice(-4)})`);
+      await fetchOnChainState();
+    } catch (err: unknown) {
+      console.warn("[ContestWindowPanel] Failed to attest guardian:", err);
+      const msg = parseUserFriendlyError(err);
+      setCancellationError(msg);
+    } finally {
+      setAttestingGuardian(null);
+    }
+  };
+
+  // Dispatch 2 Distinct Guardian Email Alerts when Heartbeat Lapses
+  const handleDispatchGuardianAlerts = async () => {
+    if (guardiansList.length === 0) return;
+    setIsDispatchingAlerts(true);
+    setAlertSuccessMsg(null);
+    setCancellationError(null);
+
+    try {
+      const g1 = guardiansList[0];
+      const g2 = guardiansList[1];
+      const targets = [];
+      if (g1) {
+        targets.push({
+          address: g1.address,
+          label: "Guardian Node 1",
+          email: guardian1Email.trim() || undefined,
+        });
+      }
+      if (g2) {
+        targets.push({
+          address: g2.address,
+          label: "Guardian Node 2",
+          email: guardian2Email.trim() || undefined,
+        });
+      }
+
+      const res = await triggerGuardianAttestationAlerts({
+        vaultAddress: selectedVaultAddress,
+        vaultName: "Inheritance Vault",
+        guardians: targets,
+      });
+
+      if (res.success) {
+        setAlertSuccessMsg(`✓ Successfully dispatched 2 distinct email alerts to Guardian Node 1 and Guardian Node 2!`);
+      } else {
+        setCancellationError(res.error || "Failed to dispatch guardian alerts. Please check notification microservice.");
+      }
+    } catch (err: unknown) {
+      setCancellationError("Error sending guardian alert emails.");
+    } finally {
+      setIsDispatchingAlerts(false);
+    }
+  };
+
+  // Dispatch Finalization Ready Email Alert when Contest Window Elapses
+  const handleDispatchContestConcludedAlert = async () => {
+    setIsDispatchingConcludedAlert(true);
+    setAlertSuccessMsg(null);
+    setCancellationError(null);
+
+    try {
+      const recipients = guardiansList.map((g, idx) => ({
+        address: g.address,
+        role: `Guardian Node ${idx + 1}`,
+        email: idx === 0 ? guardian1Email.trim() || undefined : guardian2Email.trim() || undefined,
+      }));
+
+      const res = await triggerContestConcludedAlerts({
+        vaultAddress: selectedVaultAddress,
+        vaultName: "Inheritance Vault",
+        recipients,
+      });
+
+      if (res.success) {
+        setAlertSuccessMsg("✓ Contest conclusion alerts sent to guardians and stakeholders!");
+      } else {
+        setCancellationError(res.error || "Failed to dispatch contest conclusion alerts.");
+      }
+    } catch {
+      setCancellationError("Error sending contest conclusion alerts.");
+    } finally {
+      setIsDispatchingConcludedAlert(false);
+    }
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E8ECF1] font-sans">
       {/* ========================================================================= */}
@@ -751,30 +900,149 @@ export default function ContestWindowPanel({
                 Guardian Attestation Claims
               </h2>
               <span className="text-xs font-mono text-[#8993A6]">
-                Threshold: {guardianThreshold}-of-{guardianTotal}
+                Threshold: {guardianThreshold}-of-{guardianTotal} ({guardiansList.filter((g) => g.hasAttested).length}/{guardianThreshold} met)
               </span>
             </div>
 
+            {attestSuccessMessage && (
+              <div className="p-3 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[#2EE6A8] text-xs font-mono">
+                {attestSuccessMessage}
+              </div>
+            )}
+
             <div className="space-y-3 pt-1">
-              {guardiansList.map((g) => (
-                <div
-                  key={g.address}
-                  className="flex items-center justify-between text-xs py-2.5 border-b border-[#232838]/60 last:border-0"
-                >
-                  <span className="font-mono text-[#8993A6]">
-                    {g.address.slice(0, 6)}...{g.address.slice(-4)}{" "}
-                    <span className="text-[#5A6478]">({g.label})</span>
-                  </span>
-                  <span
-                    className={`font-mono font-bold tracking-wider text-[11px] ${
-                      g.hasAttested ? "text-[#F5484A]" : "text-[#2EE6A8]"
-                    }`}
+              {guardiansList.map((g, idx) => {
+                const isConnectedAsGuardian =
+                  connectedAddress && isAddressEqual(connectedAddress, g.address);
+                return (
+                  <div
+                    key={g.address}
+                    className="flex flex-col sm:flex-row sm:items-center justify-between text-xs py-3 border-b border-[#232838]/60 last:border-0 gap-2"
                   >
-                    {g.hasAttested ? "ASSERTED LAPSE" : "STANDBY · MONITORING"}
+                    <div>
+                      <div className="font-mono text-[#E8ECF1]">
+                        {g.address.slice(0, 6)}...{g.address.slice(-4)}{" "}
+                        <span className="text-[#5A6478]">({g.label})</span>
+                      </div>
+                      {isConnectedAsGuardian && (
+                        <div className="text-[10px] text-[#2EE6A8] font-bold mt-0.5">
+                          ● Connected as this Guardian
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`font-mono font-bold tracking-wider text-[11px] ${
+                          g.hasAttested ? "text-[#F5484A]" : "text-[#2EE6A8]"
+                        }`}
+                      >
+                        {g.hasAttested ? "✓ ASSERTED LAPSE" : "STANDBY · MONITORING"}
+                      </span>
+
+                      {!g.hasAttested && isTimeoutExpired && consensusState === ConsensusState.Active && (
+                        isConnectedAsGuardian ? (
+                          <button
+                            type="button"
+                            disabled={attestingGuardian === g.address}
+                            onClick={() => handleAttestGuardian(g.address, idx)}
+                            className="px-3 py-1.5 rounded-lg bg-[#F5B841] text-[#0A0E14] font-bold text-xs hover:bg-[#ffc857] transition-all cursor-pointer shadow-[0_0_12px_rgba(245,184,65,0.3)] disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {attestingGuardian === g.address ? "Attesting..." : "⚡ Attest Lapse"}
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-[#8993A6] italic">
+                            (Switch to {g.address.slice(0, 6)}... to attest)
+                          </span>
+                        )
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Informational Guidance for Consensus */}
+            {isTimeoutExpired && consensusState === ConsensusState.Active && !isThresholdMet && (
+              <div className="p-3 rounded-xl bg-[#F5B841]/10 border border-[#F5B841]/30 text-xs space-y-1">
+                <div className="font-bold text-[#F5B841] flex items-center gap-1.5">
+                  <span>ℹ Multi-Signal Proof-of-Life Consensus</span>
+                </div>
+                <p className="text-[11px] text-[#8993A6] leading-relaxed">
+                  Cadence requires {guardianThreshold}-of-{guardianTotal} guardians to confirm inactivity before opening the contest window. Switch your wallet to Guardian Node 1 or Node 2 above to submit attestation on Sepolia.
+                </p>
+              </div>
+            )}
+
+            {/* Guardian Email Dispatcher Card */}
+            {isTimeoutExpired && (
+              <div className="p-4 rounded-xl bg-[#0A0E14] border border-[#232838] space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-bold text-[#E8ECF1] flex items-center gap-1.5">
+                    <span>✉ Guardian Email Dispatcher</span>
+                  </div>
+                  <span className="text-[10px] text-[#2EE6A8] font-mono bg-[#2EE6A8]/10 px-2 py-0.5 rounded border border-[#2EE6A8]/30 font-semibold">
+                    2 Distinct Email Alerts
                   </span>
                 </div>
-              ))}
-            </div>
+                <p className="text-[11px] text-[#8993A6] leading-relaxed">
+                  How do guardians know when to attest? Dispatch 2 distinct, personalized email alerts to Guardian Node 1 and Guardian Node 2 with on-chain contest links.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <label className="text-[10px] text-[#8993A6] font-mono block mb-1">
+                      Guardian 1 Email ({guardiansList[0] ? `${guardiansList[0].address.slice(0, 6)}...` : "Node 1"})
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="guardian1@example.com"
+                      value={guardian1Email}
+                      onChange={(e) => setGuardian1Email(e.target.value)}
+                      className="w-full bg-[#12161F] border border-[#232838] rounded-lg px-2.5 py-1.5 text-xs text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#F5B841]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-[#8993A6] font-mono block mb-1">
+                      Guardian 2 Email ({guardiansList[1] ? `${guardiansList[1].address.slice(0, 6)}...` : "Node 2"})
+                    </label>
+                    <input
+                      type="email"
+                      placeholder="guardian2@example.com"
+                      value={guardian2Email}
+                      onChange={(e) => setGuardian2Email(e.target.value)}
+                      className="w-full bg-[#12161F] border border-[#232838] rounded-lg px-2.5 py-1.5 text-xs text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#F5B841]"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isDispatchingAlerts}
+                  onClick={handleDispatchGuardianAlerts}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#F5B841]/15 border border-[#F5B841]/40 text-[#F5B841] hover:bg-[#F5B841]/25 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isDispatchingAlerts ? (
+                    <>
+                      <svg className="animate-spin h-3.5 w-3.5 text-[#F5B841]" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      </svg>
+                      <span>Dispatching 2 Guardian Alerts...</span>
+                    </>
+                  ) : (
+                    <span>✉ Send Attestation Email Alerts to Guardians (2 Distinct Alerts)</span>
+                  )}
+                </button>
+
+                {alertSuccessMsg && (
+                  <div className="p-2.5 rounded-lg bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[#2EE6A8] text-[11px] flex items-center gap-1.5">
+                    <span>✓</span>
+                    <span>{alertSuccessMsg}</span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -881,6 +1149,15 @@ export default function ContestWindowPanel({
                           <span>⚡ Finalize Contest on Sepolia</span>
                         )}
                       </button>
+
+                      <button
+                        type="button"
+                        disabled={isDispatchingConcludedAlert}
+                        onClick={handleDispatchContestConcludedAlert}
+                        className="w-full py-2 px-4 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[#2EE6A8] hover:bg-[#2EE6A8]/20 font-bold text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 mt-1"
+                      >
+                        {isDispatchingConcludedAlert ? "Sending Concluded Alerts..." : "✉ Notify Guardians & Heirs: Contest Concluded"}
+                      </button>
                     </div>
                   ) : null}
 
@@ -918,13 +1195,19 @@ export default function ContestWindowPanel({
                         ⚠️ Heartbeat Inactivity Lapsed
                       </div>
                       <p className="text-[11px] text-[#E8ECF1] leading-relaxed">
-                        The owner missed their check-in window. Click below to trigger the contest challenge window on Sepolia.
+                        {isThresholdMet
+                          ? "Guardian consensus verified! Click below to trigger the contest challenge window on Sepolia."
+                          : `Heartbeat lapsed on-chain. Requires ${guardianThreshold}-of-${guardianTotal} guardian attestations before the contest window can open.`}
                       </p>
                       <button
                         type="button"
-                        disabled={isTriggeringClaim}
+                        disabled={isTriggeringClaim || !isThresholdMet}
                         onClick={handleTriggerClaimPending}
-                        className="w-full py-3.5 px-6 rounded-xl font-bold text-sm bg-[#F5B841] text-[#0A0E14] hover:bg-[#ffc857] active:scale-[0.98] transition-all shadow-[0_0_20px_rgba(245,184,65,0.35)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                        className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                          isThresholdMet
+                            ? "bg-[#F5B841] text-[#0A0E14] hover:bg-[#ffc857] active:scale-[0.98] shadow-[0_0_20px_rgba(245,184,65,0.35)]"
+                            : "bg-[#1A1F2B] text-[#5A6478] border border-[#232838] cursor-not-allowed"
+                        }`}
                       >
                         {isTriggeringClaim ? (
                           <>
@@ -934,8 +1217,10 @@ export default function ContestWindowPanel({
                             </svg>
                             <span>Triggering on Sepolia...</span>
                           </>
-                        ) : (
+                        ) : isThresholdMet ? (
                           <span>⚡ Trigger Contest Challenge Window</span>
+                        ) : (
+                          <span>Awaiting Guardian Quorum ({guardiansList.filter((g) => g.hasAttested).length}/{guardianThreshold})</span>
                         )}
                       </button>
                     </div>

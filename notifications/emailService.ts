@@ -28,7 +28,9 @@ export type NotificationType =
   | "OWNER_CHECKIN_REMINDER"
   | "BENEFICIARY_ADDED"
   | "CLAIM_READY"
-  | "WALLET_REMINDER";
+  | "WALLET_REMINDER"
+  | "GUARDIAN_ATTESTATION_REQUIRED"
+  | "CONTEST_PERIOD_CONCLUDED";
 
 export interface OutboxEntry {
   id: string;
@@ -475,6 +477,241 @@ class EmailService {
         console.log(`[LIVE SMTP DELIVERED] Message ID: ${info.messageId} | Recipient: ${params.email}`);
       } catch (err: any) {
         console.error(`[LIVE SMTP ERROR] Failed to deliver wallet reminder to ${params.email}:`, err?.message || err);
+      }
+    }
+
+    return {
+      success: true,
+      notificationId: entry.id,
+      entry,
+    };
+  }
+
+  /**
+   * 5. Guardian Attestation Alert
+   * Dispatched to Guardian Node 1 or Node 2 when heartbeat inactivity timeout expires.
+   */
+  public async sendGuardianAttestationNotice(params: {
+    guardianAddress: string;
+    guardianLabel: string; // e.g. "Guardian Node 1" or "Guardian Node 2"
+    guardianEmail?: string;
+    vaultAddress: string;
+    vaultName?: string;
+  }): Promise<SendResult> {
+    const appUrl = getClientBaseUrl();
+    const truncGuardian = formatTruncatedAddress(params.guardianAddress);
+    const truncVault = formatTruncatedAddress(params.vaultAddress);
+    const subject = `[Cadence Alert] Action Required: Heartbeat Lapsed — Attestation Needed (${params.guardianLabel})`;
+    const bodyText = `Cadence Proof-of-Life Alert:\n\nThe heartbeat check-in interval for vault ${truncVault} (${params.vaultAddress}) has lapsed without owner check-in.\n\nAs designated ${params.guardianLabel} (wallet: ${params.guardianAddress}), your cryptographic attestation is required to initiate the contest challenge window.\n\nPlease connect your guardian wallet at ${appUrl}/contest to review and attest.`;
+
+    const bodyHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
+        <div style="display: inline-block; padding: 4px 10px; background: rgba(245, 184, 65, 0.15); border: 1px solid rgba(245, 184, 65, 0.35); border-radius: 6px; color: #F5B841; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">
+          ⚠️ Action Required · Proof-of-Life Consensus
+        </div>
+        <h2 style="color: #F5B841; margin-top: 0;">Heartbeat Inactivity Timeout Expired</h2>
+        <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
+          The owner of vault <strong>${params.vaultName || "Inheritance Vault"}</strong> has missed their scheduled heartbeat check-in window on Ethereum Sepolia.
+        </p>
+
+        <div style="background: #12161F; border: 1px solid #232838; border-radius: 8px; padding: 14px 16px; margin: 18px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #8993A6; margin-bottom: 6px;">
+            Target Vault Contract
+          </div>
+          <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #2EE6A8; font-size: 13px; word-break: break-all;">
+            ${params.vaultAddress}
+          </div>
+        </div>
+
+        <div style="background: #12161F; border: 1px solid #232838; border-radius: 8px; padding: 14px 16px; margin: 18px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #8993A6; margin-bottom: 6px;">
+            Designated Guardian Node
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 700; color: #00E5FF; font-size: 14px;">${params.guardianLabel}</span>
+            <span style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #8993A6; font-size: 12px;">${truncGuardian}</span>
+          </div>
+          <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #E8ECF1; font-size: 11px; margin-top: 6px; word-break: break-all;">
+            ${params.guardianAddress}
+          </div>
+        </div>
+
+        <p style="color: #8993A6; font-size: 14px; line-height: 1.5;">
+          Under Cadence's decentralized consensus mechanism, the contest challenge window only opens if <strong>2-of-2 guardians</strong> affirm inactivity. Please connect this guardian wallet to submit your attestation:
+        </p>
+
+        <div style="margin: 24px 0;">
+          <a href="${appUrl}/contest" style="background: #F5B841; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Review &amp; Attest on Contest Portal →</a>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #8993A6; margin: 0;">Cadence Protocol · Cryptographic Inheritance &amp; Proof-of-Life Consensus</p>
+      </div>
+    `;
+
+    // If guardian email provided directly, use it, else check DB
+    let targetEmail = params.guardianEmail;
+    if (!targetEmail) {
+      try {
+        const norm = getAddress(params.guardianAddress);
+        const b = db.getBinding(norm);
+        if (b && b.email) targetEmail = b.email;
+      } catch {}
+    }
+
+    if (!targetEmail) {
+      return {
+        success: false,
+        reason: "NO_EMAIL_FOUND",
+        error: `No email address registered or provided for guardian ${params.guardianAddress}.`,
+      };
+    }
+
+    let normWallet: `0x${string}`;
+    try {
+      normWallet = getAddress(params.guardianAddress);
+    } catch {
+      normWallet = params.guardianAddress as `0x${string}`;
+    }
+
+    const entry: OutboxEntry = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: "GUARDIAN_ATTESTATION_REQUIRED",
+      recipientWallet: normWallet,
+      recipientEmail: targetEmail,
+      subject,
+      bodyText,
+      bodyHtml,
+      vaultId: params.vaultAddress,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.recordOutbox(entry);
+    console.log(`[EMAIL DISPATCHED] Type: GUARDIAN_ATTESTATION_REQUIRED | Guardian: ${params.guardianLabel} | To: ${targetEmail} | Subject: "${subject}"`);
+
+    if (this.transporter && this.isLiveSmtpConfigured) {
+      const from = process.env.SMTP_FROM || `"Cadence Protocol" <${process.env.SMTP_USER || "notifications@cadenceprotocol.io"}>`;
+      try {
+        const info = await this.transporter.sendMail({
+          from,
+          to: targetEmail,
+          subject,
+          text: bodyText,
+          html: bodyHtml,
+        });
+        console.log(`[LIVE SMTP DELIVERED] Message ID: ${info.messageId} | Recipient: ${targetEmail}`);
+      } catch (err: any) {
+        console.error(`[LIVE SMTP ERROR] Failed to deliver guardian attestation alert to ${targetEmail}:`, err?.message || err);
+      }
+    }
+
+    return {
+      success: true,
+      notificationId: entry.id,
+      entry,
+    };
+  }
+
+  /**
+   * 6. Contest Concluded & Finalization Ready Alert
+   * Dispatched when the contest grace period elapses to guardians / beneficiaries.
+   */
+  public async sendContestConcludedNotice(params: {
+    recipientAddress: string;
+    recipientRole: string; // e.g. "Guardian Node 1", "Guardian Node 2", "Beneficiary"
+    recipientEmail?: string;
+    vaultAddress: string;
+    vaultName?: string;
+  }): Promise<SendResult> {
+    const appUrl = getClientBaseUrl();
+    const truncVault = formatTruncatedAddress(params.vaultAddress);
+    const subject = `[Cadence Alert] Contest Window Concluded — Vault Ready to Finalize (${params.recipientRole})`;
+    const bodyText = `Cadence Protocol Notice:\n\nThe contest challenge grace period for vault ${truncVault} (${params.vaultAddress}) has concluded without owner cancellation.\n\nThe vault is now ready to be finalized on Sepolia, unlocking beneficiary claims.\n\nConnect at ${appUrl}/contest or ${appUrl}/claim to finalize and claim.`;
+
+    const bodyHtml = `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
+        <div style="display: inline-block; padding: 4px 10px; background: rgba(46, 230, 168, 0.15); border: 1px solid rgba(46, 230, 168, 0.35); border-radius: 6px; color: #2EE6A8; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px;">
+          ✓ Challenge Period Elapsed
+        </div>
+        <h2 style="color: #2EE6A8; margin-top: 0;">Contest Grace Period Concluded</h2>
+        <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
+          The challenge window for vault <strong>${params.vaultName || "Inheritance Vault"}</strong> has elapsed without cancellation from the vault owner.
+        </p>
+
+        <div style="background: #12161F; border: 1px solid #232838; border-radius: 8px; padding: 14px 16px; margin: 18px 0;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #8993A6; margin-bottom: 6px;">
+            Vault Address
+          </div>
+          <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #2EE6A8; font-size: 13px; word-break: break-all;">
+            ${params.vaultAddress}
+          </div>
+        </div>
+
+        <p style="color: #8993A6; font-size: 14px; line-height: 1.5;">
+          Notice recipient: <strong>${params.recipientRole}</strong> (${params.recipientAddress}). Anyone can now execute the 1-click finalization on Sepolia to release payouts.
+        </p>
+
+        <div style="margin: 24px 0;">
+          <a href="${appUrl}/contest" style="background: #2EE6A8; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 12px 24px; border-radius: 8px; display: inline-block; font-size: 14px;">Finalize Locker on Sepolia →</a>
+        </div>
+
+        <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
+        <p style="font-size: 12px; color: #8993A6; margin: 0;">Cadence Protocol · Cryptographic Inheritance &amp; Proof-of-Life Consensus</p>
+      </div>
+    `;
+
+    let targetEmail = params.recipientEmail;
+    if (!targetEmail) {
+      try {
+        const norm = getAddress(params.recipientAddress);
+        const b = db.getBinding(norm);
+        if (b && b.email) targetEmail = b.email;
+      } catch {}
+    }
+
+    if (!targetEmail) {
+      return {
+        success: false,
+        reason: "NO_EMAIL_FOUND",
+        error: `No email address registered for ${params.recipientAddress}.`,
+      };
+    }
+
+    let normWallet: `0x${string}`;
+    try {
+      normWallet = getAddress(params.recipientAddress);
+    } catch {
+      normWallet = params.recipientAddress as `0x${string}`;
+    }
+
+    const entry: OutboxEntry = {
+      id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      type: "CONTEST_PERIOD_CONCLUDED",
+      recipientWallet: normWallet,
+      recipientEmail: targetEmail,
+      subject,
+      bodyText,
+      bodyHtml,
+      vaultId: params.vaultAddress,
+      timestamp: new Date().toISOString(),
+    };
+
+    this.recordOutbox(entry);
+    console.log(`[EMAIL DISPATCHED] Type: CONTEST_PERIOD_CONCLUDED | Role: ${params.recipientRole} | To: ${targetEmail} | Subject: "${subject}"`);
+
+    if (this.transporter && this.isLiveSmtpConfigured) {
+      const from = process.env.SMTP_FROM || `"Cadence Protocol" <${process.env.SMTP_USER || "notifications@cadenceprotocol.io"}>`;
+      try {
+        const info = await this.transporter.sendMail({
+          from,
+          to: targetEmail,
+          subject,
+          text: bodyText,
+          html: bodyHtml,
+        });
+        console.log(`[LIVE SMTP DELIVERED] Message ID: ${info.messageId} | Recipient: ${targetEmail}`);
+      } catch (err: any) {
+        console.error(`[LIVE SMTP ERROR] Failed to deliver contest concluded alert to ${targetEmail}:`, err?.message || err);
       }
     }
 

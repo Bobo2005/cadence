@@ -361,6 +361,100 @@ app.post("/api/notify/claim-ready", requireInternalKey, async (req: Request, res
 });
 
 /**
+ * POST /api/notify/guardian-attest-request
+ * Dispatches distinct email alerts to Guardian Node 1 and/or Guardian Node 2 when heartbeat lapses.
+ */
+app.post("/api/notify/guardian-attest-request", async (req: Request, res: Response) => {
+  try {
+    const { vaultAddress, vaultName, guardians } = req.body;
+    if (!vaultAddress) {
+      return res.status(400).json({ error: "vaultAddress is required" });
+    }
+
+    // Support batch dispatch to multiple guardians (e.g. 2 distinct guardians)
+    if (Array.isArray(guardians) && guardians.length > 0) {
+      const results = [];
+      for (const g of guardians) {
+        if (!g.address) continue;
+        const resAlert = await emailService.sendGuardianAttestationNotice({
+          guardianAddress: g.address,
+          guardianLabel: g.label || "Guardian Node",
+          guardianEmail: g.email,
+          vaultAddress,
+          vaultName,
+        });
+        results.push({ guardian: g.address, label: g.label, ...resAlert });
+      }
+      return res.json({ success: true, count: results.length, results });
+    }
+
+    // Single guardian dispatch
+    const { guardianAddress, guardianLabel, guardianEmail } = req.body;
+    if (!guardianAddress) {
+      return res.status(400).json({ error: "guardianAddress or guardians array is required" });
+    }
+
+    const result = await emailService.sendGuardianAttestationNotice({
+      guardianAddress,
+      guardianLabel: guardianLabel || "Guardian Node",
+      guardianEmail,
+      vaultAddress,
+      vaultName,
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Failed to dispatch guardian attestation notice" });
+  }
+});
+
+/**
+ * POST /api/notify/contest-concluded
+ * Dispatches alert when the contest grace period concludes.
+ */
+app.post("/api/notify/contest-concluded", async (req: Request, res: Response) => {
+  try {
+    const { vaultAddress, vaultName, recipients } = req.body;
+    if (!vaultAddress) {
+      return res.status(400).json({ error: "vaultAddress is required" });
+    }
+
+    if (Array.isArray(recipients) && recipients.length > 0) {
+      const results = [];
+      for (const r of recipients) {
+        if (!r.address) continue;
+        const resAlert = await emailService.sendContestConcludedNotice({
+          recipientAddress: r.address,
+          recipientRole: r.role || "Guardian",
+          recipientEmail: r.email,
+          vaultAddress,
+          vaultName,
+        });
+        results.push({ recipient: r.address, role: r.role, ...resAlert });
+      }
+      return res.json({ success: true, count: results.length, results });
+    }
+
+    const { recipientAddress, recipientRole, recipientEmail } = req.body;
+    if (!recipientAddress) {
+      return res.status(400).json({ error: "recipientAddress or recipients array is required" });
+    }
+
+    const result = await emailService.sendContestConcludedNotice({
+      recipientAddress,
+      recipientRole: recipientRole || "Guardian",
+      recipientEmail,
+      vaultAddress,
+      vaultName,
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Failed to dispatch contest concluded notice" });
+  }
+});
+
+/**
  * POST /api/remind-wallet
  * Wrong-wallet recovery: looks up verified wallet addresses by email and sends an email reminder.
  *

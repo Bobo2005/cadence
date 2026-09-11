@@ -358,4 +358,62 @@ export async function checkBackendHealth(): Promise<BackendHealthStatus> {
   }
 }
 
+export interface GuardianAlertTarget {
+  address: string;
+  label: string; // e.g. "Guardian Node 1" or "Guardian Node 2"
+  email?: string;
+}
+
+/**
+ * Trigger email alerts to Guardian Node 1 and Guardian Node 2 when heartbeat lapses.
+ */
+export async function triggerGuardianAttestationAlerts(params: {
+  vaultAddress: string;
+  vaultName?: string;
+  guardians: GuardianAlertTarget[];
+}): Promise<{ success: boolean; count?: number; results?: any[]; error?: string }> {
+  try {
+    const res = await fetch(`${NOTIFICATION_SERVICE_URL}/api/notify/guardian-attest-request`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-cadence-internal-key":
+          process.env.NEXT_PUBLIC_INTERNAL_KEY || "cadence-internal-secret",
+      },
+      body: JSON.stringify(params),
+    });
+    return await res.json();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[Notifications] Failed to trigger guardian attestation alerts:", msg);
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Trigger alert to guardians / beneficiaries when the contest grace period concludes.
+ */
+export async function triggerContestConcludedAlerts(params: {
+  vaultAddress: string;
+  vaultName?: string;
+  recipients: Array<{ address: string; role: string; email?: string }>;
+}): Promise<{ success: boolean; count?: number; results?: any[]; error?: string }> {
+  try {
+    const res = await fetch(`${NOTIFICATION_SERVICE_URL}/api/notify/contest-concluded`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-cadence-internal-key":
+          process.env.NEXT_PUBLIC_INTERNAL_KEY || "cadence-internal-secret",
+      },
+      body: JSON.stringify(params),
+    });
+    return await res.json();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[Notifications] Failed to trigger contest concluded alerts:", msg);
+    return { success: false, error: msg };
+  }
+}
+
 

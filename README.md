@@ -63,16 +63,17 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
 1. Connect as **Owner** (`0xC09C...77e4` or your own testnet wallet) using your Web3 wallet.
 2. Open [`/dashboard`](https://cadence-ebon-six.vercel.app/dashboard) to inspect the **Locker Heartbeat Rhythm**:
    - The live oscilloscope ECG line visualizes heartbeat status (`62 BPM Steady`).
+   - **Autonomous Owner Heartbeat Alerts**: The background Sentinel daemon (`notifications/sentinel.ts`) continuously monitors on-chain heartbeat timers, dispatching approaching check-in email reminders ($\le 2$m for test intervals, $\le 3$d / 25% remaining for standard) and urgent overdue notices via `/api/notify/owner-reminder` with cycle-keyed deduplication.
    - Click **`[⚡ Adjust Interval]`** on the hero rhythm card. Select the **`5 Min (Test)`** preset (300s) and confirm the on-chain update on Sepolia.
    - Click **`[Send Heartbeat Check-In]`**: Confirms on-chain timestamp renewal with Etherscan receipt link.
 
 ### Step 2: Switch to Guardian $\rightarrow$ Dispatch Email Alerts & Attest Inactivity Lapse
 1. Navigate to [`/contest`](https://cadence-ebon-six.vercel.app/contest):
-   - When the check-in interval lapses, use the **`✉ Guardian Email Dispatcher`** to send **2 distinct email alerts** to Guardian Node 1 and Guardian Node 2 with direct on-chain contest links.
+   - **Autonomous Guardian & Concluded Alerts**: When the check-in interval lapses, the Sentinel daemon (and client-side real-time detector) automatically dispatches **2 distinct email alerts** to Guardian Node 1 and Guardian Node 2 with direct on-chain contest links (manual dispatch also available via the **`✉ Guardian Email Dispatcher`**).
    - Switch wallet to **Guardian 1** (`0x81C3...91a2` or `0xC09C...77e4`): Click the interactive **`[⚡ Attest Lapse]`** button.
    - Switch wallet to **Guardian 2** (`0x34d7...A1F0` or `0xA5b9...a8f1`): Click the interactive **`[⚡ Attest Lapse]`** button.
    - Once 2-of-2 quorum is verified on-chain, click **`[⚡ Trigger Contest Challenge Window]`** (or use **`[⚡ Set 5m Test Grace]`** to set a fast 5-minute testing duration).
-   - The locker transitions to `ClaimPending` and the ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`).
+   - The locker transitions to `ClaimPending` and the ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`). When the challenge countdown elapses, the Sentinel autonomously dispatches contest-concluded alert emails.
 
 ### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via In-Memory ECIES $\rightarrow$ 1-Click Finalize & Claim
 1. Connect as **Alice** (`0x7099...79C8` or your beneficiary wallet).

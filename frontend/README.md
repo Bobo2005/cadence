@@ -11,6 +11,7 @@ The web application for **Cadence Protocol**, built on **Next.js 16 (App Router 
    - Real-time oscilloscope ECG monitor reacting dynamically to consensus state (`active` 62 BPM, `erratic` 92 BPM, `flatline` 0 BPM).
    - Dynamic countdown ticker reflecting on-chain `lastActiveTimestamp` and `checkInInterval`.
    - **`[⚡ Adjust Interval]`**: Interactive on-chain modal to switch check-in frequency to **5 Min (Test)** or **10 Min (Test)** or back to production intervals directly on Sepolia.
+   - **Automated Owner Heartbeat Alerts**: Built-in real-time monitor automatically evaluates heartbeat state against consensus. Dispatches an "Approaching Check-In" email warning when $\le 2$ minutes remain (or $\le 3$ days / 25% remaining on standard intervals) and an "Urgent: Overdue" email alert upon lapse via `/api/notify/owner-reminder` with cycle-keyed deduplication.
 
 2. **1-Click Atomic Vault Provisioning (`/vault/create`)**:
    - **Reduced from 4 wallet signatures to 1 single transaction**: Uses `OneClickInheritanceVault.sol` to atomically bundle: (1) Contract Deployment, (2) Capital Deposit (`msg.value`), (3) Beneficiary Merkle Root Commitment, (4) Guardian Consensus Quorum Pairing, and (5) Custom Contest Window Configuration in one seamless wallet confirmation.
@@ -21,8 +22,8 @@ The web application for **Cadence Protocol**, built on **Next.js 16 (App Router 
    - Live challenge countdown timer reflecting dynamic on-chain state (`Active` $\rightarrow$ `ClaimPending` $\rightarrow$ `Finalized`).
    - **Interactive Guardian Attestation**: Real-time connected guardian detection with **`[⚡ Attest Lapse]`** action buttons directly submitting on-chain Merkle proofs to `GuardianRegistry.sol`.
    - **Dynamic Quorum Tracking**: Smart trigger button enforces `isThresholdMet` on-chain, tracking progress from `Awaiting Guardian Quorum (0/2)` to **`[⚡ Trigger Contest Challenge Window]`**.
-   - **Guardian Email Dispatcher (2 Distinct Alerts)**: Instant dispatcher allowing users/owners to send two separate, personalized email alerts to **Guardian Node 1** and **Guardian Node 2** when the heartbeat lapses, complete with vault address and direct links to attest.
-   - **Interactive Finalization & Concluded Alerts**: Once the contest countdown concludes, users can dispatch contest-concluded alert emails and execute **`[⚡ Finalize Contest on Sepolia]`** to advance the locker to `Finalized`.
+   - **Automated Guardian Email Dispatch (2 Distinct Alerts)**: Autonomous and client-side dispatch sending two separate, personalized email alerts to **Guardian Node 1** and **Guardian Node 2** when the heartbeat lapses, complete with vault address and direct links to attest.
+   - **Automated Contest Concluded Alerts & Finalization**: Automatically dispatches contest-concluded alert emails to guardians and heirs upon countdown zero, and provides **`[⚡ Finalize Contest on Sepolia]`** to advance the locker to `Finalized`.
    - Demonstrates **Constraint #1 (Zero Gas-Linkage)**: living owner cancels contested claims off-chain via an EIP-712 stealth signature relayed with zero owner gas payment.
 
 4. **Beneficiary Claim Portal (`/claim`)**:
@@ -77,8 +78,9 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Typecheck & Build
+### Code Quality & Production Build
 ```bash
-npx tsc --noEmit    # Typecheck (0 errors)
-npm run build        # Production Next.js 16 build
+npx eslint .        # ESLint check (0 errors, 0 warnings)
+npx tsc --noEmit    # Strict TypeScript typecheck (0 errors)
+npm run build        # Production Next.js 16 build with Turbopack
 ```

@@ -123,6 +123,45 @@ EVM smart contracts do not automatically advance state when block time advances;
 2. **Contest Challenge Window**: Runs for the configured duration (default 72 hours, 24 hours, or 5-minute test grace). The living owner can cancel anytime via relayed off-chain EIP-712 stealth signature (`cancelClaimWithSig`) with zero gas linkage.
 3. **ClaimPending $\rightarrow$ Finalized**: Once the challenge period expires without cancellation, the notification service dispatches contest-concluded alerts, and any caller executes `finalizeContest(vault)`. The frontend exposes an instant **1-Click Finalize** button on both `/contest` and `/claim` so beneficiaries can immediately unlock their payout.
 
+## Autonomous Sentinel Daemon & Automated Email Dispatch Pipeline
+
+To ensure the protocol is completely proactive without requiring humans to keep browser tabs open or press manual buttons, Cadence includes the **Autonomous Sentinel Daemon** (`notifications/sentinel.ts`):
+
+```
+                                SENTINEL DISPATCH PIPELINE
+                                
+   Ethereum Sepolia RPC                                               Live Outbox / SMTP
+ +----------------------+                                           +--------------------+
+ | ConsensusConfigs()   |                                           |                    |
+ | - lastActive         | ──(Poll every 20s)──> [ Sentinel Daemon ] ──> | 1. Owner Reminder  |
+ | - checkInInterval    |                             │             |    (approaching)   |
+ | - contestDeadline    |                             │             | 2. Urgent Lapsed   |
+ | - getState()         |                             │             | 3. Guardian 1 Alert|
+ +----------------------+                             │             | 4. Guardian 2 Alert|
+                                                      ▼             | 5. Contest Done    |
+                                              [ Cycle Deduplication] +--------------------+
+                                              - ${vault}_owner_approaching_${lastActive}
+                                              - ${vault}_owner_overdue_${lastActive}
+                                              - ${vault}_heartbeat_${lastActive}
+                                              - ${vault}_concluded_${contestDeadline}
+```
+
+### Automated Monitoring Lifecycle:
+1. **Approaching Heartbeat Check**:
+   - Evaluates remaining time against the check-in interval: $\le 2$ minutes for test intervals ($\le 600$s), or $\le 3$ days / 25% for standard intervals.
+   - Automatically dispatches `sendOwnerReminder` to the vault owner with exact time remaining and direct link to `/dashboard`.
+2. **Overdue Heartbeat Check**:
+   - Detects `now >= lastActive + checkInInterval` in `Active` state.
+   - Dispatches an immediate urgent alert to the owner: `[Cadence Alert] URGENT: Vault Heartbeat Overdue — Check-In Required`.
+   - Simultaneously dispatches **2 distinct, personalized email notices** to Guardian Node 1 and Guardian Node 2 with direct on-chain contest links.
+3. **Contest Window Concluded Check**:
+   - Detects `now >= contestDeadline` in `ClaimPending` state.
+   - Automatically dispatches finalization readiness notices to guardians and heirs.
+4. **Cycle-Keyed Deduplication**:
+   - Each dispatch is recorded in `sentinel_state.json` keyed by vault address and cycle timestamp, guaranteeing strictly one delivery per event.
+5. **Development & Fallback Delivery**:
+   - If an address is not explicitly verified via EIP-712 in the database, the daemon falls back to `process.env.DEFAULT_OWNER_EMAIL || process.env.SMTP_USER` (`fadojudavid69@gmail.com`), ensuring live test emails arrive in the operator's inbox.
+
 ## Contract Structure
 
 ```
@@ -204,6 +243,7 @@ Active ──(timeout expired + guardian M-of-N)──> ClaimPending ──(canc
 /contracts
   /src
     InheritanceVault.sol
+    OneClickInheritanceVault.sol
     ProofOfLifeConsensus.sol
     GuardianRegistry.sol
     StealthAddressRegistry.sol
@@ -255,12 +295,14 @@ Active ──(timeout expired + guardian M-of-N)──> ClaimPending ──(canc
 
 /notifications
   index.ts              — event listener & hardened Express API microservice
+  sentinel.ts           — autonomous background polling daemon & on-chain monitor
   emailService.ts       — live Resend/SMTP delivery
   bindingVerifier.ts    — canonical email-bound signature verification
   db.ts                 — persistent binding store
   /test
     security.test.ts     — Phase 2 security regression test suite
     notifications.test.mjs — Constraint #6 integration suite
+    sentinel.test.ts     — autonomous sentinel test suite
   .env.example
 
 /docs

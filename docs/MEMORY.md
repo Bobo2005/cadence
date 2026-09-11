@@ -973,6 +973,60 @@
   - Integration test suite: `node scripts/test-beneficiary-claim-flow.mjs` passed 22/22 tests.
   - Single-leaf tree unit test verified: `Proof: []`, `verifyMerkleProof([], root, leaf) === true`.
 
+### Session 14 — Autonomous Sentinel Daemon, Automated Heartbeat & Guardian Email Pipeline, and Frontend Code Hygiene
+- **User Directives**:
+  1. "scan through the codebase and structure code well and make it clean without breaking it"
+  2. "the system should dispact the mail automatically to guardia after the heartbeat and grace timer are over"
+  3. "check weather the user is alreted automatically when the heartbeat check in is required"
+  4. "lets wired it automatic"
+  5. "update all the docs for what have been done so far"
+- **Code Hygiene Pass (0 Errors, 0 Warnings)**:
+  - Scanned entire frontend codebase with ESLint and TypeScript compiler.
+  - Resolved all 83 ESLint errors and warnings across components (`ContestWindowPanel.tsx`, `ClaimPortal.tsx`, `CreateVaultForm.tsx`, `VaultPulseDashboard.tsx`, `Toast.tsx`, `Navbar.tsx`, etc.):
+    - Replaced unconstrained `any` types with strongly-typed interfaces.
+    - Fixed unescaped JSX HTML entities (`&apos;`, `&quot;`).
+    - Cleaned up unused imports, variables, and unreferenced constants.
+    - Refactored exported custom hooks (`useToast`) to comply with Next.js fast-refresh rules.
+    - Addressed React hook dependency arrays (`useEffect`, `useCallback`).
+  - **Results**:
+    - `npx eslint .`: **0 errors, 0 warnings**.
+    - `npx tsc --noEmit`: **0 errors**.
+    - `npm run build`: Production Next.js 16 build passing with Turbopack.
+- **Autonomous Sentinel Background Daemon (`notifications/sentinel.ts`)**:
+  - Engineered an autonomous background daemon running inside the notifications microservice that polls Ethereum Sepolia consensus state every 20 seconds.
+  - Monitors registered lockers and dispatches targeted email alerts without requiring any manual UI button clicks:
+    1. **Owner Approaching Reminder**: When remaining time is $\le 2$ minutes (test intervals $\le 10$m) or $\le 3$ days / within 25% of interval (standard intervals), dispatches `[Cadence Reminder] Approaching Heartbeat Check-In Window`.
+    2. **Owner Overdue Alert**: When heartbeat lapses before check-in, dispatches `[Cadence Alert] URGENT: Vault Heartbeat Overdue — Check-In Required`.
+    3. **Guardian Attestation Requests**: When heartbeat lapses (`isTimeoutExpired`), dispatches 2 distinct, personalized emails to Guardian Node 1 and Guardian Node 2 (`[Cadence Alert] Action Required: Heartbeat Lapsed — Attestation Needed (Guardian Node 1 / 2)`).
+    4. **Contest Concluded Alert**: When the challenge grace timer reaches zero, dispatches `[Cadence Notice] Contest Window Concluded — Payouts Ready for Finalization` to guardians and heirs.
+  - **Cycle-Keyed Deduplication**:
+    - Generates deterministic keys per vault and cycle state:
+      - `${vault}_owner_approaching_${lastActive}`
+      - `${vault}_owner_overdue_${lastActive}`
+      - `${vault}_heartbeat_${lastActive}`
+      - `${vault}_concluded_${contestDeadline}`
+    - Prevents duplicate email spam across polling cycles while ensuring fresh alerts are sent in subsequent heartbeat/challenge cycles.
+  - **Fallback Recipient Routing**:
+    - If a wallet does not yet possess an EIP-712 email binding in `bindings.json`, `emailService.ts` routes delivery to `DEFAULT_OWNER_EMAIL || DEFAULT_GUARDIAN_EMAIL || SMTP_USER` (`fadojudavid69@gmail.com`). This guarantees the operator receives live testing emails directly in their inbox while preserving Constraint #6 for beneficiary notifications.
+  - **Automated Tests**:
+    - Created `notifications/sentinel.test.ts` (3/3 passing).
+    - Microservice test suite: 18/18 passing (`notifications.test.mjs`, `security.test.ts`, `sentinel.test.ts`).
+- **Client-Side Real-Time Dispatchers & Visual Indicators**:
+  - `ContestWindowPanel.tsx`: Added automated client-side watchdog that checks `isTimeoutExpired` and `isContestConcluded`, dispatching alerts via backend API with real-time UI status feedback (`"✓ Auto-Dispatched to Guardians"`).
+  - `VaultPulseDashboard.tsx`: Added automated client-side watchdog that checks heartbeat countdown, dispatching approaching and overdue email notices to the vault owner with visual status feedback.
+- **New Notification Service Endpoints**:
+  - `POST /api/notify/owner-reminder`: Sends approaching or overdue owner check-in warnings.
+  - `POST /api/notify/guardian-attest-request`: Sends 2 distinct alerts to Guardian Node 1 and 2.
+  - `POST /api/notify/contest-concluded`: Sends contest concluded notifications to guardians and heirs.
+  - `POST /api/monitor-vault`: Registers a vault address for background Sentinel monitoring.
+  - `GET /api/monitored-vaults`: Lists all actively monitored vault addresses.
+- **Test Baseline Across All Repositories**:
+  - Smart contracts: 14 Foundry test suites, **198/198 passed** (0 failures).
+  - Notifications microservice: **18/18 tests passed**.
+  - Beneficiary claim integration: **22/22 tests passed**.
+  - Frontend: `npx tsc --noEmit` — 0 errors, `npx eslint .` — 0 errors, 0 warnings.
+
+
 
 
 

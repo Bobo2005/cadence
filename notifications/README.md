@@ -29,7 +29,15 @@ Off-chain notification microservice and wallet-signature binding verifier enforc
 - **Tiered Rate Limiting (`express-rate-limit`)**:
   - Global limiter: 100 requests per 15 minutes per IP.
   - Sensitive endpoint limiter: 10 requests per 15 minutes per IP on `/api/bind`, `/api/suggest`, and `/api/remind-wallet`.
-- **Strict CORS Origin Whitelisting**: Limits access strictly to authorized frontend origins and localhost.
+### 3. Autonomous Sentinel Background Daemon (`sentinel.ts`)
+The service includes a continuous background monitoring engine that polls Ethereum Sepolia consensus state every 20 seconds:
+- **Automated Guardian Attestation Dispatch**: Automatically dispatches 2 distinct email alerts to Guardian Node 1 and Guardian Node 2 when `now >= lastActive + checkInInterval` in `Active` state (`isTimeoutExpired == true`).
+- **Automated Contest Grace Period Concluded Dispatch**: Dispatches finalization notices to guardians and heirs as soon as `now >= contestDeadline` in `ClaimPending` state.
+- **Automated Owner Heartbeat Check-In Alerts**:
+  - *Approaching Deadline Alert*: Warns the vault owner before deadline ($\le 2$ minutes for test intervals, or $\le 3$ days / 25% for standard vaults).
+  - *Overdue Urgent Alert*: Immediately dispatches an urgent notice (`[Cadence Alert] URGENT: Vault Heartbeat Overdue — Check-In Required`) upon interval lapse.
+- **Cycle-Keyed Deduplication**: Prevents email spam across cycles using persistent keys (`${vault}_owner_approaching_${lastActive}`, `${vault}_owner_overdue_${lastActive}`, `${vault}_heartbeat_${lastActive}`, `${vault}_concluded_${contestDeadline}`).
+- **Operator Fallback**: When an address is not explicitly verified via EIP-712 in the database, falls back to `DEFAULT_OWNER_EMAIL || DEFAULT_GUARDIAN_EMAIL || SMTP_USER` (`fadojudavid69@gmail.com`), guaranteeing live delivery during testing.
 
 ---
 
@@ -43,7 +51,11 @@ Off-chain notification microservice and wallet-signature binding verifier enforc
 | `/api/bind` | `POST` | Rate-Limited (10/15m) | Validates wallet signature (`viem.verifyMessage`) and binds email. |
 | `/api/suggest` | `POST` | Rate-Limited (10/15m) | Suggests an unverified email for a beneficiary during vault creation. |
 | `/api/remind-wallet` | `POST` | Rate-Limited (10/15m) | Triggers a reminder email with registered wallet addresses. |
-| `/api/trigger-claim-notice` | `POST` | Internal Key (`x-cadence-internal-key`) | Dispatched when a vault enters the contest or claim window. |
+| `/api/notify/owner-reminder` | `POST` | Internal Key (`x-cadence-internal-key`) | Dispatches heartbeat reminder or overdue warning to vault owner. |
+| `/api/notify/guardian-attest-request` | `POST` | Public / Internal | Dispatches 2 distinct attestation alerts to Guardian 1 and Guardian 2. |
+| `/api/notify/contest-concluded` | `POST` | Public / Internal | Dispatches contest-concluded alert to guardians and beneficiaries. |
+| `/api/monitor-vault` | `POST` | Public | Registers a vault and guardian contacts with the autonomous Sentinel daemon. |
+| `/api/monitored-vaults` | `GET` | Public | Lists all vaults currently monitored by the background Sentinel daemon. |
 | `/api/outbox` | `GET` | Admin Bearer (`ADMIN_API_KEY`) | Audit log of dispatched notifications (development/admin only). |
 
 ---
@@ -74,9 +86,10 @@ This service is pre-configured for Render via the root [`render.yaml`](../render
 
 ```bash
 npm install
-npm run dev        # Watch mode with tsx
+npm run dev        # Watch mode with tsx (runs server and autonomous Sentinel)
 npm run build      # Compile TypeScript to dist/
 npm start          # Run compiled JavaScript with node
-npm test           # Execute 15 unit and security regression tests
+npm test           # Execute 18 unit, security, and Sentinel regression tests
 npm run test:e2e   # Execute 10 live end-to-end integration tests
 ```
+

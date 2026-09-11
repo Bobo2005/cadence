@@ -4,6 +4,49 @@
 
 ---
 
+## Handoff — 2026-09-11 (Autonomous Sentinel Daemon, Automated Heartbeat & Guardian Email Alerts, Frontend Code Hygiene)
+
+**Who/what worked this session:** Antigravity AI
+
+**What was completed:**
+1. **Autonomous Background Sentinel Daemon (`notifications/sentinel.ts`)**:
+   - Implemented an autonomous on-chain polling service running every 20s via Viem.
+   - **Automated Guardian Attestation Dispatch**: Automatically detects when `now >= lastActive + checkInInterval` in `Active` consensus state (`isTimeoutExpired == true`) and sends 2 distinct, personalized email notices to **Guardian Node 1** and **Guardian Node 2** with direct contest links, eliminating any requirement for manual user clicks.
+   - **Automated Contest Grace Period Concluded Dispatch**: Detects when the challenge deadline has elapsed in `ClaimPending` state and automatically sends finalization notices to guardians and heirs.
+   - **Automated Owner Heartbeat Check-In Alerts**:
+     - *Approaching Deadline Alert*: Automatically warns the vault owner before deadline ($\le 2$ minutes on test intervals, or $\le 3$ days / 25% on standard vaults) with time remaining and direct link to `/dashboard`.
+     - *Overdue Urgent Alert*: Immediately dispatches an urgent notice (`[Cadence Alert] URGENT: Vault Heartbeat Overdue — Check-In Required`) when the check-in interval lapses, prompting the owner to record their heartbeat before guardians attest.
+   - **Cycle-Keyed Deduplication**: Prevents duplicate email spam across cycles using persistent keys (`${vault}_owner_approaching_${lastActive}`, `${vault}_owner_overdue_${lastActive}`, `${vault}_heartbeat_${lastActive}`, `${vault}_concluded_${contestDeadline}`).
+   - **Operator & Development Fallback**: If an address is not explicitly bound via EIP-712 in the database, automatically falls back to `DEFAULT_OWNER_EMAIL || DEFAULT_GUARDIAN_EMAIL || SMTP_USER` (`fadojudavid69@gmail.com`), guaranteeing live delivery to your Gmail inbox during testing.
+   - Added REST endpoints: `POST /api/monitor-vault` and `GET /api/monitored-vaults`.
+   - Added unit test suite `notifications/test/sentinel.test.ts` (3/3 tests passing).
+2. **Frontend Dual-Path Real-Time Auto-Dispatch & UX Polish**:
+   - In `ContestWindowPanel.tsx`:
+     - Added client-side automated `useEffect` triggers that dispatch guardian attestation requests as soon as the heartbeat reaches zero or lapses, and dispatch contest conclusion notices as soon as the challenge countdown finishes.
+     - Added `localStorage` persistence for guardian emails and synchronized registered vaults to the backend Sentinel via `registerMonitoredVault`.
+     - Added real-time visual status badges:
+       - `⚡ System Auto-Dispatch Active: Emails dispatch automatically when heartbeat or grace timer concludes.`
+       - `⚡ System Auto-Dispatched: Attestation emails delivered to Guardian 1 and Guardian 2!`
+   - In `VaultPulseDashboard.tsx`:
+     - Added client-side automated `useEffect` triggers that fire owner check-in reminders when the countdown reaches the warning window or expires.
+     - Integrated `registerMonitoredVault` to automatically sync active lockers to the Sentinel daemon.
+     - Added live visual indicators in the Next Required Check-In card:
+       - `⚡ Automated Heartbeat Reminder Sent to Your Inbox`
+       - `🚨 Heartbeat Overdue! Record check-in now before guardians attest.`
+3. **Comprehensive Frontend Code Hygiene & Type Safety**:
+   - Cleaned up ESLint issues from 83 down to **0 errors and 0 warnings** across the entire Next.js frontend (`frontend/eslint.config.mjs`).
+   - Cleaned up TypeScript compilation (`npx tsc --noEmit` exited with code 0).
+   - Removed loose `any` casts, typed Viem contract clients and logs, replaced forbidden Node `require("crypto")` with Web Crypto API, and structured React Compiler hook dependencies.
+   - Realigned constructor arguments for `OneClickInheritanceVault` deployment (`CreateVaultForm.tsx`).
+   - Next.js production build (`npm run build`) succeeded with Turbopack across all 8 routes.
+4. **Full Verification Status Across All Layers**:
+   - Notifications Microservice: **18/18 tests passing** (`npm test` including `notifications.test.mjs`, `security.test.ts`, `sentinel.test.ts`, and live SMTP transport).
+   - Smart Contracts: 14 Foundry suites, **198/198 tests passing** (0 failures).
+   - Beneficiary Claim Integration: `scripts/test-beneficiary-claim-flow.mjs`, **22/22 tests passing**.
+   - Frontend ESLint & TypeScript: **0 errors, 0 warnings**.
+
+---
+
 ## Handoff — 2026-09-11 (1-Click Atomic Vault, Interactive Guardian Alerts, Contest Finalization & Claim Merkle Proof Fix)
 
 **Who/what worked this session:** Antigravity AI

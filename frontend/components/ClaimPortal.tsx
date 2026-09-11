@@ -6,10 +6,10 @@ import { useAccount, useWalletClient } from "wagmi";
 import {
   type Hex,
   type Address,
+  type Account,
   isAddressEqual,
   getAddress,
   formatEther,
-  parseEther,
   createWalletClient,
   keccak256,
 } from "viem";
@@ -21,13 +21,11 @@ import {
   INHERITANCE_VAULT_ABI,
   PROOF_OF_LIFE_CONSENSUS_ABI,
   ConsensusState,
-  CONTRACT_ADDRESSES,
 } from "../lib/contracts";
 import {
   getRegisteredVaults,
   generateProofFromLeaves,
   verifyProof,
-  type RegisteredVault,
 } from "../lib/vaultRegistry";
 import { decryptAllocation, type AllocationData } from "../lib/encryption";
 import { computeAllocationLeaf } from "../lib/merkle";
@@ -67,7 +65,7 @@ export interface ClaimableVaultItem {
 }
 
 export default function ClaimPortal() {
-  const { address: connectedAddress, isConnected } = useAccount();
+  const { address: connectedAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
 
   // Loading & state
@@ -279,7 +277,7 @@ export default function ClaimPortal() {
               const rawSalt = String(decrypted.salt || "");
               salt = (rawSalt.startsWith("0x") ? rawSalt : `0x${rawSalt}`) as Hex;
             }
-          } catch (decErr) {
+          } catch {
             // Headless fallback if keyToUse was not able to decrypt
             const headlessKey = KNOWN_HEADLESS_KEYS[normalizedAddress.toLowerCase()];
             if (headlessKey && headlessKey !== keyToUse) {
@@ -476,7 +474,7 @@ export default function ClaimPortal() {
     setIsFinalizingVaultId(vault.id);
     setClaimError(null);
     try {
-      let client: any = walletClient;
+      let client = walletClient;
       if (!client && connectedAddress) {
         const headlessKey = KNOWN_HEADLESS_KEYS[connectedAddress.toLowerCase()];
         if (headlessKey) {
@@ -485,7 +483,7 @@ export default function ClaimPortal() {
             account: localAccount,
             chain: cadenceSepolia,
             transport: sepoliaTransports,
-          });
+          }) as unknown as typeof walletClient;
         }
       }
       if (!client) {
@@ -554,8 +552,8 @@ export default function ClaimPortal() {
       }
 
       // 2. Resolve signer (connected wallet or headless test account fallback)
-      let effectiveClient: any = walletClient;
-      let effectiveAccount: any = walletClient?.account || connectedAddress;
+      let effectiveClient = walletClient;
+      let effectiveAccount: Account | Address = walletClient?.account || connectedAddress;
 
       if (!effectiveClient && connectedAddress) {
         const headlessKey = KNOWN_HEADLESS_KEYS[connectedAddress.toLowerCase()];
@@ -565,7 +563,7 @@ export default function ClaimPortal() {
             account: localAccount,
             chain: cadenceSepolia,
             transport: sepoliaTransports,
-          });
+          }) as unknown as typeof walletClient;
           effectiveAccount = localAccount;
         }
       }

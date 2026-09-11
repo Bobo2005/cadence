@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useAccount, useWalletClient, useSwitchChain } from "wagmi";
 import { useToast } from "./ui/Toast";
 import {
@@ -11,7 +10,6 @@ import {
   parseEther,
   getAddress,
   isAddress,
-  isAddressEqual,
   createWalletClient,
   custom,
 } from "viem";
@@ -31,19 +29,13 @@ import {
 import {
   CONTRACT_ADDRESSES,
   publicClient,
-  INHERITANCE_VAULT_ABI,
-  INHERITANCE_VAULT_BYTECODE,
   ONE_CLICK_VAULT_ABI,
   ONE_CLICK_VAULT_BYTECODE,
-  VAULT_FACTORY_ABI,
-  GUARDIAN_REGISTRY_ABI,
-  PROOF_OF_LIFE_CONSENSUS_ABI,
   ConsensusState,
 } from "../lib/contracts.ts";
 import {
   saveRegisteredVault,
   getProvisioningState,
-  saveProvisioningState,
   clearProvisioningState,
   type ProvisioningState,
 } from "../lib/vaultRegistry.ts";
@@ -55,13 +47,13 @@ export const GRACE_PERIOD_OPTIONS = [
   { label: "72 Hours", display: "72 Hours (Default)", seconds: 259200 },
 ];
 
-const CHECKIN_INTERVALS = [
-  { label: "5 Min (Test)", display: "5 Minutes (Testing)", days: 0, seconds: 300 },
-  { label: "10 Min (Test)", display: "10 Minutes (Testing)", days: 0, seconds: 600 },
-  { label: "30 Days", display: "30 Days", days: 30, seconds: 30 * 86400 },
-  { label: "60 Days", display: "60 Days", days: 60, seconds: 60 * 86400 },
-  { label: "90 Days", display: "90 Days", days: 90, seconds: 90 * 86400 },
-  { label: "180 Days", display: "180 Days", days: 180, seconds: 180 * 86400 },
+export const CHECKIN_INTERVALS = [
+  { label: "5 Min (Test)", seconds: 300 },
+  { label: "10 Min (Test)", seconds: 600 },
+  { label: "30 Days", seconds: 86400 * 30 },
+  { label: "60 Days", seconds: 86400 * 60 },
+  { label: "90 Days", seconds: 86400 * 90 },
+  { label: "180 Days", seconds: 86400 * 180 },
 ];
 
 const SUPPORTED_TOKENS = [
@@ -73,7 +65,13 @@ const SUPPORTED_TOKENS = [
 
 export function parseUserFriendlyError(err: unknown): string {
   if (!err) return "An unexpected error occurred.";
-  const errorObj = err as any;
+  const errorObj = err as {
+    message?: string;
+    details?: string;
+    shortMessage?: string;
+    name?: string;
+    code?: number;
+  };
 
   const message = String(errorObj?.message || "");
   const details = String(errorObj?.details || "");
@@ -117,7 +115,6 @@ interface CreateVaultFormProps {
 }
 
 export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProps) {
-  const router = useRouter();
   const { address: connectedAddress, chain } = useAccount();
   const { data: wagmiWalletClient } = useWalletClient();
   const { switchChainAsync } = useSwitchChain();
@@ -125,16 +122,19 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
 
   const getEffectiveWalletClient = useCallback(async () => {
     if (wagmiWalletClient) return wagmiWalletClient;
-    if (typeof window !== "undefined" && (window as any).ethereum && connectedAddress) {
-      try {
-        const client = createWalletClient({
-          account: connectedAddress,
-          chain: sepolia,
-          transport: custom((window as any).ethereum),
-        });
-        return client;
-      } catch (err) {
-        console.warn("[CreateVaultForm] Fallback wallet client error:", err);
+    if (typeof window !== "undefined" && connectedAddress) {
+      const eth = (window as unknown as { ethereum?: Parameters<typeof custom>[0] }).ethereum;
+      if (eth) {
+        try {
+          const client = createWalletClient({
+            account: connectedAddress,
+            chain: sepolia,
+            transport: custom(eth),
+          });
+          return client;
+        } catch (err) {
+          console.warn("[CreateVaultForm] Fallback wallet client error:", err);
+        }
       }
     }
     return null;
@@ -277,13 +277,16 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
       try {
         if (switchChainAsync) {
           await switchChainAsync({ chainId: 11155111 });
-        } else if (typeof window !== "undefined" && (window as any).ethereum) {
-          await (window as any).ethereum.request({
-            method: "wallet_switchEthereumChain",
-            params: [{ chainId: "0xaa36a7" }],
-          });
+        } else if (typeof window !== "undefined") {
+          const eth = (window as unknown as { ethereum?: { request: (args: { method: string; params?: unknown[] }) => Promise<unknown> } }).ethereum;
+          if (eth) {
+            await eth.request({
+              method: "wallet_switchEthereumChain",
+              params: [{ chainId: "0xaa36a7" }],
+            });
+          }
         }
-      } catch (switchErr: any) {
+      } catch {
         showToast(
           "Your wallet is on " +
             (chain.name || "another network") +
@@ -324,15 +327,11 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     setIsModalOpen(true);
     setStepStatus("idle");
     setStepError(null);
-    executeStep(1, null, {});
+    executeStep();
   };
 
   // 1-Click Unified Provisioning Orchestrator (Single Signature & Single Transaction)
-  const executeStep = async (
-    _stepToRun: number = 1,
-    _existingVaultAddr: Address | null = null,
-    _existingHashes: typeof txHashes = {}
-  ) => {
+  const executeStep = async () => {
     const client = await getEffectiveWalletClient();
     if (!connectedAddress || !client) {
       setStepError("Wallet signer not connected or not on Sepolia. Please verify your wallet connection.");
@@ -345,39 +344,37 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     setCurrentStep(1);
 
     try {
-      setActiveStepDescription("Preparing cryptographic allocation and guardian Merkle trees...");
+      // 1-Click deployment
+      setActiveStepDescription("Requesting 1-Click Vault deployment authorization in wallet...");
 
+      const effectiveG1 = guardian1.trim() || "0x81C3D582F3473F71C4C8bF394E1d32BA218991a2";
+      const effectiveG2 = guardian2.trim() || "0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0";
+
+      // Compute cryptographic Merkle tree commitments client-side
+      const guardianTree = buildGuardianTree([getAddress(effectiveG1), getAddress(effectiveG2)]);
       const allocTree = buildAllocationTree(allocationsList);
-      let effectiveG1 = guardian1.trim();
-      let effectiveG2 = guardian2.trim();
-      if (!effectiveG1 || !effectiveG2) {
-        effectiveG1 = effectiveG1 || "0x81C3D582F3473F71C4C8bF394E1d32BA218991a2";
-        effectiveG2 = effectiveG2 || "0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0";
-      }
-      const guardians: Address[] = [getAddress(effectiveG1), getAddress(effectiveG2)];
-      const guardianTree = buildGuardianTree(guardians);
 
-      const amountNum = parseFloat(depositAmount || "0");
-      const depositWei = amountNum > 0 && selectedToken === "ETH" ? parseEther(depositAmount) : 0n;
+      const depositWei = parseEther(depositAmount || "0");
+      const checkInSec = BigInt(selectedInterval.seconds);
+      const contestSec = BigInt(selectedGracePeriod.seconds);
 
-      setActiveStepDescription("Please confirm the 1-click vault creation & funding in your wallet...");
-
+      // Deploy OneClickInheritanceVault
       const deployHash = await client.deployContract({
         abi: ONE_CLICK_VAULT_ABI,
         bytecode: ONE_CLICK_VAULT_BYTECODE,
+        account: client.account || connectedAddress,
+        value: depositWei,
         args: [
-          connectedAddress,
-          BigInt(selectedInterval.seconds),
-          BigInt(selectedGracePeriod.seconds),
+          (client.account?.address || connectedAddress) as Address,
+          checkInSec,
+          contestSec,
           allocTree.root,
           CONTRACT_ADDRESSES.guardianRegistry,
           guardianTree.root,
-          BigInt(2), // 2-of-2 threshold
-          BigInt(guardians.length),
+          2n,
+          2n,
           CONTRACT_ADDRESSES.consensus,
         ],
-        value: depositWei,
-        account: connectedAddress,
       });
 
       const singleTxHashes = {
@@ -399,7 +396,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
       // Build encrypted allocations for beneficiaries
       const encryptedAllocationsList = await Promise.all(
         allocationsList.map(async (a, idx) => {
-          const pubKey = (beneficiaryItems[idx] as any)?.publicKey;
+          const pubKey = (beneficiaryItems[idx] as BeneficiaryItem & { publicKey?: string })?.publicKey;
           let ciphertext = "";
           if (pubKey) {
             try {
@@ -533,7 +530,6 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
           { n: 3, label: "Heartbeat & Guardians" },
         ].map(({ n, label }, idx) => {
           const isDone = isModalOpen && currentStep > n;
-          const isCurrent = !isModalOpen && true; // all steps visible on form
           return (
             <React.Fragment key={n}>
               {idx > 0 && (
@@ -787,7 +783,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               <div className="flex items-center justify-between py-1 border-b border-[#232838]/60">
                 <span className="text-[#8993A6]">Check-In Frequency</span>
                 <span className="font-bold text-[#E8ECF1]">
-                  Every {selectedInterval.display || (selectedInterval.days > 0 ? `${selectedInterval.days} Days` : selectedInterval.label)}
+                  Every {selectedInterval.label}
                 </span>
               </div>
               <div className="flex items-center justify-between py-1">

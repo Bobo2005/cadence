@@ -175,7 +175,7 @@ export async function executeCheckIn(
     // Smart Account path with Pimlico ERC-4337 sponsorship
     try {
       // In permissionless.js / viem, if walletClient represents a smart account
-      const txHash = await (walletClient as any).writeContract({
+      const txHash = await walletClient.writeContract({
         chain: sepolia,
         address: vaultAddress,
         abi: INHERITANCE_VAULT_ABI,
@@ -203,7 +203,7 @@ export async function executeCheckIn(
 
   // Direct EOA Transaction Path (Architecture Constraint #8)
   try {
-    const hash = await (walletClient as any).writeContract({
+    const hash = await walletClient.writeContract({
       chain: sepolia,
       address: vaultAddress,
       abi: INHERITANCE_VAULT_ABI,

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import CadenceLogo from "./ui/CadenceLogo";
 
-import { useAccount, useDisconnect, useConnect, useSwitchChain } from "wagmi";
+import { useAccount, useDisconnect, useSwitchChain } from "wagmi";
 import { useWalletModal } from "./ui/ConnectWalletModal";
 import { useUserRole } from "../hooks/useUserRole";
 import { publicClient } from "../lib/contracts";
@@ -17,6 +17,15 @@ interface AppShellProps {
   activeTab?: NavTabId;
 }
 
+// Close SVG icon — declared outside component render scope
+function CloseIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  );
+}
+
 export default function AppShell({ children, activeTab: propActiveTab }: AppShellProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -24,7 +33,6 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
   // Wagmi wallet state
   const { address, isConnected, isConnecting, isReconnecting, chain } = useAccount();
   const { disconnect } = useDisconnect();
-  const { connect, connectors } = useConnect();
   const { switchChain } = useSwitchChain();
   const { openWalletModal } = useWalletModal();
   const { isOwner, isBeneficiary, isGuardian, isNewUser, roleBadge, recommendedRoute } = useUserRole();
@@ -175,13 +183,6 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
       ),
     },
   ];
-
-  // Close SVG icon — replaces emoji ✕
-  const CloseIcon = () => (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-  );
 
   return (
     <div className="min-h-screen bg-[#0A0E14] text-[#E8ECF1] flex flex-col font-sans selection:bg-[#2EE6A8]/20 selection:text-[#2EE6A8]">

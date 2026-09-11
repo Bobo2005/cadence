@@ -41,6 +41,12 @@ function ToastItem({
   const [exiting, setExiting] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const handleDismiss = useCallback(() => {
+    setExiting(true);
+    setVisible(false);
+    setTimeout(() => onDismiss(toast.id), 300);
+  }, [onDismiss, toast.id]);
+
   useEffect(() => {
     // Trigger enter animation
     const enterTimer = setTimeout(() => setVisible(true), 10);
@@ -50,14 +56,7 @@ function ToastItem({
       clearTimeout(enterTimer);
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const handleDismiss = () => {
-    setExiting(true);
-    setVisible(false);
-    setTimeout(() => onDismiss(toast.id), 300);
-  };
+  }, [handleDismiss, toast.duration]);
 
   const styles: Record<ToastVariant, { border: string; bg: string; icon: string; text: string }> = {
     success: {

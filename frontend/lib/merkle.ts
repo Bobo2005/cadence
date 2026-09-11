@@ -78,14 +78,8 @@ export function generateSalt(): Hex {
   } else if (typeof window !== "undefined" && window.crypto?.getRandomValues) {
     window.crypto.getRandomValues(bytes);
   } else {
-    // Node.js crypto fallback
-    try {
-      const nodeCrypto = require("crypto");
-      nodeCrypto.randomFillSync(bytes);
-    } catch {
-      for (let i = 0; i < 32; i++) {
-        bytes[i] = (Date.now() + i * 31) & 0xff;
-      }
+    for (let i = 0; i < 32; i++) {
+      bytes[i] = (Date.now() + i * 31) & 0xff;
     }
   }
   return bytesToHex(bytes);

@@ -17,6 +17,7 @@ import DashboardEmptyState from "./DashboardEmptyState";
 import { getWalletNotificationStatus, requestSignatureAndBind } from "../lib/notifications";
 import { getRegisteredVaults } from "../lib/vaultRegistry";
 import { useToast } from "./ui/Toast";
+import { parseUserFriendlyError } from "./CreateVaultForm";
 
 interface VaultPulseDashboardProps {
   initialVaultAddress?: Address;
@@ -140,9 +141,9 @@ export default function VaultPulseDashboard({
         setShowIntervalModal(false);
         setIntervalStatusMsg(null);
       }, 1500);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[VaultPulseDashboard] Failed to set check-in interval:", err);
-      const msg = err?.shortMessage || err?.message || "Transaction failed";
+      const msg = parseUserFriendlyError(err);
       setIntervalStatusMsg(`Error: ${msg.slice(0, 100)}`);
     } finally {
       setIsUpdatingInterval(false);
@@ -209,7 +210,12 @@ export default function VaultPulseDashboard({
             args: [targetVault],
           });
           if (config) {
-            const cfg = config as any;
+            const cfg = config as {
+              threshold?: bigint | number;
+              totalGuardians?: bigint | number;
+              1?: bigint | number;
+              2?: bigint | number;
+            };
             const t = Number(cfg.threshold ?? cfg[1] ?? 0);
             const tot = Number(cfg.totalGuardians ?? cfg[2] ?? 0);
             if (t > 0 || tot > 0) {

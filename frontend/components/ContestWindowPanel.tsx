@@ -272,7 +272,12 @@ export default function ContestWindowPanel({
           abi: GUARDIAN_REGISTRY_ABI,
           functionName: "getGuardianConfig",
           args: [selectedVaultAddress],
-        })) as any;
+        })) as {
+          threshold?: bigint | number;
+          totalGuardians?: bigint | number;
+          1?: bigint | number;
+          2?: bigint | number;
+        };
 
         if (gConfig) {
           setGuardianThreshold(Number(gConfig.threshold ?? gConfig[1] ?? 2));
@@ -413,7 +418,7 @@ export default function ContestWindowPanel({
       let txHash: Hex;
       if (walletClient) {
         try {
-          txHash = await (walletClient as any).writeContract({
+          txHash = await walletClient.writeContract({
             chain: sepolia,
             address: consensusAddress,
             abi: PROOF_OF_LIFE_CONSENSUS_ABI,
@@ -494,7 +499,7 @@ export default function ContestWindowPanel({
     setFinalizeSuccessTx(null);
     setCancellationError(null);
     try {
-      const hash = await (walletClient as any).writeContract({
+      const hash = await walletClient.writeContract({
         chain: sepolia,
         address: consensusAddress,
         abi: PROOF_OF_LIFE_CONSENSUS_ABI,
@@ -526,7 +531,7 @@ export default function ContestWindowPanel({
     setIsTriggeringClaim(true);
     setCancellationError(null);
     try {
-      const hash = await (walletClient as any).writeContract({
+      const hash = await walletClient.writeContract({
         chain: sepolia,
         address: consensusAddress,
         abi: PROOF_OF_LIFE_CONSENSUS_ABI,
@@ -570,7 +575,7 @@ export default function ContestWindowPanel({
       const guardianTree = buildGuardianTree(candidateG);
       const proof = guardianTree.getProof(guardianIndex);
 
-      const hash = await (walletClient as any).writeContract({
+      const hash = await walletClient.writeContract({
         chain: sepolia,
         address: guardianRegistryAddress,
         abi: GUARDIAN_REGISTRY_ABI,
@@ -627,7 +632,7 @@ export default function ContestWindowPanel({
       } else {
         setCancellationError(res.error || "Failed to dispatch guardian alerts. Please check notification microservice.");
       }
-    } catch (err: unknown) {
+    } catch {
       setCancellationError("Error sending guardian alert emails.");
     } finally {
       setIsDispatchingAlerts(false);

@@ -371,7 +371,7 @@ export async function triggerGuardianAttestationAlerts(params: {
   vaultAddress: string;
   vaultName?: string;
   guardians: GuardianAlertTarget[];
-}): Promise<{ success: boolean; count?: number; results?: any[]; error?: string }> {
+}): Promise<{ success: boolean; count?: number; results?: Array<{ address: string; success: boolean; error?: string }>; error?: string }> {
   try {
     const res = await fetch(`${NOTIFICATION_SERVICE_URL}/api/notify/guardian-attest-request`, {
       method: "POST",
@@ -397,7 +397,7 @@ export async function triggerContestConcludedAlerts(params: {
   vaultAddress: string;
   vaultName?: string;
   recipients: Array<{ address: string; role: string; email?: string }>;
-}): Promise<{ success: boolean; count?: number; results?: any[]; error?: string }> {
+}): Promise<{ success: boolean; count?: number; results?: Array<{ address: string; success: boolean; error?: string }>; error?: string }> {
   try {
     const res = await fetch(`${NOTIFICATION_SERVICE_URL}/api/notify/contest-concluded`, {
       method: "POST",

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAccount, useWalletClient, useSwitchChain } from "wagmi";
+import { useToast } from "./ui/Toast";
 import {
   type Address,
   type Hex,
@@ -110,6 +111,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   const { address: connectedAddress, chain } = useAccount();
   const { data: wagmiWalletClient } = useWalletClient();
   const { switchChainAsync } = useSwitchChain();
+  const { showToast } = useToast();
 
   const getEffectiveWalletClient = useCallback(async () => {
     if (wagmiWalletClient) return wagmiWalletClient;
@@ -211,13 +213,14 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
       const result = await requestSignatureAndBind(connectedAddress, ownerEmail);
       if (result.success && result.verified) {
         setIsOwnerEmailVerified(true);
+        showToast("Email bound & verified.", "success");
       } else {
-        alert(result.error || "Failed to verify signature for email binding.");
+        showToast(result.error || "Failed to verify signature for email binding.", "error");
       }
     } catch (err: unknown) {
       console.warn("[CreateVault] Owner email binding failed/declined:", err);
       const msg = parseUserFriendlyError(err);
-      alert(msg);
+      showToast(msg, "error");
     } finally {
       setIsSigningOwnerEmail(false);
     }
@@ -225,7 +228,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
 
   // Discard saved provisioning session
   const handleDiscardSavedProvisioning = () => {
-    if (confirm("Are you sure you want to discard the previous in-progress vault setup?")) {
+    if (window.confirm("Are you sure you want to discard the previous in-progress vault setup?")) {
       if (connectedAddress) {
         clearProvisioningState(connectedAddress);
       }
@@ -254,7 +257,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   // Start fresh provisioning
   const handleStartProvisioning = async () => {
     if (!connectedAddress) {
-      alert("Please connect your wallet to deploy a vault.");
+      showToast("Please connect your wallet to deploy a vault.", "warning");
       return;
     }
 
@@ -270,10 +273,11 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
           });
         }
       } catch (switchErr: any) {
-        alert(
-          "Your wallet is currently on " +
+        showToast(
+          "Your wallet is on " +
             (chain.name || "another network") +
-            ". Please switch your wallet to Ethereum Sepolia (Chain ID 11155111) in your wallet to deploy."
+            ". Please switch to Ethereum Sepolia (Chain ID 11155111).",
+          "warning"
         );
         return;
       }
@@ -281,7 +285,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
 
     const client = await getEffectiveWalletClient();
     if (!client) {
-      alert("Unable to access wallet signer. Please ensure your wallet is unlocked, connected to Sepolia, and try again.");
+      showToast("Unable to access wallet signer. Please ensure your wallet is unlocked and on Sepolia.", "error");
       return;
     }
 
@@ -301,7 +305,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     }
 
     if (!isAddress(effectiveG1) || !isAddress(effectiveG2)) {
-      alert("Please specify two valid guardian Ethereum addresses.");
+      showToast("Please specify two valid guardian Ethereum addresses.", "warning");
       return;
     }
 
@@ -695,6 +699,46 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         </p>
       </div>
 
+      {/* ========================================================================= */}
+      {/* STEP PROGRESS INDICATOR                                                    */}
+      {/* ========================================================================= */}
+      <div className="flex items-center gap-0 rounded-2xl bg-[#12161F] border border-[#232838] p-4 overflow-x-auto" aria-label="Form steps">
+        {[
+          { n: 1, label: "Deposit Capital" },
+          { n: 2, label: "Beneficiaries" },
+          { n: 3, label: "Heartbeat & Guardians" },
+        ].map(({ n, label }, idx) => {
+          const isDone = isModalOpen && currentStep > n;
+          const isCurrent = !isModalOpen && true; // all steps visible on form
+          return (
+            <React.Fragment key={n}>
+              {idx > 0 && (
+                <div className="flex-1 h-px min-w-[16px] bg-[#232838] mx-2 shrink-0" aria-hidden="true" />
+              )}
+              <div className="flex items-center gap-2 shrink-0">
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-mono border transition-all ${
+                    isDone
+                      ? "bg-[#2EE6A8] border-[#2EE6A8] text-[#0A0E14]"
+                      : "bg-[#1A1F2B] border-[#2EE6A8]/50 text-[#2EE6A8]"
+                  }`}
+                  aria-label={`Step ${n}${isDone ? " completed" : ""}`}
+                >
+                  {isDone ? (
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : n}
+                </div>
+                <span className={`text-xs font-medium hidden sm:block ${
+                  isDone ? "text-[#2EE6A8]" : "text-[#E8ECF1]"
+                }`}>{label}</span>
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
+
       {/* Two-Column Form Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Form Steps (7 cols) */}
@@ -790,14 +834,16 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                   value={guardian1}
                   onChange={(e) => setGuardian1(e.target.value)}
                   className="w-full font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8]"
-                  placeholder="0xGuardian1..."
+                  placeholder="Paste guardian wallet address (0x...)"
+                  aria-label="Guardian 1 Ethereum address"
                 />
                 <input
                   type="text"
                   value={guardian2}
                   onChange={(e) => setGuardian2(e.target.value)}
                   className="w-full font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8]"
-                  placeholder="0xGuardian2..."
+                  placeholder="Paste guardian wallet address (0x...)"
+                  aria-label="Guardian 2 Ethereum address"
                 />
               </div>
             </div>

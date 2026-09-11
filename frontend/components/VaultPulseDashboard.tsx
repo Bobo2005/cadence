@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { type Address, formatEther, isAddressEqual, getAddress } from "viem";
 import { useAccount, useWalletClient } from "wagmi";
 import {
@@ -14,11 +14,9 @@ import { type VaultRoleMatch } from "../hooks/useUserRole";
 import CheckInButton from "./CheckInButton";
 import LiveECGMonitor from "./ui/LiveECGMonitor";
 import DashboardEmptyState from "./DashboardEmptyState";
-import {
-  getWalletNotificationStatus,
-  requestSignatureAndBind,
-} from "../lib/notifications";
+import { getWalletNotificationStatus, requestSignatureAndBind } from "../lib/notifications";
 import { getRegisteredVaults } from "../lib/vaultRegistry";
+import { useToast } from "./ui/Toast";
 
 interface VaultPulseDashboardProps {
   initialVaultAddress?: Address;
@@ -60,6 +58,9 @@ export default function VaultPulseDashboard({
 }: VaultPulseDashboardProps) {
   const { address: connectedAddress } = useAccount();
   const { data: walletClient } = useWalletClient();
+  const { showToast } = useToast();
+  const [vaultDropdownOpen, setVaultDropdownOpen] = useState(false);
+  const vaultDropdownRef = useRef<HTMLDivElement>(null);
 
   // Active vault selection
   const defaultAddress = initialVaultAddress || (vaultId as Address) || ownedVaults[0]?.vaultAddress;
@@ -118,7 +119,7 @@ export default function VaultPulseDashboard({
 
   const handleUpdateInterval = async (newSeconds: number) => {
     if (!walletClient || !activeVaultAddress || !connectedAddress) {
-      alert("Please connect the owner wallet to update interval.");
+      showToast("Please connect the owner wallet to update interval.", "warning");
       return;
     }
     setIsUpdatingInterval(true);
@@ -340,14 +341,15 @@ export default function VaultPulseDashboard({
         setEmailStatus("verified");
         setConfirmedEmail(result.binding?.email || emailInput);
         setIsEditingEmail(false);
+        showToast("Email bound & verified successfully.", "success");
       } else {
-        alert(result.error || "Failed to verify signature for email binding.");
+        showToast(result.error || "Failed to verify signature for email binding.", "error");
         setEmailStatus("not_set");
       }
     } catch (err: unknown) {
       console.error("[Dashboard] Signature binding failed:", err);
       const msg = err instanceof Error ? err.message : String(err);
-      alert(msg || "Wallet signature was declined or failed.");
+      showToast(msg || "Wallet signature was declined or failed.", "error");
       setEmailStatus("not_set");
     } finally {
       setIsSigningEmail(false);
@@ -394,25 +396,64 @@ export default function VaultPulseDashboard({
           </div>
         </div>
 
-        {/* Multi-Vault Switcher Dropdown */}
+        {/* Multi-Vault Switcher — custom styled dropdown replacing native <select> */}
         {ownedVaults.length > 1 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" ref={vaultDropdownRef}>
             <span className="text-xs text-[#8993A6] font-mono">Switch Locker:</span>
-            <select
-              value={activeVaultAddress}
-              onChange={(e) => {
-                const nextAddr = getAddress(e.target.value);
-                setActiveVaultAddress(nextAddr);
-                if (onSelectVault) onSelectVault(nextAddr);
-              }}
-              className="bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] text-xs font-mono rounded-xl px-3 py-2 focus:outline-none focus:border-[#2EE6A8] cursor-pointer"
-            >
-              {ownedVaults.map((v) => (
-                <option key={v.vaultAddress} value={v.vaultAddress}>
-                  {v.name} ({v.vaultAddress.slice(0, 6)}...)
-                </option>
-              ))}
-            </select>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setVaultDropdownOpen((o) => !o)}
+                aria-haspopup="listbox"
+                aria-expanded={vaultDropdownOpen}
+                aria-label="Switch active vault"
+                className="flex items-center gap-2 bg-[#0A0E14] border border-[#232838] hover:border-[#2EE6A8]/40 text-[#E8ECF1] text-xs font-mono rounded-xl px-3 py-2 focus:outline-none focus:border-[#2EE6A8] cursor-pointer transition-all"
+              >
+                <span className="max-w-[140px] truncate">
+                  {ownedVaults.find((v) =>
+                    v.vaultAddress.toLowerCase() === activeVaultAddress?.toLowerCase()
+                  )?.name || "Select vault"}
+                </span>
+                <svg className={`w-3 h-3 text-[#8993A6] transition-transform ${vaultDropdownOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {vaultDropdownOpen && (
+                <ul
+                  role="listbox"
+                  className="absolute top-full left-0 mt-1.5 w-56 bg-[#12161F] border border-[#232838] rounded-xl shadow-2xl z-20 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+                >
+                  {ownedVaults.map((v) => {
+                    const isSelected = v.vaultAddress.toLowerCase() === activeVaultAddress?.toLowerCase();
+                    return (
+                      <li
+                        key={v.vaultAddress}
+                        role="option"
+                        aria-selected={isSelected}
+                        onClick={() => {
+                          const nextAddr = getAddress(v.vaultAddress);
+                          setActiveVaultAddress(nextAddr);
+                          if (onSelectVault) onSelectVault(nextAddr);
+                          setVaultDropdownOpen(false);
+                        }}
+                        className={`px-3 py-2.5 text-xs font-mono cursor-pointer transition-colors flex items-center justify-between ${
+                          isSelected
+                            ? "text-[#2EE6A8] bg-[#2EE6A8]/10"
+                            : "text-[#E8ECF1] hover:bg-[#1A1F2B]"
+                        }`}
+                      >
+                        <span className="truncate max-w-[160px]">{v.name}</span>
+                        {isSelected && (
+                          <svg className="w-3 h-3 shrink-0 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -467,24 +508,32 @@ export default function VaultPulseDashboard({
               onClick={() => setShowIntervalModal(true)}
               className="text-[11px] font-mono px-2.5 py-1 rounded-lg bg-[#2EE6A8]/10 text-[#2EE6A8] hover:bg-[#2EE6A8]/20 border border-[#2EE6A8]/30 transition-all flex items-center gap-1.5 cursor-pointer font-medium hover:shadow-[0_0_10px_rgba(46,230,168,0.2)]"
               title="Change check-in interval (5m & 10m testing presets available)"
+              aria-label="Adjust heartbeat check-in interval"
             >
-              <span>⚡</span>
+              {/* SVG bolt replaces ⚡ emoji */}
+              <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
+              </svg>
               <span>Adjust Interval</span>
             </button>
           </div>
         </div>
 
         {/* Oscilloscope ECG Monitor */}
-        <LiveECGMonitor
-          state={
-            consensusState === ConsensusState.Active
-              ? "active"
-              : consensusState === ConsensusState.Contested
-              ? "erratic"
-              : "flatline"
-          }
-          bpm={checkInIntervalSec <= 300 ? 95 : 62}
-        />
+        {isLoadingOnChain ? (
+          <div className="h-28 my-2 rounded-xl bg-[#1A1F2B] animate-pulse" />
+        ) : (
+          <LiveECGMonitor
+            state={
+              consensusState === ConsensusState.Active
+                ? "active"
+                : consensusState === ConsensusState.Contested
+                ? "erratic"
+                : "flatline"
+            }
+            bpm={checkInIntervalSec <= 300 ? 95 : 62}
+          />
+        )}
       </div>
 
       {/* ========================================================================= */}
@@ -493,6 +542,7 @@ export default function VaultPulseDashboard({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Next Required Check-In Card */}
         <div className="rounded-2xl bg-[#12161F] border border-[#232838] p-6 flex flex-col justify-between shadow-lg">
+          {/* Skeleton shimmer or Countdown when loading */}
           <div>
             <div className="flex items-center justify-between">
               <span className="text-xs font-mono font-semibold tracking-wider text-[#8993A6] uppercase">
@@ -505,12 +555,22 @@ export default function VaultPulseDashboard({
               )}
             </div>
 
-            {/* Monospace Countdown */}
-            <div className="text-3xl sm:text-4xl font-bold font-mono text-[#2EE6A8] tracking-tight my-4">
+            {/* Improved countdown typography: large digits + muted small unit labels */}
+            <div className="flex items-end gap-1 sm:gap-2 my-4" aria-label={`Time remaining: ${countdownFormatted.days} days ${countdownFormatted.hours} hours ${countdownFormatted.minutes} minutes ${countdownFormatted.seconds} seconds`}>
               {secondsRemaining === 0 ? (
-                <span className="text-[#F5B841]">00d : 00h : 00m : 00s (LAPSED)</span>
+                <span className="text-3xl sm:text-4xl font-bold font-mono text-[#F5B841] tracking-tight">LAPSED</span>
               ) : (
-                `${countdownFormatted.days}d : ${countdownFormatted.hours}h : ${countdownFormatted.minutes}m : ${countdownFormatted.seconds}s`
+                <>
+                  {[{ v: countdownFormatted.days, u: "d" }, { v: countdownFormatted.hours, u: "h" }, { v: countdownFormatted.minutes, u: "m" }, { v: countdownFormatted.seconds, u: "s" }].map(({ v, u }, i) => (
+                    <React.Fragment key={u}>
+                      {i > 0 && <span className="text-xl sm:text-2xl font-mono text-[#3E4759] mb-1">:</span>}
+                      <div className="flex items-end gap-0.5">
+                        <span className="text-3xl sm:text-4xl font-bold font-mono text-[#2EE6A8] tracking-tight leading-none tabular-nums">{v}</span>
+                        <span className="text-xs font-mono text-[#8993A6] mb-1 ml-0.5">{u}</span>
+                      </div>
+                    </React.Fragment>
+                  ))}
+                </>
               )}
             </div>
           </div>
@@ -546,10 +606,14 @@ export default function VaultPulseDashboard({
               </button>
             </div>
 
-            {/* ETH Balance from live publicClient */}
+          {/* ETH Balance — skeleton while loading, then live value */}
+          {isLoadingOnChain ? (
+            <div className="h-10 w-40 rounded-lg bg-[#1A1F2B] animate-pulse my-4" />
+          ) : (
             <div className="text-3xl sm:text-4xl font-bold font-mono text-[#E8ECF1] tracking-tight my-4">
               {isPrivateBalance ? "•••••••• ETH" : `${ethBalance} ETH`}
             </div>
+          )}
           </div>
 
           <div className="flex items-center gap-2 text-xs text-[#8993A6] font-sans">
@@ -733,6 +797,7 @@ export default function VaultPulseDashboard({
                   </p>
                 </div>
               </div>
+          {/* Modal close — SVG replaces ✕ emoji */}
               <button
                 type="button"
                 onClick={() => {
@@ -742,9 +807,12 @@ export default function VaultPulseDashboard({
                   }
                 }}
                 disabled={isUpdatingInterval}
+                aria-label="Close interval modal"
                 className="text-[#8993A6] hover:text-[#E8ECF1] transition-colors p-1 text-lg rounded-lg hover:bg-[#1A1F2C] cursor-pointer"
               >
-                ✕
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 

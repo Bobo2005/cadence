@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useConnect, useAccount } from "wagmi";
 import CadenceLogo from "./CadenceLogo";
 
@@ -37,6 +37,7 @@ export function WalletModalProvider({ children }: { children: React.ReactNode })
 export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
   const { connectors, connect, isPending, error } = useConnect();
   const { isConnected } = useAccount();
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // Automatically close on successful connection
   useEffect(() => {
@@ -44,6 +45,30 @@ export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
       onClose();
     }
   }, [isConnected, onClose]);
+
+  // Keyboard focus trap — keep Tab cycling inside modal
+  useEffect(() => {
+    const el = modalRef.current;
+    if (!el) return;
+    const focusable = el.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { onClose(); return; }
+      if (e.key !== "Tab") return;
+      if (e.shiftKey) {
+        if (document.activeElement === first) { e.preventDefault(); last?.focus(); }
+      } else {
+        if (document.activeElement === last) { e.preventDefault(); first?.focus(); }
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    // Focus the first focusable element on open
+    first?.focus();
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   const injectedConnector = connectors.find((c) => c.id === "injected");
   const walletConnectConnector = connectors.find((c) => c.id === "walletConnect");
@@ -57,11 +82,14 @@ export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Connect wallet"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="w-full max-w-md rounded-2xl bg-[#12161F] border border-[#232838] p-6 shadow-2xl relative text-left font-sans">
+      <div ref={modalRef} className="w-full max-w-md rounded-2xl bg-[#12161F] border border-[#232838] p-6 shadow-2xl relative text-left font-sans">
         {/* Close Button */}
         <button
           type="button"
@@ -94,8 +122,18 @@ export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
             className="w-full flex items-center justify-between p-3.5 rounded-xl bg-[#1A1F2B]/60 border border-[#232838] hover:border-[#2EE6A8]/50 hover:bg-[#1A1F2B] transition-all group cursor-pointer disabled:opacity-50"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-[#0A0E14] border border-[#232838] flex items-center justify-center text-lg">
-                🦊
+              <div className="w-9 h-9 rounded-lg bg-[#0A0E14] border border-[#232838] flex items-center justify-center text-[#F6851B]">
+                {/* MetaMask fox SVG icon */}
+                <svg className="w-5 h-5" viewBox="0 0 35 33" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M32.9 1L19.3 10.7l2.4-5.7L32.9 1z" fill="#E17726" stroke="#E17726" strokeWidth=".25" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2.1 1l13.5 9.8-2.3-5.8L2.1 1z" fill="#E27625" stroke="#E27625" strokeWidth=".25" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M28.2 23.5l-3.6 5.5 7.7 2.1 2.2-7.5-6.3-.1z" fill="#E27625" stroke="#E27625" strokeWidth=".25"/>
+                  <path d="M1.5 23.6l2.2 7.5 7.7-2.1-3.6-5.5-6.3.1z" fill="#E27625" stroke="#E27625" strokeWidth=".25"/>
+                  <path d="M10.9 14.5l-2.1 3.2 7.6.3-.3-8.2-5.2 4.7z" fill="#E27625" stroke="#E27625" strokeWidth=".25"/>
+                  <path d="M24.1 14.5l-5.3-4.8-.2 8.3 7.6-.3-2.1-3.2z" fill="#E27625" stroke="#E27625" strokeWidth=".25"/>
+                  <path d="M11.4 29l4.6-2.2-4-3.1-.6 5.3z" fill="#E27625" stroke="#E27625" strokeWidth=".25"/>
+                  <path d="M19 26.8l4.6 2.2-.5-5.3-4.1 3.1z" fill="#E27625" stroke="#E27625" strokeWidth=".25"/>
+                </svg>
               </div>
               <div>
                 <div className="text-sm font-semibold text-[#E8ECF1] group-hover:text-[#2EE6A8] transition-colors">
@@ -119,8 +157,11 @@ export function ConnectWalletModal({ onClose }: { onClose: () => void }) {
               className="w-full flex items-center justify-between p-3.5 rounded-xl bg-[#1A1F2B]/60 border border-[#232838] hover:border-[#2EE6A8]/50 hover:bg-[#1A1F2B] transition-all group cursor-pointer disabled:opacity-50"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-lg bg-[#0A0E14] border border-[#232838] flex items-center justify-center text-lg">
-                  📱
+                <div className="w-9 h-9 rounded-lg bg-[#0A0E14] border border-[#232838] flex items-center justify-center">
+                  {/* WalletConnect official logo SVG */}
+                  <svg className="w-5 h-5" viewBox="0 0 300 185" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M61.4 36c49-48 128.6-48 177.7 0l5.9 5.8a6 6 0 010 8.6l-20.2 19.8a3 3 0 01-4.3 0l-8.1-7.9c-34.2-33.5-89.7-33.5-123.9 0l-8.7 8.5a3 3 0 01-4.3 0L55.2 51a6 6 0 010-8.6L61.4 36zm219.5 40.9l17.9 17.6a6 6 0 010 8.6l-80.7 79.2a6 6 0 01-8.5 0l-57.3-56.2a1.5 1.5 0 00-2.1 0l-57.3 56.2a6 6 0 01-8.5 0L3.7 163a6 6 0 010-8.6l18-17.6a6 6 0 018.5 0l57.3 56.2a1.5 1.5 0 002.1 0l57.3-56.2a6 6 0 018.5 0l57.3 56.2a1.5 1.5 0 002.1 0l57.3-56.2a6 6 0 018.4 0z" fill="#3B99FC"/>
+                  </svg>
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-[#E8ECF1] group-hover:text-[#2EE6A8] transition-colors">

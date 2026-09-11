@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useId } from "react";
 
 export type ECGState = "active" | "erratic" | "flatline";
 
@@ -26,6 +26,9 @@ export default function LiveECGMonitor({
   const glowPathRef = useRef<SVGPathElement>(null);
   const tracerRef = useRef<SVGCircleElement>(null);
   const [pulseBeating, setPulseBeating] = useState(false);
+  // Unique ID per instance to avoid SVG filter ID collisions when multiple monitors render
+  const uid = useId().replace(/:/g, "-");
+  const filterId = `tracer-glow${uid}`;
 
   useEffect(() => {
     let animId: number;
@@ -183,7 +186,7 @@ export default function LiveECGMonitor({
         preserveAspectRatio="none"
       >
         <defs>
-          <filter id="tracer-glow" x="-50%" y="-50%" width="200%" height="200%">
+          <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="3.5" result="coloredBlur" />
             <feMerge>
               <feMergeNode in="coloredBlur" />
@@ -219,7 +222,7 @@ export default function LiveECGMonitor({
           fill="#FFFFFF"
           stroke={strokeColor}
           strokeWidth="2"
-          filter="url(#tracer-glow)"
+          filter={`url(#${filterId})`}
           className={`transition-transform duration-75 ${
             pulseBeating ? "scale-125" : "scale-100"
           }`}

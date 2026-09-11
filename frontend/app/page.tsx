@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAccount } from "wagmi";
 import CadenceLogo from "../components/ui/CadenceLogo";
 import { useWalletModal } from "../components/ui/ConnectWalletModal";
+import LiveECGMonitor from "../components/ui/LiveECGMonitor";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -29,28 +30,13 @@ export default function LandingPage() {
   return (
     <div className="relative min-h-screen w-full bg-[#0A0E14] text-[#E8ECF1] flex flex-col justify-between overflow-hidden select-none font-sans">
       {/* ========================================================================= */}
-      {/* BACKGROUND ECG PULSE LINE TEXTURE (Steady Active Rhythm)                  */}
-      {/* Runs full-width horizontally through the screen behind the card           */}
+      {/* LIVE ECG PULSE BACKGROUND — replaces static SVG for a dynamic first look   */}
       {/* ========================================================================= */}
-      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
-        <svg
-          className="w-[140%] max-w-none h-44 opacity-35 stroke-[#16382E]"
-          viewBox="0 0 1600 120"
-          fill="none"
-          preserveAspectRatio="none"
-        >
-          {/* Subtle horizontal grid lines */}
-          <line x1="0" y1="60" x2="1600" y2="60" stroke="#131B26" strokeWidth="1" strokeDasharray="6 6" />
-
-          {/* Steady ECG Path traversing across the screen */}
-          <path
-            d="M 0,60 L 140,60 L 148,58 L 155,60 L 165,60 L 175,22 L 188,102 L 198,38 L 208,60 L 220,60 L 380,60 L 388,58 L 395,60 L 405,60 L 415,22 L 428,102 L 438,38 L 448,60 L 460,60 L 620,60 L 628,58 L 635,60 L 645,60 L 655,22 L 668,102 L 678,38 L 688,60 L 700,60 L 860,60 L 868,58 L 875,60 L 885,60 L 895,22 L 908,102 L 918,38 L 928,60 L 940,60 L 1100,60 L 1108,58 L 1115,60 L 1125,60 L 1135,22 L 1148,102 L 1158,38 L 1168,60 L 1180,60 L 1340,60 L 1348,58 L 1355,60 L 1365,60 L 1375,22 L 1388,102 L 1398,38 L 1408,60 L 1420,60 L 1600,60"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden">
+        {/* Live animated ECG — dimmed as a background texture */}
+        <div className="w-full opacity-20 scale-y-150">
+          <LiveECGMonitor state="active" bpm={58} className="w-full" />
+        </div>
         {/* Ambient radial glow centered */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-[#2EE6A8]/5 rounded-full blur-[120px] pointer-events-none" />
       </div>
@@ -136,22 +122,34 @@ export default function LandingPage() {
       </main>
 
       {/* ========================================================================= */}
-      {/* FOOTER: CRITICAL COPY CORRECTION APPLIED                                   */}
-      {/* Replaces false "Fully Audited Zero-Knowledge Key Sharding" with accurate   */}
-      {/* architecture statements: Merkle commitments, ECIES & ERC-4337             */}
+      {/* FOOTER: Human-readable trust signals replacing technical jargon            */}
       {/* ========================================================================= */}
       <footer className="pb-8 pt-4 px-6 text-center z-10 space-y-1.5">
-        <div className="inline-flex items-center gap-2 text-xs font-mono text-[#5A6478]">
-          <svg className="w-3.5 h-3.5 text-[#2EE6A8]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-          </svg>
-          <span>
-            Merkle-Committed Guardian Consensus · ECIES Allocation Encryption · ERC-4337 Smart Accounts
+        <div className="inline-flex flex-wrap justify-center items-center gap-x-4 gap-y-1 text-xs font-mono text-[#5A6478]">
+          <span className="flex items-center gap-1.5">
+            <svg className="w-3 h-3 text-[#2EE6A8]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Non-Custodial
+          </span>
+          <span className="text-[#3E4759]">&middot;</span>
+          <span className="flex items-center gap-1.5">
+            <svg className="w-3 h-3 text-[#2EE6A8]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+            No Plaintext On-Chain
+          </span>
+          <span className="text-[#3E4759]">&middot;</span>
+          <span className="flex items-center gap-1.5">
+            <svg className="w-3 h-3 text-[#2EE6A8]" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+            </svg>
+            Open Protocol
           </span>
         </div>
         <div>
           <span className="text-[11px] font-mono text-[#3E4759]">
-            Non-Custodial Architecture · Zero Plaintext Shares Committed On-Chain
+            Ethereum Sepolia Testnet
           </span>
         </div>
       </footer>

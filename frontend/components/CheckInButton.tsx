@@ -164,14 +164,14 @@ export default function CheckInButton({
               className="text-xs px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider bg-[#0A0E14]/20 text-[#0A0E14] font-bold border border-[#0A0E14]/20"
               title="ERC-4337 Smart Account detected — gas sponsored by Pimlico paymaster"
             >
-              Sponsored · 0 ETH
+              <span className="hidden sm:inline">Sponsored · </span>0 ETH
             </span>
           ) : (
             <span
               className="text-xs px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider bg-[#0A0E14]/20 text-[#0A0E14] font-bold border border-[#0A0E14]/20"
               title="Plain EOA detected — direct on-chain transaction paid by wallet"
             >
-              Direct Transaction · Normal Gas
+              <span className="hidden sm:inline">Direct · </span>EOA Gas
             </span>
           )}
         </button>

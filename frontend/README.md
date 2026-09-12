@@ -63,7 +63,7 @@ To prevent HTTP 429 rate-limiting during high-volume hackathon judging, `lib/con
    NEXT_PUBLIC_GUARDIAN_REGISTRY_ADDRESS=0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863
    NEXT_PUBLIC_STEALTH_REGISTRY_ADDRESS=0x583eC2de840034478a61EF572cea2904bFD8671E
    NEXT_PUBLIC_FACTORY_ADDRESS=0x30489c0f3566AF47b71867bc992408B91E500823
-   NEXT_PUBLIC_PIMLICO_API_KEY=pim_U7CousAoRpmdvs3fCC9kng
+   NEXT_PUBLIC_PIMLICO_API_KEY=your_pimlico_api_key_here
    NEXT_PUBLIC_NOTIFICATION_URL=https://cadence-notifications.onrender.com
    ```
 4. Deploy! Static asset caching and security headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`) are configured in `vercel.json`.

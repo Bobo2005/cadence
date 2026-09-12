@@ -22,6 +22,8 @@ contracts/broadcast/**/dry-run/
 
 # Environment files
 .env
+.env.local
+.env.*.local
 .env.*
 *.env
 *.env.local

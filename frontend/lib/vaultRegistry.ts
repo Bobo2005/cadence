@@ -40,7 +40,6 @@ export interface DemoBeneficiary {
   id: string;
   name: string;
   address: Address;
-  privateKey: string;
   publicKey: string;
   description: string;
 }
@@ -50,7 +49,6 @@ export const DEMO_BENEFICIARIES: DemoBeneficiary[] = [
     id: "alice",
     name: "Alice (Primary Heir)",
     address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-    privateKey: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
     publicKey: "ba5734d8f7091719471e7f7ed6b9df170dc70cc661ca05e688601ad984f068b0d67351e5f06073092499336ab0839ef8a521afd334e53807205fa2f08eec74f4",
     description: "40.00% allocation on Accelerated Demo Locker",
   },
@@ -58,7 +56,6 @@ export const DEMO_BENEFICIARIES: DemoBeneficiary[] = [
     id: "bob",
     name: "Bob (Secondary Heir)",
     address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-    privateKey: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
     publicKey: "9d9031e97dd78ff8c15aa86939de9b1e791066a0224e331bc962a2099a7b1f0464b8bbafe1535f2301c72c2cb3535b172da30b02686ab0393d348614f157fbdb",
     description: "60.00% allocation on Accelerated Demo Locker",
   },

@@ -4,7 +4,6 @@
  */
 
 import { getAddress, type Hex } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
 
 const NOTIFICATION_SERVICE_URL =
   process.env.NEXT_PUBLIC_NOTIFICATION_URL || "http://localhost:3001";
@@ -48,13 +47,7 @@ export interface SuggestEmailResponse {
   error?: string;
 }
 
-// Known deterministic keys for testing and development when window.ethereum is not present
-const KNOWN_DEMO_KEYS: Record<string, Hex> = {
-  "0x70997970c51812dc3a010c7d01b50e0d17dc79c8":
-    "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
-  "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc":
-    "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
-};
+
 
 /**
  * Returns the canonical binding confirmation message for a wallet address and email.
@@ -161,7 +154,6 @@ export async function requestSignatureAndBind(
   timestamp: string | number = 0
 ): Promise<BindEmailResponse> {
   const normalized = getAddress(walletAddress);
-  const message = getCanonicalBindingMessage(normalized, email, nonce, timestamp);
   let signature: Hex | null = null;
 
   // 1. Try injected Web3 wallet (MetaMask, Rabby, Coinbase, etc.)
@@ -176,9 +168,10 @@ export async function requestSignatureAndBind(
       });
       const [account] = await client.requestAddresses();
       const targetAccount = account || normalized;
+      const message = getCanonicalBindingMessage(targetAccount, email, nonce, timestamp);
       signature = await client.signMessage({
         account: targetAccount,
-        message: getCanonicalBindingMessage(targetAccount, email, nonce, timestamp),
+        message,
       });
       return await bindWalletEmail(targetAccount, email, signature, nonce, timestamp);
     } catch (walletErr: unknown) {
@@ -190,15 +183,7 @@ export async function requestSignatureAndBind(
     }
   }
 
-  // 2. Demo fallback: Use genuine signature generated from demo private key
-  const demoKey = KNOWN_DEMO_KEYS[normalized.toLowerCase()];
-  if (demoKey) {
-    const account = privateKeyToAccount(demoKey);
-    signature = await account.signMessage({ message });
-    return await bindWalletEmail(normalized, email, signature, nonce, timestamp);
-  }
-
-  // 3. Fallback: require explicit signature
+  // 2. Fallback: require explicit signature
   throw new Error("Wallet signature required to verify and bind notification email.");
 }
 
@@ -245,15 +230,15 @@ export async function triggerOwnerReminder(params: {
   daysRemaining?: number;
 }) {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (process.env.CADENCE_INTERNAL_API_KEY) {
+      headers["x-cadence-internal-key"] = process.env.CADENCE_INTERNAL_API_KEY;
+    }
     const res = await fetch(
       `${NOTIFICATION_SERVICE_URL}/api/notify/owner-reminder`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-cadence-internal-key":
-            process.env.CADENCE_INTERNAL_API_KEY || "cadence-internal-secret",
-        },
+        headers,
         body: JSON.stringify(params),
       }
     );
@@ -273,15 +258,15 @@ export async function triggerClaimReadyNotice(params: {
   claimableAmount?: string;
 }) {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (process.env.CADENCE_INTERNAL_API_KEY) {
+      headers["x-cadence-internal-key"] = process.env.CADENCE_INTERNAL_API_KEY;
+    }
     const res = await fetch(
       `${NOTIFICATION_SERVICE_URL}/api/notify/claim-ready`,
       {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-cadence-internal-key":
-            process.env.CADENCE_INTERNAL_API_KEY || "cadence-internal-secret",
-        },
+        headers,
         body: JSON.stringify(params),
       }
     );
@@ -373,13 +358,13 @@ export async function triggerGuardianAttestationAlerts(params: {
   guardians: GuardianAlertTarget[];
 }): Promise<{ success: boolean; count?: number; results?: Array<{ address: string; success: boolean; error?: string }>; error?: string }> {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (process.env.CADENCE_INTERNAL_API_KEY) {
+      headers["x-cadence-internal-key"] = process.env.CADENCE_INTERNAL_API_KEY;
+    }
     const res = await fetch(`${NOTIFICATION_SERVICE_URL}/api/notify/guardian-attest-request`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-cadence-internal-key":
-          process.env.NEXT_PUBLIC_INTERNAL_KEY || "cadence-internal-secret",
-      },
+      headers,
       body: JSON.stringify(params),
     });
     return await res.json();
@@ -403,13 +388,13 @@ export async function triggerContestConcludedAlerts(params: {
   recipients: Array<{ address: string; role: string; email?: string }>;
 }): Promise<{ success: boolean; count?: number; results?: Array<{ address: string; success: boolean; error?: string }>; error?: string }> {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (process.env.CADENCE_INTERNAL_API_KEY) {
+      headers["x-cadence-internal-key"] = process.env.CADENCE_INTERNAL_API_KEY;
+    }
     const res = await fetch(`${NOTIFICATION_SERVICE_URL}/api/notify/contest-concluded`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-cadence-internal-key":
-          process.env.NEXT_PUBLIC_INTERNAL_KEY || "cadence-internal-secret",
-      },
+      headers,
       body: JSON.stringify(params),
     });
     return await res.json();

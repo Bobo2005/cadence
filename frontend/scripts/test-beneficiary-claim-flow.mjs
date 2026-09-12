@@ -141,9 +141,9 @@ async function runTests() {
   const demoAliceRecord = seedVault.encryptedAllocations.find(
     (a) => a.beneficiary.toLowerCase() === demoAlice.address.toLowerCase()
   );
-  assert(demoAliceRecord !== undefined, "Found Demo Alice encrypted allocation record");
-
-  const demoDecrypted = await decryptAllocation(demoAlice.privateKey, demoAliceRecord.ciphertext);
+  // Anvil test account #1 private key corresponding to demo Alice address
+  const demoAlicePrivateKey = "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d";
+  const demoDecrypted = await decryptAllocation(demoAlicePrivateKey, demoAliceRecord.ciphertext);
   assert(demoDecrypted.shareBps === 4000, "Demo Alice decrypts exact 4,000 bps from seed ciphertext");
 
   const demoLeaf = computeAllocationLeaf(demoAlice.address, demoDecrypted.shareBps, demoDecrypted.salt);

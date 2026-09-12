@@ -144,9 +144,9 @@ On `/contest`, the interface dynamically reflects guardian consensus and inactiv
    - Detects whether the active wallet matches Guardian Node 1 or Node 2 and displays an immediate **`[⚡ Attest Lapse]`** action button.
    - Quorum Tracking: Dynamic state button renders **`Awaiting Guardian Quorum (0/2)`** in `--accent-warning` (amber) with disabled state until 2-of-2 attestations are recorded on-chain, transitioning to **`[⚡ Trigger Contest Challenge Window]`** in vibrant pulse teal.
 
-2. **Dual-Guardian Email Dispatcher**:
-   - Two distinct input rows for **Guardian Node 1** and **Guardian Node 2** emails with instant dispatch action (`[✉ Send Attestation Email Alerts to Guardians]`).
-   - Dispatches separate, role-specific notification emails with direct links to attest on Sepolia.
+2. **Dual-Guardian Configuration & Autonomous Alerts**:
+   - On `/vault/create`, Section 3 ("Heartbeat & Guardians") provides side-by-side cyberpunk cards for **Guardian Node 1** and **Guardian Node 2**, each supporting an on-chain wallet address (`0x...`) and an optional notification email (`guardian@example.com`).
+   - When inactivity lapses, the autonomous Sentinel daemon dispatches distinct, role-specific notification emails with direct links to attest on Sepolia without requiring manual dispatch buttons on `/contest`.
 
 ## 1-Click Atomic Vault Provisioning Modal
 

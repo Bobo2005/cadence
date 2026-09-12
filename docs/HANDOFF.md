@@ -4,6 +4,38 @@
 
 ---
 
+## Handoff — 2026-09-12 (Guardian Email Architecture Refinement, Create Vault Integration & Notification Daemon Network Resilience)
+
+**Who/what worked this session:** Antigravity AI
+
+**What was completed:**
+1. **Contest Page UI Decluttering & Simplification (`frontend/components/ContestWindowPanel.tsx`)**:
+   - Removed the manual "✉ Guardian Email Dispatcher" card that previously showed manual email input fields, auto-dispatch badges, and the manual alert dispatch button on the contest page.
+   - Removed obsolete manual action handlers and states (`handleDispatchGuardianAlerts`, `handleGuardian1EmailChange`, `handleGuardian2EmailChange`, `isDispatchingAlerts`, `autoDispatchedHeartbeat`) to maintain zero unused variable warnings.
+   - Retained the clean display of `alertSuccessMsg` in the contest conclusion section for explicit user feedback when concluded alerts are re-sent.
+
+2. **Guardian Email Fields Integrated into Create Vault Form (`frontend/components/CreateVaultForm.tsx`)**:
+   - As requested, relocated the Guardian email input fields directly into the vault creation workflow where guardian wallet addresses are configured (Step 3: Heartbeat & Guardians).
+   - Designed side-by-side cyberpunk cards for **Guardian Node 1** and **Guardian Node 2**:
+     - **Wallet Address field (Required)**: on-chain Ethereum address (`0x...`).
+     - **Email Address field (Optional)**: for automated inactivity & attestation alerts (`guardian1@example.com` / `guardian2@example.com`).
+   - Updated the "+ Use Sepolia Demo Guardians" preset button to populate both demo wallet addresses and default guardian emails.
+   - Automatically stores guardian emails in `localStorage` keyed by `deployedAddress` and registers the newly deployed vault with the autonomous Sentinel microservice via `registerMonitoredVault`.
+
+3. **Notification Microservice Startup & Network Resilience (`notifications/` & `frontend/lib/notifications.ts`)**:
+   - Fixed `[Notifications] Failed to trigger guardian attestation alerts: Failed to fetch (lib/notifications.ts:388:13)`:
+     - Started the `cadence-notifications` service as a persistent background daemon (`npm run dev` on port 3001) with active Sentinel polling and live SMTP transport (`smtp.gmail.com:587`).
+     - Verified TCP connection on `127.0.0.1:3001` (`TcpTestSucceeded: True`).
+     - Deduplicated client-side auto-dispatch in `ContestWindowPanel.tsx` by setting cycle tracking in `sessionStorage` (`sessionStorage.setItem(cycleId, "triggered")`) immediately upon first trigger, preventing the 1-second countdown timer ticks from spamming repeated network requests when offline.
+     - Updated `frontend/lib/notifications.ts` to catch network disconnects gracefully with `console.debug` rather than logging unhandled error traces in browser devtools.
+
+4. **Verification & Quality Gate**:
+   - `npm run lint`: **0 errors, 0 warnings**.
+   - `npx tsc --noEmit`: **0 errors**.
+   - `cadence-notifications` tests: **18/18 passing** (including unit, security, and autonomous sentinel suites).
+
+---
+
 ## Handoff — 2026-09-11 (Autonomous Sentinel Daemon, Automated Heartbeat & Guardian Email Alerts, Frontend Code Hygiene)
 
 **Who/what worked this session:** Antigravity AI

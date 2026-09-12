@@ -60,7 +60,7 @@ Testing heartbeat timeouts does NOT require waiting 30–90 days or hacking the 
    - On [`/contest`](https://cadence-ebon-six.vercel.app/contest), use the **`[⚡ Set 5m Test Grace]`** fast-testing button to instantly set a 5-minute challenge window for immediate claim testing.
 3. **Triggering & Finalizing the Contest Lifecycle**:
    - **Heartbeat Timeout Lapses**: When the check-in timer reaches 0, the locker enters inactivity status (`Timeout Expired On-Chain: YES`).
-   - **Notify Guardians via Email**: Use the **`✉ Guardian Email Dispatcher`** on [`/contest`](https://cadence-ebon-six.vercel.app/contest) to send **2 distinct, personalized email alerts** to **Guardian Node 1** and **Guardian Node 2** with direct on-chain contest links.
+   - **Notify Guardians via Email**: When the heartbeat lapses, the autonomous Sentinel daemon and client-side watchdog automatically dispatch **2 distinct, personalized email alerts** to **Guardian Node 1** and **Guardian Node 2** (as configured in [`/vault/create`](https://cadence-ebon-six.vercel.app/vault/create)) with direct on-chain contest links.
    - **Guardian Quorum Attestation**: Switch wallet to **Guardian Node 1** and click **`[⚡ Attest Lapse]`**. Switch wallet to **Guardian Node 2** and click **`[⚡ Attest Lapse]`**.
    - **Initiate Contest Challenge Window**: Once 2-of-2 guardian attestations are recorded on-chain, click **`[⚡ Trigger Contest Challenge Window]`** to transition state to `ClaimPending` (5m test grace or 72h).
    - **Contest Grace Period Concludes**: When the contest countdown reaches 0, click **`[⚡ Finalize Contest on Sepolia]`** directly from either [`/contest`](https://cadence-ebon-six.vercel.app/contest) or [`/claim`](https://cadence-ebon-six.vercel.app/claim).

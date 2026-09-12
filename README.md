@@ -69,7 +69,7 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
 
 ### Step 2: Switch to Guardian $\rightarrow$ Dispatch Email Alerts & Attest Inactivity Lapse
 1. Navigate to [`/contest`](https://cadence-ebon-six.vercel.app/contest):
-   - **Autonomous Guardian & Concluded Alerts**: When the check-in interval lapses, the Sentinel daemon (and client-side real-time detector) automatically dispatches **2 distinct email alerts** to Guardian Node 1 and Guardian Node 2 with direct on-chain contest links (manual dispatch also available via the **`✉ Guardian Email Dispatcher`**).
+   - **Autonomous Guardian & Concluded Alerts**: When the check-in interval lapses, the Sentinel daemon (and client-side real-time detector) automatically dispatches **2 distinct email alerts** to Guardian Node 1 and Guardian Node 2 (as configured during vault creation) with direct on-chain contest links.
    - Switch wallet to **Guardian 1** (`0x81C3...91a2` or `0xC09C...77e4`): Click the interactive **`[⚡ Attest Lapse]`** button.
    - Switch wallet to **Guardian 2** (`0x34d7...A1F0` or `0xA5b9...a8f1`): Click the interactive **`[⚡ Attest Lapse]`** button.
    - Once 2-of-2 quorum is verified on-chain, click **`[⚡ Trigger Contest Challenge Window]`** (or use **`[⚡ Set 5m Test Grace]`** to set a fast 5-minute testing duration).

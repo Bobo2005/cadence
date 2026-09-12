@@ -1026,6 +1026,31 @@
   - Beneficiary claim integration: **22/22 tests passed**.
   - Frontend: `npx tsc --noEmit` — 0 errors, `npx eslint .` — 0 errors, 0 warnings.
 
+### Session 18 — Guardian Email Relocation to Create Vault, Contest UI Cleanup & Notification Daemon Network Resilience
+- **User Voice Note Requirements**:
+  1. "remove this from the contest page [Guardian Email Dispatcher card with manual inputs, auto-dispatch message, manual button]"
+  2. "the guardian email field should be with the... in the create vault where they input the guardian wallet address, so those two fields, there should be a place for guardian 1 and guardian 2 email address"
+  3. Resolve browser console error: `[browser] [Notifications] Failed to trigger guardian attestation alerts: Failed to fetch (lib/notifications.ts:388:13)`
+- **Contest Page UI Cleanup (`ContestWindowPanel.tsx`)**:
+  - Removed the manual "✉ Guardian Email Dispatcher" card and associated manual action triggers from `/contest`.
+  - Cleaned up unused states (`isDispatchingAlerts`, `autoDispatchedHeartbeat`) and handlers (`handleDispatchGuardianAlerts`, `handleGuardian1EmailChange`, `handleGuardian2EmailChange`).
+  - Preserved `alertSuccessMsg` in the contest conclusion section for explicit user feedback.
+- **Guardian Email Architecture in Create Vault (`CreateVaultForm.tsx`)**:
+  - Embedded side-by-side cards for **Guardian Node 1** and **Guardian Node 2** directly into Section 3 ("3. Heartbeat & Guardians"):
+    - Wallet Address: Required on-chain Ethereum address (`0x...`).
+    - Email Address: Optional alert email address (`guardian1@example.com` / `guardian2@example.com`).
+  - Updated "+ Use Sepolia Demo Guardians" to pre-fill both demo addresses and demo emails.
+  - Automatically persists guardian emails in `localStorage` keyed by `cadence_guardian_email_1_${deployedAddress}` and `cadence_guardian_email_2_${deployedAddress}`.
+  - Automatically registers new lockers with the Sentinel daemon via `registerMonitoredVault` during 1-click provisioning.
+- **Network Resilience & Deduplication (`lib/notifications.ts` & `ContestWindowPanel.tsx`)**:
+  - Fixed countdown ticker storm: Marked cycle as triggered in `sessionStorage` (`cadence_auto_heartbeat_${vault}_${interval}`) immediately before dispatch, preventing 1-second countdown ticks from repeatedly re-attempting failed fetches.
+  - Graceful network error handling in `triggerGuardianAttestationAlerts` and `triggerContestConcludedAlerts`: Now catches network failures gracefully using `console.debug` instead of polluting browser devtools with uncaught warnings.
+  - Background Daemon: Started `npm run dev` in `notifications/` as a persistent daemon on port 3001 with active Sentinel polling and live SMTP transport.
+- **Quality Assurance**:
+  - `npm run lint`: **0 errors, 0 warnings**.
+  - `npx tsc --noEmit`: **0 errors**.
+  - Notifications test suite: **18/18 passing**.
+
 
 
 

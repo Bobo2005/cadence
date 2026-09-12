@@ -15,6 +15,7 @@ The web application for **Cadence Protocol**, built on **Next.js 16 (App Router 
 
 2. **1-Click Atomic Vault Provisioning (`/vault/create`)**:
    - **Reduced from 4 wallet signatures to 1 single transaction**: Uses `OneClickInheritanceVault.sol` to atomically bundle: (1) Contract Deployment, (2) Capital Deposit (`msg.value`), (3) Beneficiary Merkle Root Commitment, (4) Guardian Consensus Quorum Pairing, and (5) Custom Contest Window Configuration in one seamless wallet confirmation.
+   - **Dual Guardian Configuration with Automated Alert Emails**: Dedicated side-by-side cards for Guardian Node 1 and Guardian Node 2 allow specifying both the on-chain consensus wallet address and an optional alert email, automatically synchronized to the background Sentinel daemon upon deployment.
    - Built-in **Rapid Testing Presets**: Supports fast heartbeat intervals (**5 Min** and **10 Min**) as well as fast challenge grace periods (**⚡ 5 Minutes Fast Testing**).
    - Resilient live status modal tracking the atomic setup and linking directly to Etherscan.
 

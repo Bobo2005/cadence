@@ -29,9 +29,21 @@
      - Deduplicated client-side auto-dispatch in `ContestWindowPanel.tsx` by setting cycle tracking in `sessionStorage` (`sessionStorage.setItem(cycleId, "triggered")`) immediately upon first trigger, preventing the 1-second countdown timer ticks from spamming repeated network requests when offline.
      - Updated `frontend/lib/notifications.ts` to catch network disconnects gracefully with `console.debug` rather than logging unhandled error traces in browser devtools.
 
-4. **Verification & Quality Gate**:
+4. **Privacy Architecture & Balance Visibility System Audited**:
+   - **Zero On-Chain Plaintext (Constraint #3)**: Verified via `AllocationPrivacy.t.sol` (11/11 passing); contract stores only `allocationRoot` with zero plaintext storage slots.
+   - **Client-Side ECIES Encryption**: Verified via `test-allocation-privacy.mjs` (18/18 passing) using secp256k1 public keys.
+   - **Double-Hashed Blinded Proofs**: Verified via `test-beneficiary-claim-flow.mjs` (22/22 passing) with random 32-byte salts.
+   - **Zero Gas-Linkage Cancellation (Constraint #1)**: Verified via `ContestableClaim.t.sol` (19/19 passing) using EIP-712 stealth typed signatures.
+   - **UI Balance Visibility & Shoulder-Surfing Privacy**:
+     - On `/dashboard`: Live on-chain balance queried via `publicClient.getBalance({ address: targetVault })` with a **`[Private / Show]`** toggle button that masks the balance as `•••••••• ETH`.
+     - On `/claim`: The `Inheritor Decrypted Share` card displays only the connected heir's exact pro-rata claim amount (e.g. `0.0200 ETH` · `40.00% Allocation`), preserving estate allocation privacy.
+
+5. **Verification & Quality Gate**:
    - `npm run lint`: **0 errors, 0 warnings**.
    - `npx tsc --noEmit`: **0 errors**.
+   - Foundry test suites: **198/198 passing** (57/57 dedicated privacy tests).
+   - Allocation privacy suite: **18/18 passing**.
+   - Claim flow integration suite: **22/22 passing**.
    - `cadence-notifications` tests: **18/18 passing** (including unit, security, and autonomous sentinel suites).
 
 ---

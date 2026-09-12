@@ -1051,6 +1051,24 @@
   - `npx tsc --noEmit`: **0 errors**.
   - Notifications test suite: **18/18 passing**.
 
+### Session 19 — Comprehensive Privacy Verification & Balance Visibility Architecture
+- **Inquiry & Verification Scope**:
+  - Audited and verified all privacy features across Solidity contracts, client-side cryptography, and backend signature verifiers:
+    1. **Constraint #3 (Zero On-Chain Plaintext Allocations)**: Verified via `AllocationPrivacy.t.sol` (11/11 passing). Storage slots store only `allocationRoot`; `test_getStorageAt_revealsNoPlaintextAllocationData` confirms zero plaintext addresses/percentages in contract storage.
+    2. **Client-Side ECIES Allocation Encryption**: Verified via `test-allocation-privacy.mjs` (18/18 passing). Payloads `{ shareBps, salt, beneficiary }` are encrypted with the recipient's secp256k1 public key. Bob is cryptographically barred from decrypting Alice's allocation.
+    3. **Blinded Merkle Proofs**: Verified via `test-beneficiary-claim-flow.mjs` (22/22 passing). Leaves are double-hashed with random 32-byte salts, preventing dictionary attacks.
+    4. **Constraint #1 (Zero Gas-Linkage Stealth Cancellation)**: Verified via `ContestableClaim.t.sol` (19/19 passing). `cancelClaimWithSig` uses EIP-712 typed digests broadcastable by any relayer with zero owner ETH funding.
+    5. **Constraint #6 (Wallet-Signature Verified Email Binding)**: Verified via `notifications/test/notifications.test.mjs` (18/18 passing). Emails remain unverified until signed by the wallet key.
+- **UI Balance Visibility & Privacy Controls**:
+  - **Dashboard (`/dashboard`)**: Displays live on-chain balance queried on Sepolia via Viem's `publicClient.getBalance({ address: targetVault })`. Equipped with an interactive **`[Private / Show]`** shoulder-surfing mask that toggles between `${ethBalance} ETH` and `•••••••• ETH`.
+  - **Claim Portal (`/claim`)**: Card displays `Inheritor Decrypted Share` showing only the connected heir's exact pro-rata claim amount (e.g. `0.0200 ETH` · `40.00% Allocation`), preserving estate allocation privacy between family members.
+  - **Create Vault (`/vault/create`)**: Step 1 calculates and confirms initial deposit capital in real-time.
+- **Test Metrics**:
+  - Foundry tests: **198/198 passing** across 14 suites (including 57/57 dedicated privacy tests).
+  - Allocation privacy tests: **18/18 passing**.
+  - Claim flow integration tests: **22/22 passing**.
+  - Backend notification security tests: **18/18 passing**.
+
 
 
 

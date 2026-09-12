@@ -153,3 +153,20 @@ On `/contest`, the interface dynamically reflects guardian consensus and inactiv
 On `/vault/create`, the provisioning state is represented by a unified cyberpunk checklist modal:
 - Bundles all 5 protocol actions (Deploy, Deposit, Allocation Root, Guardian Quorum, Contest Window) under a single on-chain transaction hash.
 - Real-time animated spinner transitions to solid green checkmarks (`--accent-pulse`) as the transaction confirms on Sepolia, accompanied by an instant Etherscan link.
+
+## Protected Balance UI Pattern & Shoulder-Surfing Privacy Toggle
+
+On `/dashboard` and `/claim`, balance visibility follows a strict privacy-first UI specification:
+
+1. **Dashboard Protected Balance Card (`/dashboard`)**:
+   - Header: `PROTECTED VAULT BALANCE` in `--text-muted` font-mono uppercase tracking.
+   - Live Value: Rendered in `text-3xl sm:text-4xl font-bold font-mono text-[#E8ECF1]` (e.g. `0.0500 ETH`).
+   - Skeleton Loading: Displays an animated pulse block (`h-10 w-40 bg-[#1A1F2B] animate-pulse`) while on-chain balance is queried.
+   - **Shoulder-Surfing Privacy Toggle (`[Private / Show]`)**: An eye-icon button switches between the live formatted number and an obscured dot mask (`•••••••• ETH`), enabling users to present their screen or walk through demonstrations without exposing total vault value.
+   - Footer: Green shield badge with live consensus summary: `Protected by 2-of-2 guardian consensus`.
+
+2. **Beneficiary Claim Decrypted Share Card (`/claim`)**:
+   - Card Top: `VAULT: #ID` and consensus badge pill (`ACTIVE · MONITORING`, `CONTEST WINDOW`, `FINALIZED`, or `CLAIMED`).
+   - Section Title: `Inheritor Decrypted Share` with green percentage pill (`40.00% Allocation`).
+   - Claimable Amount: Rendered in large bold font-mono (`0.0200 ETH`) derived client-side via in-memory ECIES decryption.
+   - Privacy Invariant: Each heir sees only their own share amount—zero access to the broader estate or sibling allocations.

@@ -385,6 +385,10 @@ export async function triggerGuardianAttestationAlerts(params: {
     return await res.json();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("Failed to fetch") || msg.includes("fetch failed") || msg.includes("NetworkError")) {
+      console.debug("[Notifications] Notification service offline (http://localhost:3001). Background alerts skipped.");
+      return { success: false, error: "Notification service offline" };
+    }
     console.warn("[Notifications] Failed to trigger guardian attestation alerts:", msg);
     return { success: false, error: msg };
   }
@@ -411,6 +415,10 @@ export async function triggerContestConcludedAlerts(params: {
     return await res.json();
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("Failed to fetch") || msg.includes("fetch failed") || msg.includes("NetworkError")) {
+      console.debug("[Notifications] Notification service offline (http://localhost:3001). Background alerts skipped.");
+      return { success: false, error: "Notification service offline" };
+    }
     console.warn("[Notifications] Failed to trigger contest concluded alerts:", msg);
     return { success: false, error: msg };
   }

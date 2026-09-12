@@ -130,13 +130,11 @@ export default function ContestWindowPanel({
   const [attestSuccessMessage, setAttestSuccessMessage] = useState<string | null>(null);
   const [customStealthKey, setCustomStealthKey] = useState<string>("");
 
-  // Guardian Email Dispatcher State
+  // Guardian Email State
   const [guardian1Email, setGuardian1Email] = useState<string>("");
   const [guardian2Email, setGuardian2Email] = useState<string>("");
-  const [isDispatchingAlerts, setIsDispatchingAlerts] = useState<boolean>(false);
   const [alertSuccessMsg, setAlertSuccessMsg] = useState<string | null>(null);
   const [isDispatchingConcludedAlert, setIsDispatchingConcludedAlert] = useState<boolean>(false);
-  const [autoDispatchedHeartbeat, setAutoDispatchedHeartbeat] = useState<boolean>(false);
   const [autoDispatchedConcluded, setAutoDispatchedConcluded] = useState<boolean>(false);
 
   // Local ticker countdown
@@ -599,49 +597,6 @@ export default function ContestWindowPanel({
     }
   };
 
-  // Dispatch 2 Distinct Guardian Email Alerts when Heartbeat Lapses
-  const handleDispatchGuardianAlerts = async () => {
-    if (guardiansList.length === 0) return;
-    setIsDispatchingAlerts(true);
-    setAlertSuccessMsg(null);
-    setCancellationError(null);
-
-    try {
-      const g1 = guardiansList[0];
-      const g2 = guardiansList[1];
-      const targets = [];
-      if (g1) {
-        targets.push({
-          address: g1.address,
-          label: "Guardian Node 1",
-          email: guardian1Email.trim() || undefined,
-        });
-      }
-      if (g2) {
-        targets.push({
-          address: g2.address,
-          label: "Guardian Node 2",
-          email: guardian2Email.trim() || undefined,
-        });
-      }
-
-      const res = await triggerGuardianAttestationAlerts({
-        vaultAddress: selectedVaultAddress,
-        vaultName: "Inheritance Vault",
-        guardians: targets,
-      });
-
-      if (res.success) {
-        setAlertSuccessMsg(`✓ Successfully dispatched 2 distinct email alerts to Guardian Node 1 and Guardian Node 2!`);
-      } else {
-        setCancellationError(res.error || "Failed to dispatch guardian alerts. Please check notification microservice.");
-      }
-    } catch {
-      setCancellationError("Error sending guardian alert emails.");
-    } finally {
-      setIsDispatchingAlerts(false);
-    }
-  };
 
   // Dispatch Finalization Ready Email Alert when Contest Window Elapses
   const handleDispatchContestConcludedAlert = async () => {
@@ -689,21 +644,6 @@ export default function ContestWindowPanel({
     if (saved2) setGuardian2Email(saved2);
   }, [selectedVaultAddress]);
 
-  const handleGuardian1EmailChange = (val: string) => {
-    setGuardian1Email(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(`cadence_guardian_email_1_${selectedVaultAddress}`, val);
-      localStorage.setItem("cadence_guardian_email_1", val);
-    }
-  };
-
-  const handleGuardian2EmailChange = (val: string) => {
-    setGuardian2Email(val);
-    if (typeof window !== "undefined") {
-      localStorage.setItem(`cadence_guardian_email_2_${selectedVaultAddress}`, val);
-      localStorage.setItem("cadence_guardian_email_2", val);
-    }
-  };
 
   // Sync vault and guardian contacts to backend Sentinel for continuous background monitoring
   useEffect(() => {
@@ -731,13 +671,15 @@ export default function ContestWindowPanel({
 
     const cycleId = `cadence_auto_heartbeat_${selectedVaultAddress}_${checkInIntervalSec}`;
     if (typeof window !== "undefined" && sessionStorage.getItem(cycleId)) {
-      setAutoDispatchedHeartbeat(true);
       return;
+    }
+    // Mark cycle as triggered to prevent countdown ticks from re-firing every second
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(cycleId, "triggered");
     }
 
     const autoDispatchGuardianAlerts = async () => {
       try {
-        setIsDispatchingAlerts(true);
         const g1 = guardiansList[0];
         const g2 = guardiansList[1];
         const targets: GuardianAlertTarget[] = [];
@@ -756,23 +698,13 @@ export default function ContestWindowPanel({
           });
         }
 
-        const res = await triggerGuardianAttestationAlerts({
+        await triggerGuardianAttestationAlerts({
           vaultAddress: selectedVaultAddress,
           vaultName: "Inheritance Vault",
           guardians: targets,
         });
-
-        if (res.success) {
-          if (typeof window !== "undefined") {
-            sessionStorage.setItem(cycleId, "true");
-          }
-          setAutoDispatchedHeartbeat(true);
-          setAlertSuccessMsg("⚡ System Auto-Dispatch: Heartbeat lapsed! 2 distinct email alerts automatically sent to Guardian Node 1 and Guardian Node 2.");
-        }
       } catch (err) {
         console.warn("[ContestWindowPanel] Auto-dispatch guardian alerts error:", err);
-      } finally {
-        setIsDispatchingAlerts(false);
       }
     };
 
@@ -803,6 +735,9 @@ export default function ContestWindowPanel({
       setAutoDispatchedConcluded(true);
       return;
     }
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem(cycleId, "triggered");
+    }
 
     const autoDispatchConcludedAlerts = async () => {
       try {
@@ -820,9 +755,6 @@ export default function ContestWindowPanel({
         });
 
         if (res.success) {
-          if (typeof window !== "undefined") {
-            sessionStorage.setItem(cycleId, "true");
-          }
           setAutoDispatchedConcluded(true);
           setAlertSuccessMsg("⚡ System Auto-Dispatch: Challenge grace period concluded! Finalization notice automatically dispatched to guardians & heirs.");
         }
@@ -1152,87 +1084,7 @@ export default function ContestWindowPanel({
               </div>
             )}
 
-            {/* Guardian Email Dispatcher Card */}
-            {isTimeoutExpired && (
-              <div className="p-4 rounded-xl bg-[#0A0E14] border border-[#232838] space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-[#E8ECF1] flex items-center gap-1.5">
-                    <span>✉ Guardian Email Dispatcher</span>
-                  </div>
-                  <span className="text-[10px] text-[#2EE6A8] font-mono bg-[#2EE6A8]/10 px-2 py-0.5 rounded border border-[#2EE6A8]/30 font-semibold">
-                    2 Distinct Email Alerts
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#8993A6] leading-relaxed">
-                  How do guardians know when to attest? Dispatch 2 distinct, personalized email alerts to Guardian Node 1 and Guardian Node 2 with on-chain contest links.
-                </p>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <div>
-                    <label className="text-[10px] text-[#8993A6] font-mono block mb-1">
-                      Guardian 1 Email ({guardiansList[0] ? `${guardiansList[0].address.slice(0, 6)}...` : "Node 1"})
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="guardian1@example.com"
-                      value={guardian1Email}
-                      onChange={(e) => handleGuardian1EmailChange(e.target.value)}
-                      className="w-full bg-[#12161F] border border-[#232838] rounded-lg px-2.5 py-1.5 text-xs text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#F5B841]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-[#8993A6] font-mono block mb-1">
-                      Guardian 2 Email ({guardiansList[1] ? `${guardiansList[1].address.slice(0, 6)}...` : "Node 2"})
-                    </label>
-                    <input
-                      type="email"
-                      placeholder="guardian2@example.com"
-                      value={guardian2Email}
-                      onChange={(e) => handleGuardian2EmailChange(e.target.value)}
-                      className="w-full bg-[#12161F] border border-[#232838] rounded-lg px-2.5 py-1.5 text-xs text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#F5B841]"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 p-2.5 rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/30 text-[#00E5FF] text-[11px] font-mono">
-                  <span className="animate-pulse text-sm">⚡</span>
-                  <span>System Auto-Dispatch Active: Emails dispatch automatically when heartbeat or grace timer concludes.</span>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={isDispatchingAlerts}
-                  onClick={handleDispatchGuardianAlerts}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#F5B841]/15 border border-[#F5B841]/40 text-[#F5B841] hover:bg-[#F5B841]/25 font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                >
-                  {isDispatchingAlerts ? (
-                    <>
-                      <svg className="animate-spin h-3.5 w-3.5 text-[#F5B841]" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      <span>Dispatching 2 Guardian Alerts...</span>
-                    </>
-                  ) : (
-                    <span>✉ Send Attestation Email Alerts to Guardians (2 Distinct Alerts)</span>
-                  )}
-                </button>
-
-                {autoDispatchedHeartbeat && (
-                  <div className="p-2.5 rounded-lg bg-[#2EE6A8]/15 border border-[#2EE6A8]/40 text-[#2EE6A8] text-[11px] flex items-center gap-1.5 font-mono">
-                    <span>⚡</span>
-                    <span>System Auto-Dispatched: Attestation emails delivered to Guardian 1 and Guardian 2!</span>
-                  </div>
-                )}
-
-                {alertSuccessMsg && (
-                  <div className="p-2.5 rounded-lg bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[#2EE6A8] text-[11px] flex items-center gap-1.5">
-                    <span>✓</span>
-                    <span>{alertSuccessMsg}</span>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
@@ -1355,6 +1207,13 @@ export default function ContestWindowPanel({
                       >
                         {isDispatchingConcludedAlert ? "Sending Concluded Alerts..." : "✉ Re-send Contest Concluded Notice"}
                       </button>
+
+                      {alertSuccessMsg && (
+                        <div className="p-2.5 rounded-lg bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[#2EE6A8] text-[11px] flex items-center gap-1.5">
+                          <span>✓</span>
+                          <span>{alertSuccessMsg}</span>
+                        </div>
+                      )}
                     </div>
                   ) : null}
 

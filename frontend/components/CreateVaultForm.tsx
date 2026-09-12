@@ -25,6 +25,7 @@ import { encryptAllocation } from "../lib/encryption";
 import {
   suggestBeneficiaryEmail,
   requestSignatureAndBind,
+  registerMonitoredVault,
 } from "../lib/notifications";
 import {
   CONTRACT_ADDRESSES,
@@ -156,6 +157,18 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   const [selectedGracePeriod, setSelectedGracePeriod] = useState(GRACE_PERIOD_OPTIONS[0]); // 5 Min (Test) default for quick testing
   const [guardian1, setGuardian1] = useState("");
   const [guardian2, setGuardian2] = useState("");
+  const [guardian1Email, setGuardian1Email] = useState("");
+  const [guardian2Email, setGuardian2Email] = useState("");
+
+  // Pre-fill guardian emails from storage if available
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedG1Email = localStorage.getItem("cadence_guardian_email_1");
+      const savedG2Email = localStorage.getItem("cadence_guardian_email_2");
+      if (savedG1Email) setGuardian1Email(savedG1Email);
+      if (savedG2Email) setGuardian2Email(savedG2Email);
+    }
+  }, []);
 
   // Optional owner notification email binding
   const [ownerEmail, setOwnerEmail] = useState("");
@@ -438,6 +451,28 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         allocationRoot: allocTree.root,
       });
 
+      // Persist guardian emails for this vault and globally
+      if (typeof window !== "undefined") {
+        if (guardian1Email.trim()) {
+          localStorage.setItem(`cadence_guardian_email_1_${deployedAddress}`, guardian1Email.trim());
+          localStorage.setItem("cadence_guardian_email_1", guardian1Email.trim());
+        }
+        if (guardian2Email.trim()) {
+          localStorage.setItem(`cadence_guardian_email_2_${deployedAddress}`, guardian2Email.trim());
+          localStorage.setItem("cadence_guardian_email_2", guardian2Email.trim());
+        }
+      }
+
+      // Register monitored vault with Sentinel for automated alerts
+      registerMonitoredVault({
+        vaultAddress: deployedAddress,
+        name: "Inheritance Vault",
+        guardians: [
+          { address: getAddress(effectiveG1), label: "Guardian Node 1", email: guardian1Email.trim() || undefined },
+          { address: getAddress(effectiveG2), label: "Guardian Node 2", email: guardian2Email.trim() || undefined },
+        ],
+      }).catch(() => {});
+
       // Suggest unverified beneficiary emails (Constraint #6)
       for (const item of beneficiaryItems) {
         if (item.suggestedEmail && item.address) {
@@ -632,39 +667,112 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               <h2 className="text-sm font-semibold text-[#E8ECF1]">3. Heartbeat &amp; Guardians</h2>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs text-[#8993A6] font-mono">
-                  Guardian Consensus Nodes (2-of-2 Required)
-                </label>
+            <div className="space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <div>
+                  <label className="block text-xs font-semibold text-[#E8ECF1]">
+                    Guardian Consensus Nodes (2-of-2 Required)
+                  </label>
+                  <p className="text-[11px] text-[#8993A6]">
+                    Set guardian wallet addresses for on-chain attestation and optional email addresses for inactivity alerts.
+                  </p>
+                </div>
                 <button
                   type="button"
                   onClick={() => {
                     setGuardian1("0x81C3D582F3473F71C4C8bF394E1d32BA218991a2");
                     setGuardian2("0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0");
+                    if (!guardian1Email) setGuardian1Email("guardian1@example.com");
+                    if (!guardian2Email) setGuardian2Email("guardian2@example.com");
                   }}
-                  className="text-[11px] font-mono text-[#2EE6A8] hover:underline cursor-pointer"
+                  className="text-[11px] font-mono text-[#2EE6A8] hover:underline cursor-pointer whitespace-nowrap self-start sm:self-auto"
                 >
                   + Use Sepolia Demo Guardians
                 </button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <input
-                  type="text"
-                  value={guardian1}
-                  onChange={(e) => setGuardian1(e.target.value)}
-                  className="w-full font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8]"
-                  placeholder="Paste guardian wallet address (0x...)"
-                  aria-label="Guardian 1 Ethereum address"
-                />
-                <input
-                  type="text"
-                  value={guardian2}
-                  onChange={(e) => setGuardian2(e.target.value)}
-                  className="w-full font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8]"
-                  placeholder="Paste guardian wallet address (0x...)"
-                  aria-label="Guardian 2 Ethereum address"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                {/* Guardian 1 */}
+                <div className="p-3.5 rounded-xl bg-[#0A0E14] border border-[#232838] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-[#E8ECF1] flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-[#2EE6A8]"></span>
+                      Guardian Node 1
+                    </span>
+                    <span className="text-[10px] font-mono text-[#8993A6] bg-[#12161F] px-2 py-0.5 rounded border border-[#232838]">
+                      Node #1
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-mono text-[#8993A6]">
+                      Wallet Address <span className="text-[#F5484A]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={guardian1}
+                      onChange={(e) => setGuardian1(e.target.value)}
+                      className="w-full font-mono text-xs px-3 py-2 rounded-lg bg-[#12161F] border border-[#232838] text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#2EE6A8]"
+                      placeholder="Paste guardian 1 address (0x...)"
+                      aria-label="Guardian 1 Ethereum address"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-mono text-[#8993A6]">
+                      Email Address <span className="text-[#5A6478]">(Optional)</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={guardian1Email}
+                      onChange={(e) => setGuardian1Email(e.target.value)}
+                      className="w-full font-mono text-xs px-3 py-2 rounded-lg bg-[#12161F] border border-[#232838] text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#2EE6A8]"
+                      placeholder="guardian1@example.com"
+                      aria-label="Guardian 1 Email address"
+                    />
+                  </div>
+                </div>
+
+                {/* Guardian 2 */}
+                <div className="p-3.5 rounded-xl bg-[#0A0E14] border border-[#232838] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-[#E8ECF1] flex items-center gap-1.5">
+                      <span className="h-2 w-2 rounded-full bg-[#2EE6A8]"></span>
+                      Guardian Node 2
+                    </span>
+                    <span className="text-[10px] font-mono text-[#8993A6] bg-[#12161F] px-2 py-0.5 rounded border border-[#232838]">
+                      Node #2
+                    </span>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-mono text-[#8993A6]">
+                      Wallet Address <span className="text-[#F5484A]">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={guardian2}
+                      onChange={(e) => setGuardian2(e.target.value)}
+                      className="w-full font-mono text-xs px-3 py-2 rounded-lg bg-[#12161F] border border-[#232838] text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#2EE6A8]"
+                      placeholder="Paste guardian 2 address (0x...)"
+                      aria-label="Guardian 2 Ethereum address"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[10px] font-mono text-[#8993A6]">
+                      Email Address <span className="text-[#5A6478]">(Optional)</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={guardian2Email}
+                      onChange={(e) => setGuardian2Email(e.target.value)}
+                      className="w-full font-mono text-xs px-3 py-2 rounded-lg bg-[#12161F] border border-[#232838] text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#2EE6A8]"
+                      placeholder="guardian2@example.com"
+                      aria-label="Guardian 2 Email address"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
 

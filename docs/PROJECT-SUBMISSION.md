@@ -91,6 +91,41 @@ Existing decentralized alternatives typically rely on simplistic smart contract 
 
 ---
 
+## Built With
+
+> **Submission Tags (Up to 25 tags):**
+> `ethereum`, `solidity`, `foundry`, `next.js`, `typescript`, `tailwindcss`, `viem`, `wagmi`, `erc-4337`, `account-abstraction`, `eip-712`, `ecies`, `cryptography`, `merkle-trees`, `openzeppelin`, `pimlico`, `node.js`, `express`, `resend`, `web3`, `smart-contracts`, `privacy`, `digital-inheritance`, `sepolia`, `zero-knowledge`
+
+| # | Tag | Description / Role in Cadence |
+|---|---|---|
+| 1 | **`ethereum`** | Primary settlement layer for sovereign inheritance vaults. |
+| 2 | **`solidity`** | Language powering `InheritanceVault`, `ProofOfLifeConsensus`, and `OneClickInheritanceVault`. |
+| 3 | **`foundry`** | Rigorous contract test suite (**198/198 passing unit, integration, and fuzz tests**). |
+| 4 | **`next.js`** | High-performance Next.js 16 frontend with Turbopack and React 19. |
+| 5 | **`typescript`** | Strict static typing across frontend interfaces and Sentinel daemons. |
+| 6 | **`tailwindcss`** | Cyber-minimalist "Pulse" design system, dark mode, and bespoke UI tokens. |
+| 7 | **`viem`** | Type-safe Ethereum client with multi-provider automatic RPC failover. |
+| 8 | **`wagmi`** | React hooks library for seamless Web3 wallet state and signature orchestration. |
+| 9 | **`erc-4337`** | Account Abstraction standard enabling smart account paymaster sponsorship. |
+| 10 | **`account-abstraction`** | Gasless heartbeat renewals and zero-friction vault lifecycle management. |
+| 11 | **`eip-712`** | Gasless typed structured signatures for zero-gas stealth claim cancellation. |
+| 12 | **`ecies`** | Client-side secp256k1 asymmetric encryption protecting beneficiary shares. |
+| 13 | **`cryptography`** | Applied zero-leak privacy primitives, blinding salts, and ephemeral keys. |
+| 14 | **`merkle-trees`** | Double-hashed blinded Merkle tree leaves verifying allocations on-chain. |
+| 15 | **`openzeppelin`** | Battle-tested contract libraries (`SafeERC20`, `MerkleProof`, `EIP712`, `ReentrancyGuard`). |
+| 16 | **`pimlico`** | ERC-4337 bundler and paymaster infrastructure. |
+| 17 | **`node.js`** | Runtime for the background Sentinel service and test suites. |
+| 18 | **`express`** | Microservice framework for the real-time Sentinel monitoring daemon. |
+| 19 | **`resend`** | Transactional email infrastructure delivering real-time guardian and heir notifications. |
+| 20 | **`web3`** | Trustless, self-sovereign application design pattern. |
+| 21 | **`smart-contracts`** | Non-custodial, immutable consensus and inheritance logic. |
+| 22 | **`privacy`** | Zero on-chain plaintext allocations, blinded Merkle roots, and stealth addresses. |
+| 23 | **`digital-inheritance`** | Primary project domain: self-custodial multi-generational wealth preservation. |
+| 24 | **`sepolia`** | Live Ethereum testnet where all Cadence contracts and daemons are active. |
+| 25 | **`zero-knowledge`** | Blinded cryptographic commitments without on-chain plaintext exposure. |
+
+---
+
 ## Inspiration
 
 Cadence was born out of a realization that self-custody in Web3 is currently unforgiving. While the industry has spent a decade perfecting self-sovereign key management, we inadvertently created a digital cemetery where billions of dollars in hard-earned capital vanish into the void every year. 

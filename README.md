@@ -32,6 +32,7 @@ Cadence is a non-custodial, privacy-preserving inheritance protocol on Ethereum 
 - ⚡ **Live API Service (Render)**: [`https://cadence-notifications.onrender.com`](https://cadence-notifications.onrender.com)
   - Microservice Health Check: [`https://cadence-notifications.onrender.com/health`](https://cadence-notifications.onrender.com/health)
 - 🏆 **Hackathon Pitch Kit & 3-Min Video Script**: [`docs/HACKATHON-PITCH.md`](docs/HACKATHON-PITCH.md)
+- 📑 **Comprehensive Hackathon Submission & Built-With Guide**: [`PROJECT-SUBMISSION.md`](PROJECT-SUBMISSION.md)
 
 ### Verified Smart Contracts (Ethereum Sepolia)
 

@@ -27,16 +27,38 @@ Existing decentralized alternatives typically rely on simplistic smart contract 
 
 **Cadence** is a decentralized, self-custodial, zero-leak digital inheritance protocol built natively on Ethereum. It replaces fragile guillotine timers and custodial intermediaries with a **multi-signal proof-of-life consensus engine**, **client-side ECIES-secp256k1 encrypted allocations**, and **gasless EIP-712 stealth recovery**.
 
+```mermaid
+flowchart LR
+    subgraph S1["1. Atomic Setup"]
+        A["1-Click Signature"] --> B["Deposit Capital"]
+        B --> C["Blinded Merkle Root"]
+    end
+
+    subgraph S2["2. Heartbeat Vitality"]
+        D["Active 62 BPM ECG"] --> E["Paymaster Renewals"]
+        E --> F["Sentinel Daemon Alerts"]
+    end
+
+    subgraph S3["3. Consensus Challenge"]
+        G["Inactivity Arrhythmia"] --> H["2-of-2 Guardian Quorum"]
+        H --> I["72h Grace Contest Window"]
+    end
+
+    subgraph S4["4. Claim or Stealth Cancel"]
+        J{"Living Owner?"}
+        J -- "Yes (Living)" --> K["EIP-712 Stealth Cancel<br/>(Zero Gas Linkage)"]
+        J -- "No (Finalized)" --> L["In-Memory ECIES Decrypt<br/>Private Merkle Claim"]
+    end
+
+    S1 --> S2 --> S3 --> S4
 ```
-+-------------------------------------------------------------------------------------------------------+
-|                                      CADENCE PROTOCOL ARCHITECTURE                                     |
-+-------------------------------------------------------------------------------------------------------+
-|  [1-Click Creation]  --->  [Heartbeat Rhythm]  --->  [Consensus Challenge]  --->  [Private Claims]    |
-|   - 1 Signature             - Active 62 BPM           - 2-of-2 Guardian Quorum     - In-Memory Key    |
-|   - Deposit ETH/ERC20       - Paymaster Sponsored     - 72h Grace Period           - ECIES Decrypt    |
-|   - Blinded Merkle Root     - Sentinel Daemon Alerts  - EIP-712 Stealth Cancel     - Merkle Proofs    |
-+-------------------------------------------------------------------------------------------------------+
-```
+
+| Lifecycle Phase | State & Telemetry | Core Mechanics |
+| :--- | :--- | :--- |
+| **1. 1-Click Setup** | `Initial` $\rightarrow$ `Active` | • 1 wallet signature deploys & deposits<br/>• Double-hashed blinded Merkle tree commit<br/>• Zero plaintext shares on-chain |
+| **2. Heartbeat Rhythm** | `Active (62 BPM)` | • Pimlico Paymaster gasless check-ins<br/>• Sentinel daemon 20s watcher loop<br/>• Shoulder-surfing privacy balance toggle |
+| **3. Consensus Challenge** | `Inactive (92 BPM)` | • 2-of-2 Guardian on-chain quorum verification<br/>• 72h contest grace period opens<br/>• Automated email dispatch to guardians |
+| **4. Recovery vs. Claim** | `Active` or `Finalized (0 BPM)` | • **Living Owner:** EIP-712 stealth cancel (0 gas linkage)<br/>• **Beneficiary:** In-memory ECIES decrypt & Merkle claim |
 
 ### Key Architectural Pillars & Unique Value:
 

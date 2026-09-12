@@ -518,7 +518,7 @@ export default function BeneficiarySetupForm({
               </div>
 
               {/* Quick Presets for this beneficiary */}
-              <div className="flex items-center gap-1.5 pt-1">
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <span className="text-[10px] text-[var(--text-secondary)]">Presets:</span>
                 {[1000, 2500, 3333, 5000, 10000].map((presetBps) => (
                   <button

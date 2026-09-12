@@ -18,7 +18,7 @@ export default function CadenceLogo({
   wordmarkClassName = "",
 }: CadenceLogoProps) {
   return (
-    <div className={`inline-flex items-center gap-2.5 ${className}`}>
+    <div className={`inline-flex items-center gap-2 sm:gap-2.5 shrink-0 ${className}`}>
       <svg
         width={size}
         height={size}
@@ -26,6 +26,8 @@ export default function CadenceLogo({
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         className="shrink-0 transition-transform duration-300 hover:scale-105"
+        style={{ width: size, height: size }}
+        aria-hidden="true"
       >
         {/* Ambient glow filter */}
         <defs>
@@ -57,8 +59,8 @@ export default function CadenceLogo({
 
       {showWordmark && (
         <span
-          className={`font-sans font-extrabold tracking-[0.18em] text-[#E8ECF1] uppercase ${
-            wordmarkClassName || "text-base tracking-widest"
+          className={`font-sans font-extrabold tracking-[0.18em] text-[#E8ECF1] uppercase whitespace-nowrap select-none ${
+            wordmarkClassName || "text-sm sm:text-base tracking-widest"
           }`}
         >
           CADENCE

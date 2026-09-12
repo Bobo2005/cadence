@@ -922,7 +922,7 @@ export default function ContestWindowPanel({
             Zero gas linkage occurred — the cancellation was signed off-chain and relayed.
           </p>
           <div className="text-[11px] text-[#8993A6] space-y-1 pt-1">
-            <div>
+            <div className="break-all">
               Relayed Tx Hash:{" "}
               <a
                 href={`https://sepolia.etherscan.io/tx/${cancellationTx}`}
@@ -1102,7 +1102,7 @@ export default function ContestWindowPanel({
 
               {/* Countdown or Status */}
               <div
-                className={`text-3xl sm:text-4xl font-bold font-mono tracking-tight text-center my-6 ${
+                className={`text-2xl sm:text-3xl md:text-4xl font-bold font-mono tracking-tight text-center my-6 truncate ${
                   consensusState === ConsensusState.Active
                     ? "text-[#2EE6A8]"
                     : consensusState === ConsensusState.ClaimPending

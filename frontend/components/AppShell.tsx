@@ -190,13 +190,13 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
       {/* ========================================================================= */}
       {/* PERSISTENT TOP BAR                                                         */}
       {/* ========================================================================= */}
-      <header className="h-[68px] border-b border-[#1E2330] bg-[#0A0E14]/95 backdrop-blur sticky top-0 z-40 px-4 sm:px-6 flex items-center justify-between">
+      <header className="h-[68px] border-b border-[#1E2330] bg-[#0A0E14]/95 backdrop-blur sticky top-0 z-40 px-3 sm:px-6 flex items-center justify-between">
         {/* Left: Logo + Wordmark */}
         <Link
           href="/dashboard"
-          className="flex items-center gap-2 group transition-opacity hover:opacity-90"
+          className="flex items-center gap-2 group transition-opacity hover:opacity-90 shrink-0"
         >
-          <CadenceLogo size={30} showWordmark={true} wordmarkClassName="text-base font-black tracking-widest text-[#E8ECF1]" />
+          <CadenceLogo size={30} showWordmark={true} wordmarkClassName="text-sm sm:text-base font-black tracking-widest text-[#E8ECF1] hidden min-[420px]:inline" />
         </Link>
 
         {/* Center: Horizontal Nav with active dot indicator (desktop only) */}
@@ -260,12 +260,12 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
                 aria-expanded={isAccountMenuOpen}
                 aria-haspopup="true"
                 aria-label="Account menu"
-                className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#12161F] border border-[#232838] hover:border-[#2EE6A8]/40 transition-all text-xs font-mono text-[#E8ECF1] cursor-pointer"
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-[#12161F] border border-[#232838] hover:border-[#2EE6A8]/40 transition-all text-xs font-mono text-[#E8ECF1] cursor-pointer"
                 title="Click to view account"
               >
-                <span className="w-2 h-2 rounded-full bg-[#2EE6A8] shadow-[0_0_8px_#2EE6A8] animate-pulse" />
-                <span>{formattedAddress}</span>
-                <span className="text-[10px] font-sans font-semibold px-1.5 py-0.5 rounded bg-[#1A1F2B] border border-[#232838] text-[#2EE6A8]">
+                <span className="w-2 h-2 rounded-full bg-[#2EE6A8] shadow-[0_0_8px_#2EE6A8] animate-pulse shrink-0" />
+                <span className="truncate">{formattedAddress}</span>
+                <span className="hidden sm:inline-block text-[10px] font-sans font-semibold px-1.5 py-0.5 rounded bg-[#1A1F2B] border border-[#232838] text-[#2EE6A8]">
                   {roleBadge}
                 </span>
                 <svg
@@ -433,7 +433,7 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
           />
           {/* Drawer */}
           <nav
-            className="relative bg-[#0A0E14] border-b border-[#1E2330] p-4 space-y-1.5 animate-in slide-in-from-top-2 duration-200"
+            className="relative bg-[#0A0E14] border-b border-[#1E2330] p-4 space-y-1.5 animate-in slide-in-from-top-2 duration-200 max-h-[calc(100dvh-68px)] overflow-y-auto"
             aria-label="Mobile navigation"
           >
             {isWrongNetwork && (
@@ -560,7 +560,7 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
       {/* MOBILE BOTTOM TAB BAR                                                       */}
       {/* ========================================================================= */}
       <nav
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0A0E14]/95 backdrop-blur border-t border-[#1E2330] flex"
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-[#0A0E14]/95 backdrop-blur border-t border-[#1E2330] flex pb-[max(env(safe-area-inset-bottom),0.5rem)] pt-1 px-1"
         aria-label="Mobile tab bar"
       >
         {navItems.map((item) => {

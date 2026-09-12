@@ -750,29 +750,31 @@ export default function ClaimPortal() {
               </div>
 
               {isCustomEmailMode ? (
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 pt-1 w-full">
                   <input
                     type="email"
                     value={beneficiaryEmailInput}
                     onChange={(e) => setBeneficiaryEmailInput(e.target.value)}
                     placeholder="beneficiary@example.com"
-                    className="text-xs font-mono px-3 py-1.5 rounded-lg bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8] w-56"
+                    className="text-xs font-mono px-3 py-1.5 rounded-lg bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8] w-full sm:w-56"
                   />
-                  <button
-                    type="button"
-                    onClick={handleConfirmEmail}
-                    disabled={isSigningEmail || !beneficiaryEmailInput.includes("@")}
-                    className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    {isSigningEmail ? "Signing..." : "Sign & Bind"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomEmailMode(false)}
-                    className="text-xs text-[#8993A6] hover:text-[#E8ECF1] px-1 cursor-pointer"
-                  >
-                    Back
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleConfirmEmail}
+                      disabled={isSigningEmail || !beneficiaryEmailInput.includes("@")}
+                      className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] transition-colors disabled:opacity-50 cursor-pointer whitespace-nowrap"
+                    >
+                      {isSigningEmail ? "Signing..." : "Sign & Bind"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCustomEmailMode(false)}
+                      className="text-xs text-[#8993A6] hover:text-[#E8ECF1] px-1 cursor-pointer"
+                    >
+                      Back
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <p className="text-xs text-[#E8ECF1] font-sans leading-relaxed">
@@ -1064,7 +1066,7 @@ export default function ClaimPortal() {
                         {(vault.shareBps / 100).toFixed(2)}% Allocation
                       </span>
                     </div>
-                    <div className="text-3xl sm:text-4xl font-bold font-mono text-[#E8ECF1] tracking-tight">
+                    <div className="text-2xl sm:text-3xl md:text-4xl font-bold font-mono text-[#E8ECF1] tracking-tight truncate">
                       {vault.decryptedShareEth}
                     </div>
                   </div>

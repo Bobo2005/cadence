@@ -642,17 +642,17 @@ export default function VaultPulseDashboard({
             </div>
 
             {/* Improved countdown typography: large digits + muted small unit labels */}
-            <div className="flex items-end gap-1 sm:gap-2 my-4" aria-label={`Time remaining: ${countdownFormatted.days} days ${countdownFormatted.hours} hours ${countdownFormatted.minutes} minutes ${countdownFormatted.seconds} seconds`}>
+            <div className="flex items-end gap-1 sm:gap-2 my-4 flex-wrap sm:flex-nowrap" aria-label={`Time remaining: ${countdownFormatted.days} days ${countdownFormatted.hours} hours ${countdownFormatted.minutes} minutes ${countdownFormatted.seconds} seconds`}>
               {secondsRemaining === 0 ? (
-                <span className="text-3xl sm:text-4xl font-bold font-mono text-[#F5B841] tracking-tight">LAPSED</span>
+                <span className="text-2xl sm:text-3xl md:text-4xl font-bold font-mono text-[#F5B841] tracking-tight">LAPSED</span>
               ) : (
                 <>
                   {[{ v: countdownFormatted.days, u: "d" }, { v: countdownFormatted.hours, u: "h" }, { v: countdownFormatted.minutes, u: "m" }, { v: countdownFormatted.seconds, u: "s" }].map(({ v, u }, i) => (
                     <React.Fragment key={u}>
-                      {i > 0 && <span className="text-xl sm:text-2xl font-mono text-[#3E4759] mb-1">:</span>}
+                      {i > 0 && <span className="text-lg sm:text-2xl font-mono text-[#3E4759] mb-1">:</span>}
                       <div className="flex items-end gap-0.5">
-                        <span className="text-3xl sm:text-4xl font-bold font-mono text-[#2EE6A8] tracking-tight leading-none tabular-nums">{v}</span>
-                        <span className="text-xs font-mono text-[#8993A6] mb-1 ml-0.5">{u}</span>
+                        <span className="text-2xl sm:text-3xl md:text-4xl font-bold font-mono text-[#2EE6A8] tracking-tight leading-none tabular-nums">{v}</span>
+                        <span className="text-[10px] sm:text-xs font-mono text-[#8993A6] mb-1 ml-0.5">{u}</span>
                       </div>
                     </React.Fragment>
                   ))}
@@ -709,7 +709,7 @@ export default function VaultPulseDashboard({
           {isLoadingOnChain ? (
             <div className="h-10 w-40 rounded-lg bg-[#1A1F2B] animate-pulse my-4" />
           ) : (
-            <div className="text-3xl sm:text-4xl font-bold font-mono text-[#E8ECF1] tracking-tight my-4">
+            <div className="text-2xl sm:text-3xl md:text-4xl font-bold font-mono text-[#E8ECF1] tracking-tight my-4 truncate">
               {isPrivateBalance ? "•••••••• ETH" : `${ethBalance} ETH`}
             </div>
           )}
@@ -775,31 +775,33 @@ export default function VaultPulseDashboard({
           </div>
         </div>
 
-        <div className="shrink-0 flex items-center gap-2 self-end sm:self-center">
+        <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto self-start sm:self-center">
           {isEditingEmail ? (
-            <form onSubmit={handleVerifyEmail} className="flex items-center gap-2">
+            <form onSubmit={handleVerifyEmail} className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
               <input
                 type="email"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 placeholder="you@example.com"
                 required
-                className="text-xs font-mono px-3 py-1.5 rounded-lg bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8] w-48"
+                className="text-xs font-mono px-3 py-1.5 rounded-lg bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8] w-full sm:w-48"
               />
-              <button
-                type="submit"
-                disabled={isSigningEmail}
-                className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] transition-colors cursor-pointer disabled:opacity-50"
-              >
-                {isSigningEmail ? "Signing..." : "Sign & Bind"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsEditingEmail(false)}
-                className="text-xs text-[#8993A6] hover:text-[#E8ECF1] px-2 py-1 cursor-pointer"
-              >
-                Cancel
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={isSigningEmail}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] transition-colors cursor-pointer disabled:opacity-50 whitespace-nowrap"
+                >
+                  {isSigningEmail ? "Signing..." : "Sign & Bind"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsEditingEmail(false)}
+                  className="text-xs text-[#8993A6] hover:text-[#E8ECF1] px-2 py-1 cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
           ) : (
             <button
@@ -879,19 +881,19 @@ export default function VaultPulseDashboard({
 
       {/* Interval Adjustment Modal */}
       {showIntervalModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
-          <div className="relative w-full max-w-lg bg-[#0E121A] border border-[#232838] rounded-2xl p-6 shadow-2xl space-y-5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/80 backdrop-blur-sm animate-in fade-in overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-[#0E121A] border border-[#232838] rounded-2xl p-4 sm:p-6 shadow-2xl space-y-4 sm:space-y-5 my-auto max-h-[90dvh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[#232838] pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 flex items-center justify-center text-[#2EE6A8] text-base">
+            <div className="flex items-center justify-between border-b border-[#232838] pb-3 sm:pb-4">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 flex items-center justify-center text-[#2EE6A8] text-sm sm:text-base shrink-0">
                   ⚡
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-[#E8ECF1]">
+                  <h3 className="text-sm sm:text-base font-bold text-[#E8ECF1]">
                     Adjust Heartbeat Interval
                   </h3>
-                  <p className="text-xs text-[#8993A6]">
+                  <p className="text-[11px] sm:text-xs text-[#8993A6]">
                     Update your locker inactivity period directly on Sepolia
                   </p>
                 </div>
@@ -933,7 +935,7 @@ export default function VaultPulseDashboard({
                     ⚡ Fast Testing Presets (Evaluator / Demo)
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {INTERVAL_PRESETS.filter((p) => p.isTest).map((preset) => {
                     const isCurrent = checkInIntervalSec === preset.seconds;
                     return (

@@ -278,7 +278,9 @@ The asset owner deploys an autonomous locker in a single transaction:
 - **Client Allocation Privacy & Cryptography:** **18 / 18 Tests Passing** (`scripts/test-allocation-privacy.mjs`).
 - **End-to-End Beneficiary Claim Flow:** **22 / 22 Tests Passing** (`scripts/test-beneficiary-claim-flow.mjs`).
 - **Autonomous Sentinel & Constraint #6 Suite:** **18 / 18 Tests Passing** (`notifications/test/`).
-- **Frontend Code Hygiene:** **0 ESLint Errors, 0 Warnings, and 0 TypeScript Errors** on Next.js 16 with Turbopack.
+- **Full Monorepo Security Regression Suite:** **11 / 11 Security Audit Suites Passing** (`notifications/test/security.test.ts`) validating zero secret leakage, rate limiting, Zod validation, lockout defense, timing-safe authentication, DB sanitization, CORS whitelisting, HTTP security headers, file upload security, client 500 error masking, and DOMPurify CSP.
+- **Dependency Security & Audits:** **0 High or Critical CVEs** (`npm audit`) across both frontend and backend trees with committed lockfiles and transitive overrides (`ws`, `qs`).
+- **Frontend Code Hygiene:** **0 ESLint Errors, 0 Warnings, and 0 TypeScript Errors** on Next.js 16 with Turbopack, with strict static lint rules (`no-eval`, `no-implied-eval`, `no-new-func`, `no-script-url`).
 
 ### 2. 1-Click Atomic Vault Provisioning
 We completely eliminated multi-step onboarding friction by consolidating 5 complex cryptographic operations into **1 single transaction** via `OneClickInheritanceVault.sol`.

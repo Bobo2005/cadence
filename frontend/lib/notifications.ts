@@ -8,6 +8,22 @@ import { getAddress, type Hex } from "viem";
 const NOTIFICATION_SERVICE_URL =
   process.env.NEXT_PUBLIC_NOTIFICATION_URL || "http://localhost:3001";
 
+/**
+ * Extract a user-friendly rate limit message from HTTP 429 responses,
+ * honoring the standard Retry-After header.
+ */
+function parseRateLimitError(res: Response, fallbackBody?: { message?: string; error?: string }): string {
+  const retryAfter = res.headers.get("retry-after");
+  if (retryAfter) {
+    return (
+      fallbackBody?.message ||
+      fallbackBody?.error ||
+      `Too many requests. Please wait ${retryAfter} seconds before trying again.`
+    );
+  }
+  return fallbackBody?.message || fallbackBody?.error || "Rate limit exceeded. Please wait a few moments before trying again.";
+}
+
 export interface WalletBindingStatus {
   walletAddress: string;
   bound: boolean;
@@ -90,6 +106,11 @@ export async function getWalletNotificationStatus(
         ...(controller ? { signal: controller.signal } : {}),
       }
     );
+    if (res.status === 429) {
+      const retryAfter = res.headers.get("retry-after") || "60";
+      console.warn(`[Notifications] Status check rate-limited (HTTP 429). Retry after ${retryAfter}s.`);
+      return null;
+    }
     if (!res.ok) return null;
     return await res.json();
   } catch (err: unknown) {
@@ -130,6 +151,14 @@ export async function bindWalletEmail(
         timestamp,
       }),
     });
+
+    if (res.status === 429) {
+      const data = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        error: parseRateLimitError(res, data),
+      };
+    }
 
     const data = await res.json();
     return data;
@@ -207,6 +236,16 @@ export async function suggestBeneficiaryEmail(
         suggestedBy: suggestedByOwner,
       }),
     });
+
+    if (res.status === 429) {
+      const data = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        status: "PENDING",
+        message: "",
+        error: parseRateLimitError(res, data),
+      };
+    }
 
     const data = await res.json();
     return data;
@@ -295,6 +334,13 @@ export async function requestWalletReminder(email: string): Promise<{
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email }),
     });
+    if (res.status === 429) {
+      const data = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        error: parseRateLimitError(res, data),
+      };
+    }
     const data = await res.json();
     return data;
   } catch (err: unknown) {

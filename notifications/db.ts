@@ -2,6 +2,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { getAddress } from "viem";
+import { sanitizeString } from "./schemas.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -86,12 +87,13 @@ class NotificationDatabase {
     signature: `0x${string}`
   ): WalletBinding {
     const normalized = getAddress(walletAddress);
+    const cleanEmail = sanitizeString(email).toLowerCase();
     const key = normalized.toLowerCase();
     const existing = this.bindings.get(key);
 
     const updated: WalletBinding = {
       walletAddress: normalized,
-      email: email.trim().toLowerCase(),
+      email: cleanEmail,
       verified: true,
       signature,
       suggestedBy: existing?.suggestedBy || null,
@@ -115,6 +117,7 @@ class NotificationDatabase {
     suggestedBy: string
   ): WalletBinding {
     const normalized = getAddress(walletAddress);
+    const cleanEmail = sanitizeString(email).toLowerCase();
     const key = normalized.toLowerCase();
     const existing = this.bindings.get(key);
 
@@ -125,7 +128,7 @@ class NotificationDatabase {
 
     const pending: WalletBinding = {
       walletAddress: normalized,
-      email: email.trim().toLowerCase(),
+      email: cleanEmail,
       verified: false,
       signature: null,
       suggestedBy: getAddress(suggestedBy),

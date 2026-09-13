@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { getAddress } from "viem";
 import nodemailer, { type Transporter } from "nodemailer";
 import { db } from "./db.js";
+import { escapeHtml } from "./schemas.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -234,14 +235,14 @@ class EmailService {
         </div>
         <h2 style="color: #2EE6A8; margin-top: 0;">Email Verified &amp; Bound to Wallet</h2>
         <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
-          Your wallet address has been verified and bound to <strong>${params.email}</strong> via off-chain cryptographic signature.
+          Your wallet address has been verified and bound to <strong>${escapeHtml(params.email)}</strong> via off-chain cryptographic signature.
         </p>
         <div style="background: #12161F; border: 1px solid #232838; border-radius: 8px; padding: 14px 16px; margin: 18px 0;">
           <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #8993A6; margin-bottom: 6px;">
             Bound Ethereum Wallet
           </div>
           <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #2EE6A8; font-size: 13px; word-break: break-all;">
-            ${params.walletAddress}
+            ${escapeHtml(params.walletAddress)}
           </div>
         </div>
         <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
@@ -286,7 +287,7 @@ class EmailService {
           </div>
           <h2 style="color: #F5484A; margin-top: 0;">Heartbeat Check-In Lapsed</h2>
           <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
-            Your scheduled check-in window for vault <strong>${params.vaultId || "Inheritance Vault"}</strong> has elapsed without an on-chain heartbeat.
+            Your scheduled check-in window for vault <strong>${escapeHtml(params.vaultId || "Inheritance Vault")}</strong> has elapsed without an on-chain heartbeat.
           </p>
           <p style="color: #8993A6; font-size: 14px; line-height: 1.5;">
             Guardian nodes have been requested to attest to inactivity. If this is a false alarm, connect your owner wallet immediately to record your heartbeat and keep your vault active:
@@ -294,7 +295,7 @@ class EmailService {
           <div style="margin: 28px 0;">
             <a href="${appUrl}/dashboard" style="background: #2EE6A8; color: #0B0E14; font-weight: 700; text-decoration: none; padding: 14px 28px; border-radius: 8px; display: inline-block; font-size: 14px;">Record Heartbeat Now →</a>
           </div>
-          <p style="font-size: 12px; color: #8B949E;">Vault: ${params.vaultId || "Default"} | Owner: ${params.ownerAddress}</p>
+          <p style="font-size: 12px; color: #8B949E;">Vault: ${escapeHtml(params.vaultId || "Default")} | Owner: ${escapeHtml(params.ownerAddress)}</p>
         </div>
       `;
     } else {
@@ -307,12 +308,12 @@ class EmailService {
       bodyHtml = `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
           <h2 style="color: #00E5FF; margin-top: 0;">Cadence Protocol Heartbeat Reminder</h2>
-          <p>Your vault heartbeat check-in deadline is approaching in <strong>${timeStr}</strong>.</p>
+          <p>Your vault heartbeat check-in deadline is approaching in <strong>${escapeHtml(timeStr)}</strong>.</p>
           <p>If you fail to check in before your deadline, the guardian attestation consensus countdown will commence.</p>
           <div style="margin: 28px 0;">
             <a href="${appUrl}/dashboard" style="background: #00E5FF; color: #0B0E14; font-weight: 600; text-decoration: none; padding: 12px 24px; border-radius: 6px; display: inline-block;">Record Heartbeat Now</a>
           </div>
-          <p style="font-size: 12px; color: #8B949E;">Vault ID: ${params.vaultId || "Default"} | Owner: ${params.ownerAddress}</p>
+          <p style="font-size: 12px; color: #8B949E;">Vault ID: ${escapeHtml(params.vaultId || "Default")} | Owner: ${escapeHtml(params.ownerAddress)}</p>
         </div>
       `;
     }
@@ -346,7 +347,7 @@ class EmailService {
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
         <h2 style="color: #00E5FF; margin-top: 0;">Cadence Protocol — Beneficiary Notice</h2>
         <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
-          You've been listed as a beneficiary on a Cadence vault, linked to wallet <strong>${trunc}</strong>${shareText}.
+          You've been listed as a beneficiary on a Cadence vault, linked to wallet <strong>${escapeHtml(trunc)}</strong>${escapeHtml(shareText)}.
         </p>
 
         <div style="background: #12161F; border: 1px solid #232838; border-radius: 8px; padding: 14px 16px; margin: 18px 0;">
@@ -354,7 +355,7 @@ class EmailService {
             Registered Beneficiary Wallet (Must Connect This Wallet)
           </div>
           <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #2EE6A8; font-size: 14px; word-break: break-all; user-select: all;">
-            ${params.beneficiaryAddress}
+            ${escapeHtml(params.beneficiaryAddress)}
           </div>
         </div>
 
@@ -367,7 +368,7 @@ class EmailService {
         </div>
 
         <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
-        <p style="font-size: 12px; color: #8993A6; margin: 0;">Vault Owner: ${params.ownerAddress} | Vault ID: ${params.vaultId || "Default"}</p>
+        <p style="font-size: 12px; color: #8993A6; margin: 0;">Vault Owner: ${escapeHtml(params.ownerAddress)} | Vault ID: ${escapeHtml(params.vaultId || "Default")}</p>
       </div>
     `;
 
@@ -399,7 +400,7 @@ class EmailService {
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 580px; margin: 0 auto; background: #0B0E14; color: #E6EDF3; padding: 32px; border: 1px solid #1E2638; border-radius: 12px;">
         <h2 style="color: #00E5FF; margin-top: 0;">Cadence Vault Claim Portal Ready</h2>
         <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
-          A Cadence inheritance vault has finalized. Your allocation is now ready to claim, linked to wallet <strong>${trunc}</strong>.
+          A Cadence inheritance vault has finalized. Your allocation is now ready to claim, linked to wallet <strong>${escapeHtml(trunc)}</strong>.
         </p>
 
         <div style="background: #12161F; border: 1px solid #232838; border-radius: 8px; padding: 14px 16px; margin: 18px 0;">
@@ -407,11 +408,11 @@ class EmailService {
             Registered Beneficiary Wallet (Must Connect This Wallet)
           </div>
           <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #00E5FF; font-size: 14px; word-break: break-all; user-select: all;">
-            ${params.beneficiaryAddress}
+            ${escapeHtml(params.beneficiaryAddress)}
           </div>
         </div>
 
-        ${params.claimableAmount ? `<p style="font-size: 18px; color: #2EE6A8; margin: 16px 0;"><strong>Claimable Allocation: ${params.claimableAmount}</strong></p>` : ""}
+        ${params.claimableAmount ? `<p style="font-size: 18px; color: #2EE6A8; margin: 16px 0;"><strong>Claimable Allocation: ${escapeHtml(params.claimableAmount)}</strong></p>` : ""}
 
         <p style="color: #8993A6; font-size: 14px; line-height: 1.5;">
           Connect that wallet at <a href="${appUrl}/claim" style="color: #00E5FF; text-decoration: underline;">${appUrl}/claim</a> to claim your inheritance.
@@ -422,7 +423,7 @@ class EmailService {
         </div>
 
         <hr style="border: 0; border-top: 1px solid #1E2638; margin: 24px 0;" />
-        <p style="font-size: 12px; color: #8993A6; margin: 0;">Vault ID: ${params.vaultId || "Default"}</p>
+        <p style="font-size: 12px; color: #8993A6; margin: 0;">Vault ID: ${escapeHtml(params.vaultId || "Default")}</p>
       </div>
     `;
 
@@ -552,7 +553,7 @@ class EmailService {
         </div>
         <h2 style="color: #F5B841; margin-top: 0;">Heartbeat Inactivity Timeout Expired</h2>
         <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
-          The owner of vault <strong>${params.vaultName || "Inheritance Vault"}</strong> has missed their scheduled heartbeat check-in window on Ethereum Sepolia.
+          The owner of vault <strong>${escapeHtml(params.vaultName || "Inheritance Vault")}</strong> has missed their scheduled heartbeat check-in window on Ethereum Sepolia.
         </p>
 
         <div style="background: #12161F; border: 1px solid #232838; border-radius: 8px; padding: 14px 16px; margin: 18px 0;">
@@ -560,7 +561,7 @@ class EmailService {
             Target Vault Contract
           </div>
           <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #2EE6A8; font-size: 13px; word-break: break-all;">
-            ${params.vaultAddress}
+            ${escapeHtml(params.vaultAddress)}
           </div>
         </div>
 
@@ -569,11 +570,11 @@ class EmailService {
             Designated Guardian Node
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-weight: 700; color: #00E5FF; font-size: 14px;">${params.guardianLabel}</span>
-            <span style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #8993A6; font-size: 12px;">${truncGuardian}</span>
+            <span style="font-weight: 700; color: #00E5FF; font-size: 14px;">${escapeHtml(params.guardianLabel)}</span>
+            <span style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #8993A6; font-size: 12px;">${escapeHtml(truncGuardian)}</span>
           </div>
           <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #E8ECF1; font-size: 11px; margin-top: 6px; word-break: break-all;">
-            ${params.guardianAddress}
+            ${escapeHtml(params.guardianAddress)}
           </div>
         </div>
 
@@ -680,7 +681,7 @@ class EmailService {
         </div>
         <h2 style="color: #2EE6A8; margin-top: 0;">Contest Grace Period Concluded</h2>
         <p style="font-size: 15px; color: #E8ECF1; line-height: 1.5;">
-          The challenge window for vault <strong>${params.vaultName || "Inheritance Vault"}</strong> has elapsed without cancellation from the vault owner.
+          The challenge window for vault <strong>${escapeHtml(params.vaultName || "Inheritance Vault")}</strong> has elapsed without cancellation from the vault owner.
         </p>
 
         <div style="background: #12161F; border: 1px solid #232838; border-radius: 8px; padding: 14px 16px; margin: 18px 0;">
@@ -688,12 +689,12 @@ class EmailService {
             Vault Address
           </div>
           <div style="font-family: 'SFMono-Regular', Consolas, Menlo, monospace; color: #2EE6A8; font-size: 13px; word-break: break-all;">
-            ${params.vaultAddress}
+            ${escapeHtml(params.vaultAddress)}
           </div>
         </div>
 
         <p style="color: #8993A6; font-size: 14px; line-height: 1.5;">
-          Notice recipient: <strong>${params.recipientRole}</strong> (${params.recipientAddress}). Anyone can now execute the 1-click finalization on Sepolia to release payouts.
+          Notice recipient: <strong>${escapeHtml(params.recipientRole)}</strong> (${escapeHtml(params.recipientAddress)}). Anyone can now execute the 1-click finalization on Sepolia to release payouts.
         </p>
 
         <div style="margin: 24px 0;">

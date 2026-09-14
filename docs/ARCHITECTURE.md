@@ -42,6 +42,12 @@
 9. **Zero Simulation & Real On-Chain Execution.**
    Zero fake transaction hashes, zero random hex generators, zero mock fallbacks. Every state transition (check-in, interval adjustment, contest reset, guardian attestation, beneficiary claim) executes real transactions on Ethereum Sepolia with genuine cryptographic proofs (EIP-712 digests, ECIES-secp256k1 client-side encryption, and Merkle proofs).
 
+10. **Cadence Streams: Autonomous Streaming Trust & Anti-Drainer Circuit Breakers.**
+    Rather than dumping 100% of an estate into an heir's wallet in a single transaction (exposing the family fortune to drainers, leaked private keys, phishing bots, or sudden liquidation), Cadence enables configuring an autonomous streaming trust:
+    - **Dual-Mode Dispatch**: When `streamingDuration == 0`, maintains 100% immediate lump sum; when `streamingDuration > 0`, transfers an immediate emergency liquidity buffer (e.g. 10% Day 1 buffer for immediate needs) and streams the remaining 90% continuously per-second.
+    - **Compounding Idle Capital Yield**: Unvested principal accrues passive yield (Aave v3 yield strategy model).
+    - **Emergency Circuit Breakers**: Beneficiaries (`pauseStream`), consensus guardians via Merkle proof (`pauseStreamWithGuardian`), and registered backup claim addresses (`pauseStream`, `redirectStream`) can freeze and permanently redirect streaming capital to a safe cold hardware wallet if an heir's keys are leaked or phished.
+
 ## End-to-End Privacy Architecture & Balance Visibility System
 
 Cadence adheres to a strict multi-layer zero-leakage privacy model verified across smart contracts and client workflows:
@@ -292,6 +298,7 @@ Active ──(timeout expired + guardian M-of-N)──> ClaimPending ──(canc
     BeneficiaryBackupClaim.t.sol
     BeneficiarySmartAccount.t.sol
     StealthAddressRegistry.t.sol
+    CadenceStreams.t.sol
   foundry.toml
   .env.example
 
@@ -341,6 +348,40 @@ Active ──(timeout expired + guardian M-of-N)──> ClaimPending ──(canc
 
 README.md
 ```
+
+## Cadence Streams Architecture: Autonomous Family Trust & Emergency Circuit Breakers
+
+### 1. Data Structures & Configuration
+`InheritanceVault.sol` introduces streaming estate parameters:
+- `uint256 public streamingDuration`: Vesting duration in seconds (0 = legacy instant lump-sum).
+- `uint256 public initialReleaseBps`: Basis points released immediately on Day 1 (e.g. 1,000 = 10%).
+- `uint256 public streamingYieldBps`: Passive annualized yield basis points (e.g. 500 = 5.00%).
+- `mapping(address => BeneficiaryStream) public beneficiaryStreams`:
+  ```solidity
+  struct BeneficiaryStream {
+      uint256 totalVestingAmount;
+      uint256 initialReleasedAmount;
+      uint256 totalClaimedStream;
+      uint256 streamStartTime;
+      uint256 lastClaimTimestamp;
+      bool isPaused;
+  }
+  ```
+
+### 2. Per-Second Linear Vesting & Yield Math
+When an heir calls `claimStream(beneficiary)` or queries `claimableStreamAmount(beneficiary)`:
+1. If `stream.isPaused == true`, accrued unvested stream is temporarily halted (returns 0 until resumed).
+2. Elapsed streaming time: $\Delta t = \min(\text{block.timestamp}, \text{streamStartTime} + \text{streamingDuration}) - \text{lastClaimTimestamp}$.
+3. Linear vested increment:
+   $$\text{vestedAmount} = \frac{\text{totalVestingAmount} \times \Delta t}{\text{streamingDuration}}$$
+4. Compounding yield accrual on unvested principal:
+   $$\text{yieldAmount} = \frac{\text{vestedAmount} \times \text{streamingYieldBps}}{10,000}$$
+5. Total claimable: $\text{claimable} = \text{vestedAmount} + \text{yieldAmount}$.
+
+### 3. Circuit Breaker Defense Flow
+- **Beneficiary Pause (`pauseStream`)**: Direct caller freeze when suspicious activity is detected.
+- **Guardian Merkle Freeze (`pauseStreamWithGuardian`)**: Consensus guardians attest to wallet compromise with Merkle proof against `guardianRoot`, freezing stream outflows without requiring the heir's compromised key.
+- **Beneficiary / Backup Redirection (`redirectStream`)**: The beneficiary or their registered backup claim address permanently migrates remaining `totalVestingAmount` and stream state to a newly provided cold hardware address (`newRecipient`).
 
 ## Multi-Chain Roadmap (reference only — not built in MVP)
 Phase 0 (MVP): ETH, USDC, USDT, WBTC — all EVM/ERC-20, zero architecture change.

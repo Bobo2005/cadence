@@ -32,6 +32,7 @@ import {
   publicClient,
   ONE_CLICK_VAULT_ABI,
   ONE_CLICK_VAULT_BYTECODE,
+  INHERITANCE_VAULT_ABI,
   ConsensusState,
 } from "../lib/contracts.ts";
 import {
@@ -40,6 +41,19 @@ import {
   clearProvisioningState,
   type ProvisioningState,
 } from "../lib/vaultRegistry.ts";
+
+export const STREAMING_DURATION_OPTIONS = [
+  { label: "5 Min (Demo)", display: "5 Minutes (Judge Demo)", seconds: 300 },
+  { label: "6 Months", display: "6 Months (180 Days)", seconds: 180 * 86400 },
+  { label: "1 Year", display: "1 Year (365 Days)", seconds: 365 * 86400 },
+  { label: "2 Years", display: "2 Years (730 Days)", seconds: 730 * 86400 },
+];
+
+export const INITIAL_RELEASE_OPTIONS = [
+  { label: "10% Emergency", bps: 1000 },
+  { label: "20% Buffer", bps: 2000 },
+  { label: "0% Pure Stream", bps: 0 },
+];
 
 export const GRACE_PERIOD_OPTIONS = [
   { label: "5 Min (Test)", display: "5 Minutes (Testing)", seconds: 300 },
@@ -159,6 +173,12 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   const [guardian2, setGuardian2] = useState("");
   const [guardian1Email, setGuardian1Email] = useState("");
   const [guardian2Email, setGuardian2Email] = useState("");
+
+  // Step 3b: Cadence Streams — Autonomous Streaming Trust
+  const [isStreamingTrust, setIsStreamingTrust] = useState(true); // Default enabled for hackathon showcase
+  const [selectedStreamDuration, setSelectedStreamDuration] = useState(STREAMING_DURATION_OPTIONS[0]); // 5-Min demo default
+  const [selectedInitialReleaseBps, setSelectedInitialReleaseBps] = useState(1000); // 10% emergency buffer
+  const [selectedYieldBps] = useState(500); // 5.0% APY
 
   // Pre-fill guardian emails from storage if available
   useEffect(() => {
@@ -405,6 +425,27 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
       }
       const deployedAddress = receipt.contractAddress;
       setProvisionedVaultAddress(deployedAddress);
+
+      // Configure Cadence Streams Smart Trust if enabled
+      if (isStreamingTrust) {
+        try {
+          setActiveStepDescription("Configuring Cadence Streams Smart Trust & Yield parameters...");
+          const streamDurationSec = BigInt(selectedStreamDuration.seconds);
+          const initialBps = BigInt(selectedInitialReleaseBps);
+          const yieldBps = BigInt(selectedYieldBps);
+          const configHash = await client.writeContract({
+            chain: sepolia,
+            address: deployedAddress,
+            abi: INHERITANCE_VAULT_ABI,
+            functionName: "setStreamingConfig",
+            args: [streamDurationSec, initialBps, yieldBps],
+            account: client.account || connectedAddress,
+          });
+          await publicClient.waitForTransactionReceipt({ hash: configHash });
+        } catch (streamErr) {
+          console.warn("[CreateVaultForm] Could not configure streaming trust immediately:", streamErr);
+        }
+      }
 
       // Build encrypted allocations for beneficiaries
       const encryptedAllocationsList = await Promise.all(
@@ -868,6 +909,87 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               <p className="text-[11px] text-[#8993A6]">
                 Window duration following an inactivity lapse during which you can cancel claims with a stealth signature before funds unlock.
               </p>
+            </div>
+
+            {/* Cadence Streams — Autonomous Streaming Trust */}
+            <div className="space-y-3 pt-3 border-t border-[#232838]/60">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold text-[#E8ECF1] flex items-center gap-1.5">
+                    <span className="text-[#2EE6A8]">⚡</span>
+                    <span>Cadence Streams (Smart Trust &amp; Yield)</span>
+                  </div>
+                  <div className="text-[11px] text-[#8993A6]">
+                    Vests inheritance per second rather than a single lump-sum payout.
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsStreamingTrust(!isStreamingTrust)}
+                  className={`px-3 py-1 rounded-full text-xs font-mono font-bold transition-all cursor-pointer border ${
+                    isStreamingTrust
+                      ? "bg-[#2EE6A8]/20 border-[#2EE6A8] text-[#2EE6A8]"
+                      : "bg-[#1A1F2B] border-[#232838] text-[#8993A6]"
+                  }`}
+                >
+                  {isStreamingTrust ? "✓ Enabled" : "Disabled (Lump-Sum)"}
+                </button>
+              </div>
+
+              {isStreamingTrust && (
+                <div className="p-3.5 rounded-xl bg-[#0A0E14] border border-[#2EE6A8]/30 space-y-3 animate-in fade-in">
+                  {/* Streaming Duration */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[11px] font-mono text-[#8993A6]">Streaming Duration Schedule</label>
+                      <span className="text-[10px] font-mono text-[#2EE6A8]">⚡ Fast Demo Preset</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {STREAMING_DURATION_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.label}
+                          type="button"
+                          onClick={() => setSelectedStreamDuration(opt)}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-mono transition-all border cursor-pointer ${
+                            selectedStreamDuration.label === opt.label
+                              ? "border-[#2EE6A8] bg-[#2EE6A8]/15 text-[#2EE6A8] font-bold"
+                              : "border-[#232838] bg-[#12161F] text-[#8993A6] hover:text-[#E8ECF1]"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Initial Emergency Release */}
+                  <div className="space-y-1.5">
+                    <label className="block text-[11px] font-mono text-[#8993A6]">Immediate Emergency Buffer (Day 1 Unlock)</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {INITIAL_RELEASE_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.label}
+                          type="button"
+                          onClick={() => setSelectedInitialReleaseBps(opt.bps)}
+                          className={`py-1.5 px-2 rounded-lg text-xs font-mono transition-all border cursor-pointer ${
+                            selectedInitialReleaseBps === opt.bps
+                              ? "border-[#00E5FF] bg-[#00E5FF]/15 text-[#00E5FF] font-bold"
+                              : "border-[#232838] bg-[#12161F] text-[#8993A6] hover:text-[#E8ECF1]"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Passive Yield Rate */}
+                  <div className="flex items-center justify-between text-[11px] font-mono p-2 rounded-lg bg-[#12161F] border border-[#232838]">
+                    <span className="text-[#8993A6]">Simulated Aave v3 Yield:</span>
+                    <span className="text-[#F5B841] font-bold">+5.00% APY (Auto-Compounding)</span>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
         </div>

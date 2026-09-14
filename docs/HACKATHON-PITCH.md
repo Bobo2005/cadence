@@ -15,7 +15,8 @@
 - **Client-Side Privacy**: Beneficiary allocations and share percentages are encrypted off-chain via **ECIES-secp256k1**; only a 32-byte Merkle Root is stored on-chain. Zero public ledger leaks.
 - **Gasless Stealth Recovery**: Compelled or compromised owners can halt liquidation via an off-chain **EIP-712 typed signature** broadcast by any relayer with zero gas-linkage to the owner's address.
 - **Account Abstraction (ERC-4337)**: Native Pimlico Paymaster sponsorship for check-ins and gasless claims.
-- **Fully Deployed & Verified**: Live on **Sepolia Ethereum Testnet** with 197/197 Foundry tests and 15/15 backend tests passing.
+- **Cadence Streams (Grand Prize Feature)**: Autonomous multi-generational streaming trust with linear per-second vesting, compounding idle yield, and guardian emergency circuit breakers (`pauseStream`, `redirectStream`).
+- **Fully Deployed & Verified**: Live on **Sepolia Ethereum Testnet** with **208 / 208 Foundry tests** across 15 suites, **18 / 18 Sentinel tests**, and **11 / 11 security audit suites** passing.
 
 ---
 
@@ -29,25 +30,28 @@ Existing approaches suffer from critical flaws:
    - **Privacy Leakage**: Writing beneficiary addresses and token allocations to public smart contracts invites targeted extortion, phishing, and family disputes.
    - **False Positive Liquidation**: If an owner misses a single check-in due to a flight or hospital stay, all assets are permanently liquidated.
    - **The "Gas Linkage" Surveillance Trap**: If an attacker drains an owner's ETH to trigger inactivity, the owner cannot cancel the switch without funding the account — alerting the attacker and getting front-run.
+3. **The Lump-Sum "Inheritance Dump" & Drainer Phishing Trap**:
+   - Dumping 100% of an estate into an heir's wallet in a single transaction exposes the family fortune to instant liquidation if the heir's seed phrase is compromised or drained by phishing bots.
+   - Conventional lockers sit completely unvested and generate 0% yield.
 
 ---
 
-## 3. The Cadence Solution: 3 Cryptographic Pillars
+## 3. The Cadence Solution: 4 Cryptographic Pillars
 
 ```
-+-----------------------------------------------------------------------------------+
-|                                CADENCE PROTOCOL                                   |
-+-----------------------------------------------------------------------------------+
-|                                                                                   |
-|   PILLAR 1: MERKLE PRIVACY         PILLAR 2: CONSENSUS      PILLAR 3: RECOVERY     |
-|   +--------------------------+    +--------------------+   +--------------------+ |
-|   | • 32-byte Merkle Root    |    | • Configurable     |   | • 72-Hour Safe     | |
-|   | • ECIES-secp256k1        | -> |   Heartbeat (90d)  |-> |   Contest Window   | |
-|   | • Zero Allocation Leaks  |    | • M-of-N Guardians |   | • EIP-712 Gasless  | |
-|   | • Offline Proof Gen      |    | • No Single Trigger|   |   Stealth Cancel   | |
-|   +--------------------------+    +--------------------+   +--------------------+ |
-|                                                                                   |
-+-----------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------+
+|                                           CADENCE PROTOCOL                                              |
++---------------------------------------------------------------------------------------------------------+
+|                                                                                                         |
+|   PILLAR 1: MERKLE PRIVACY    PILLAR 2: CONSENSUS     PILLAR 3: RECOVERY     PILLAR 4: CADENCE STREAMS  |
+|   +---------------------+    +--------------------+  +--------------------+  +------------------------+ |
+|   | • 32-byte Root      |    | • Configurable     |  | • 72-Hour Safe     |  | • Linear Per-Sec Vest  | |
+|   | • ECIES-secp256k1   | -> |   Heartbeat (90d)  |->|   Contest Window   |->| • 10% Emergency Buffer | |
+|   | • Zero Public Leaks |    | • M-of-N Guardians |  | • EIP-712 Gasless  |  | • Compounding Yield    | |
+|   | • Offline Proof Gen |    | • No Single Trigger|  |   Stealth Cancel   |  | • Circuit Breakers     | |
+|   +---------------------+    +--------------------+  +--------------------+  +------------------------+ |
+|                                                                                                         |
++---------------------------------------------------------------------------------------------------------+
 ```
 
 ### Pillar 1: Merkle Allocation Commitment & ECIES Client Encryption
@@ -68,6 +72,13 @@ Existing approaches suffer from critical flaws:
   cancelClaimWithSig(vaultAddress, nonce, deadline, signature)
   ```
 - Any third-party relayer broadcasts this transaction. **Zero ETH is required from the owner wallet**, completely defeating frontrunning and address-linkage surveillance.
+
+### Pillar 4: Cadence Streams — Autonomous Streaming Trust & Anti-Drainer Circuit Breakers (Flagship)
+- Transforms Cadence from a simple locker into a decentralized family trust.
+- Pays an immediate emergency liquidity tranche (e.g. 10% Day 1 buffer for immediate needs).
+- Unlocks the remaining 90% continuously per-second with live 100ms real-time UI ticker precision.
+- Idle principal accrues compounding yield (Aave v3 model).
+- Anti-Drainer Circuit Breaker: If an heir's wallet is compromised or drained, designated guardians (via Merkle proof) or backup addresses can trigger `pauseStream` and `redirectStream` to freeze outflows and redirect unvested streams to a safe cold hardware wallet.
 
 ---
 
@@ -104,11 +115,13 @@ The Cadence protocol supports standard Web3 wallet connections (MetaMask, Rabby,
    - While in `ClaimPending`, click **`[RESET PROTOCOL: I'M ALIVE]`**.
    - The owner signs an off-chain **EIP-712 typed digest** (`cancelClaimWithSig`).
    - Any relayer can broadcast the cancellation with **zero gas linkage** to the owner's account, instantly returning the vault to `Active` status.
-4. **Beneficiary Claim Portal & Safe Key Derivation (`/claim`)**:
+4. **Beneficiary Claim Portal & Cadence Streams (`/claim`)**:
    - Connect as a beneficiary (e.g. Alice).
    - **Zero Raw Private Key Exposure**: Alice signs a Web3 wallet authorization message (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory.
    - Browser decrypts her allocation and verifies her Merkle proof off-chain.
-   - Click **`[Claim Share]`** to receive the exact pro-rata payout atomically on Sepolia.
+   - Click **`[Execute Inheritance Claim]`**: Receives an immediate emergency liquidity buffer (e.g. 10% on Day 1).
+   - **Continuous Streaming Allowance**: Unlocks remaining 90% linearly per second, with a live 100ms ticker displaying accrued ETH to 7 decimal places.
+   - **Anti-Drainer Defense**: Beneficiaries and guardians can click **`[Pause Stream]`** or redirect to a safe cold hardware wallet if keys are compromised.
 
 ---
 
@@ -117,10 +130,10 @@ The Cadence protocol supports standard Web3 wallet connections (MetaMask, Rabby,
 | Timestamp | Video Screen Action | Narration Script |
 | :--- | :--- | :--- |
 | **0:00 - 0:30** | Landing Page + Oscilloscope Animation (`/`) | *"Welcome to Cadence. Over 100 billion dollars in crypto has been permanently lost because the holder died without sharing their keys. But current dead man switches are broken: they broadcast your beneficiaries' addresses on public explorers, and if your keys are compromised, you can't even cancel them without getting frontrun. Cadence is the first self-custodial inheritance protocol that guarantees zero allocation leaks and zero gas-linkage."* |
-| **0:30 - 1:15** | Vault Creation Flow (`/vault/create`) | *"Let's create a vault. Notice what happens when I add Alice at 40% and Bob at 60%. Cadence doesn't write their balances on-chain. Instead, our client encrypts their shares off-chain using their public keys with ECIES-secp256k1, and computes a 32-byte Merkle Root. On Sepolia Etherscan, observers only see an unreadable root hash. Beneficiaries receive their encrypted proofs directly."* |
-| **1:15 - 1:55** | Pulse Dashboard & Heartbeat (`/dashboard`) | *"Here is the Pulse Dashboard with a live oscilloscope ECG monitor. As owner, I can send an on-chain heartbeat. Notice the toast: with ERC-4337, this check-in can be gaslessly sponsored by a paymaster. If I miss my check-ins, the protocol requires an M-of-N guardian quorum before any window opens."* |
-| **1:55 - 2:30** | Contest Window & EIP-712 Stealth Cancel (`/contest`) | *"Now, suppose an attacker tries to grief my locker or I'm temporarily incapacitated. The 72-hour Contest Window opens. Even if an attacker drains all ETH from my main wallet, I am protected. I sign an off-chain EIP-712 cancellation typed digest. Any relayer can broadcast this without a single wei coming from my wallet — instantly restoring my vault to Active status."* |
-| **2:30 - 3:00** | Claim Portal & Conclusion (`/claim`) | *"Finally, when a locker finalizes, beneficiaries connect their wallet to the Claim Portal. Beneficiaries derive their ECIES decryption key in-memory via a simple wallet signature with zero raw private key inputs, generate their Merkle proof client-side, and claim their exact share in one atomic transaction. Cadence is fully tested with 197 Foundry tests, verified on Sepolia, and ready for production."* |
+| **0:30 - 1:15** | Vault Creation Flow (`/vault/create`) | *"Let's create a vault. Notice what happens when I add Alice at 40% and Bob at 60%. Cadence doesn't write their balances on-chain. Instead, our client encrypts their shares off-chain using their public keys with ECIES-secp256k1, and computes a 32-byte Merkle Root. On Sepolia Etherscan, observers only see an unreadable root hash. We also enable Cadence Streams to turn this locker into an autonomous family trust with linear per-second vesting."* |
+| **1:15 - 1:55** | Pulse Dashboard & Heartbeat (`/dashboard`) | *"Here is the Pulse Dashboard with a live oscilloscope ECG monitor. As owner, I can send an on-chain heartbeat. Notice the toast: with ERC-4337, this check-in can be gaslessly sponsored by a paymaster. If I miss my check-ins, the background Sentinel daemon alerts my guardians, and the protocol requires an M-of-N guardian quorum before any window opens."* |
+| **1:55 - 2:25** | Contest Window & EIP-712 Stealth Cancel (`/contest`) | *"Now, suppose an attacker tries to grief my locker or I'm temporarily incapacitated. The 72-hour Contest Window opens. Even if an attacker drains all ETH from my main wallet, I am protected. I sign an off-chain EIP-712 cancellation typed digest. Any relayer can broadcast this without a single wei coming from my wallet — instantly restoring my vault to Active status."* |
+| **2:25 - 3:00** | Cadence Streams Claim & Anti-Drainer Demo (`/claim`) | *"Finally, when a locker finalizes, beneficiaries unlock their allocation in-memory with zero raw key inputs. Instead of a dangerous 100% lump sum that drainers can steal, Cadence Streams pays an immediate 10% emergency buffer and streams the remaining 90% per-second down to 7 decimal places, while earning compounding yield. If the heir's wallet is compromised, guardians or backup addresses can hit the on-chain circuit breaker to pause the stream and redirect future payouts to a safe cold wallet. Cadence is verified on Sepolia with 208 passing Foundry tests, ready to preserve multi-generational wealth."* |
 
 ---
 
@@ -139,11 +152,12 @@ The Cadence protocol supports standard Web3 wallet connections (MetaMask, Rabby,
 
 ## 8. Hackathon Submission Checklist
 
-- [x] **Smart Contracts Verified on Sepolia**: All 7 contracts compiled, deployed, and verified with source code on Etherscan.
-- [x] **Foundry Test Suite**: 197 / 197 unit, integration, and security regression tests passing across 13 suites (`forge test`).
-- [x] **Backend Test Suite**: 15 / 15 unit and security tests (`npm test`) and 10 / 10 live e2e tests (`npm run test:e2e`).
+- [x] **Smart Contracts Verified on Sepolia**: All contracts compiled, deployed, and verified with source code on Etherscan.
+- [x] **Foundry Test Suite**: **208 / 208 unit, integration, and security regression tests passing across 15 suites** (`forge test`).
+- [x] **Backend Test Suite**: 18 / 18 Sentinel & notification tests (`npm test`) and 11 / 11 full security audit regression suites (`npm run test:security`).
+- [x] **Cadence Streams Engine**: Autonomous per-second linear vesting, compounding idle yield, and on-chain emergency circuit breakers.
 - [x] **Zero TypeScript Errors**: Clean `tsc --noEmit` build on frontend and backend.
 - [x] **Next.js Production Build**: Clean static output bundle without build warnings.
 - [x] **Safe In-Memory Key Derivation**: Zero raw private key inputs in the UI; in-memory derivation via Web3 wallet signatures.
 - [x] **Authentic On-Chain Evaluation**: Native 5m/10m check-in presets on `/vault/create` and runtime interval adjustment on `/dashboard`.
-- [x] **Complete Documentation**: PRD, Architecture, Design System, Pitch Kit, and Handoff specifications.
+- [x] **Complete Documentation**: PRD, Architecture, Design System, Pitch Kit, Project Submission, and Handoff specifications.

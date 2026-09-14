@@ -10,7 +10,7 @@ Cadence decouples **Proof-of-Life Consensus** into a standalone, composable on-c
 
 | Contract | Purpose | Key Invariant |
 |---|---|---|
-| [`InheritanceVault.sol`](src/InheritanceVault.sol) | Primary vault holding ETH and ERC-20 assets. Executes gasless check-ins, Merkle allocation root commitment, and pro-rata distributions. | Zero plaintext on-chain; commits only to 32-byte `allocationRoot`. Supports runtime `setCheckInInterval()`. |
+| [`InheritanceVault.sol`](src/InheritanceVault.sol) | Primary vault holding ETH and ERC-20 assets. Executes gasless check-ins, Merkle allocation root commitment, pro-rata distributions, and the **Cadence Streams Engine** (per-second linear vesting, compounding idle yield, and anti-drainer circuit breakers). | Zero plaintext on-chain; commits only to 32-byte `allocationRoot`. Supports runtime `setCheckInInterval()` and `setStreamingConfig()`. |
 | [`ProofOfLifeConsensus.sol`](src/ProofOfLifeConsensus.sol) | Standalone consensus primitive managing heartbeat tracking, timeout checks, M-of-N guardian attestations, and contest transitions. | State machine: `Active` $\rightarrow$ `ClaimPending` $\rightarrow$ `Finalized`. Holds `cancelClaimWithSig()` for EIP-712 stealth cancellations. |
 | [`GuardianRegistry.sol`](src/GuardianRegistry.sol) | Verifies M-of-N cryptographic guardian attestations against committed Merkle roots. | Guardian addresses remain private until claim time via Merkle proofs. |
 | [`StealthAddressRegistry.sol`](src/StealthAddressRegistry.sol) | EIP-5564 stealth key registry and announcement mechanism. | Enables non-linkable deposit addresses and zero gas-linkage stealth cancellation. |
@@ -59,13 +59,15 @@ DEMO_CHECK_IN_INTERVAL=180 DEMO_CONTEST_DURATION=900 forge script script/DeployD
 
 ## Testing & Verification
 
-Run the comprehensive Foundry test suite (14 suites, 198 tests):
+Run the comprehensive Foundry test suite (15 suites, 208 tests):
 ```bash
 forge build
 forge test -vvv
 ```
 
-All 198 tests pass with 0 failures, covering:
+All 208 tests pass with 0 failures across 15 suites, covering:
+- **`CadenceStreams.t.sol` (Autonomous Streaming Trust & Circuit Breakers)**:
+  - Validates configuration limits, initial emergency buffer release, per-second linear vesting calculation across `vm.warp` time jumps, compounding idle yield generation, beneficiary pause/resume, guardian Merkle proof circuit breaks, and safe cold wallet redirection.
 - **`OneClickVault.t.sol` (Atomic 1-Click Vault Setup)**:
   - Validates atomic deployment, `msg.value` ETH deposit credit, custom contest window duration, beneficiary allocation Merkle root commitment, and guardian registry consensus pairing all in a single transaction.
 - **`SecurityAudit.t.sol` (Phase 1 Security Hardening)**:

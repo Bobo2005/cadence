@@ -16,34 +16,38 @@ Cadence is a non-custodial, privacy-preserving inheritance protocol on Ethereum 
 Over **$100 Billion in cryptocurrency** is estimated to be permanently lost due to sudden death, incapacitation, or misplaced private keys. Crypto holders seeking to pass wealth to heirs are forced to choose between two flawed paradigms:
 1. **The Centralized Custodial Trap**: Surrendering seed phrases or multi-sig master keys to institutional custodians, legal trusts, or centralized exchanges—sacrificing self-sovereignty, incurring high probate fees, and creating single points of failure.
 2. **The Naive Dead Man’s Switch (Guillotine Timer & Storage Trap)**: Simple smart contract timers that liquidate funds if a single check-in is missed (e.g. hospitalization, travel without internet). Furthermore, naive contracts store heir addresses and shares in public plaintext storage mappings (`mapping(address => uint256)`), permanently exposing family net worth on-chain.
+3. **The Lump-Sum "Inheritance Dump" & Drainer Phishing Trap**: Traditional inheritance systems dump 100% of an estate into an heir's wallet in a single irreversible transaction. If the beneficiary is inexperienced with crypto, their seed phrase is leaked, or they fall victim to a phishing drainer, the entire multi-generational family fortune is lost in seconds with zero recourse.
 
-### The Solution: Multi-Signal Proof-of-Life Consensus
+### The Solution: Multi-Signal Proof-of-Life Consensus & Cadence Streams
 Cadence replaces fragile guillotine timers and custodial intermediaries with:
 - **Zero Plaintext On-Chain (Constraint #3)**: The contract commits only to a 32-byte `allocationRoot`. Beneficiary shares and blinding salts are encrypted client-side using **ECIES (secp256k1)**.
 - **Multi-Signal Proof-of-Life Consensus Engine**: Inactivity merely opens an attestation window; an on-chain **2-of-2 Guardian Consensus Quorum** (`GuardianRegistry.sol`) must verify inactivity before a contest grace period opens.
 - **Zero "Gas-Linkage" Stealth Recovery (Constraint #1)**: Living owners cancel false alarms by signing an off-chain **EIP-712 typed digest** (`CancelClaim`) with their stealth key. Relayers broadcast the cancellation with **zero ETH gas paid by the owner**, preventing forensic identity linkage.
+- **Cadence Streams — Streaming Family Trust with Circuit Breakers (Flagship)**: Instead of dumping 100% lump-sum, vaults can release an immediate emergency buffer (e.g. 10% on Day 1) and stream the remaining 90% linearly per-second. Unvested funds earn compounding yield (Aave v3 model). If an heir's wallet is compromised, guardians (via Merkle proof) or backup addresses can trigger `pauseStream` and `redirectStream` to permanently rescue remaining funds to a secure cold wallet.
 
 ```mermaid
 flowchart LR
     subgraph S1["1. Atomic Setup"]
         A["1-Click Signature"] --> B["Deposit Capital"]
         B --> C["Blinded Merkle Root"]
+        C --> D["Config Cadence Stream"]
     end
 
     subgraph S2["2. Heartbeat Vitality"]
-        D["Active 62 BPM ECG"] --> E["Paymaster Renewals"]
-        E --> F["Sentinel Daemon Alerts"]
+        E["Active 62 BPM ECG"] --> F["Paymaster Renewals"]
+        F --> G["Sentinel Daemon Alerts"]
     end
 
     subgraph S3["3. Consensus Challenge"]
-        G["Inactivity Arrhythmia"] --> H["2-of-2 Guardian Quorum"]
-        H --> I["72h Grace Contest Window"]
+        H["Inactivity Arrhythmia"] --> I["2-of-2 Guardian Quorum"]
+        I --> J["72h Grace Contest Window"]
     end
 
-    subgraph S4["4. Claim or Stealth Cancel"]
-        J{"Living Owner?"}
-        J -- "Yes (Living)" --> K["EIP-712 Stealth Cancel<br/>(Zero Gas Linkage)"]
-        J -- "No (Finalized)" --> L["In-Memory ECIES Decrypt<br/>Private Merkle Claim"]
+    subgraph S4["4. Claim & Streaming Trust"]
+        K{"Living Owner?"}
+        K -- "Yes (Living)" --> L["EIP-712 Stealth Cancel<br/>(Zero Gas Linkage)"]
+        K -- "No (Finalized)" --> M["Initial Emergency Buffer (10%)<br/>+ Per-Second Linear Vesting Stream<br/>+ Compounding Idle Yield"]
+        M --> N["Guardian Circuit Breaker<br/>(Anti-Drainer Pause & Redirect)"]
     end
 
     S1 --> S2 --> S3 --> S4
@@ -51,10 +55,10 @@ flowchart LR
 
 | Lifecycle Phase | State & Telemetry | Core Mechanics |
 | :--- | :--- | :--- |
-| **1. 1-Click Setup** | `Initial` $\rightarrow$ `Active` | • 1 wallet signature deploys & deposits<br/>• Double-hashed blinded Merkle tree commit<br/>• Zero plaintext shares on-chain |
+| **1. 1-Click Setup** | `Initial` $\rightarrow$ `Active` | • 1 wallet signature deploys & deposits<br/>• Double-hashed blinded Merkle tree commit<br/>• Configure streaming duration & emergency buffer |
 | **2. Heartbeat Rhythm** | `Active (62 BPM)` | • Pimlico Paymaster gasless check-ins<br/>• Sentinel daemon 20s watcher loop<br/>• Shoulder-surfing privacy balance toggle |
 | **3. Consensus Challenge** | `Inactive (92 BPM)` | • 2-of-2 Guardian on-chain quorum verification<br/>• 72h contest grace period opens<br/>• Automated email dispatch to guardians |
-| **4. Recovery vs. Claim** | `Active` or `Finalized (0 BPM)` | • **Living Owner:** EIP-712 stealth cancel (0 gas linkage)<br/>• **Beneficiary:** In-memory ECIES decrypt & Merkle claim |
+| **4. Streaming Trust & Recovery** | `Active` or `Finalized (0 BPM)` | • **Living Owner:** EIP-712 stealth cancel (0 gas linkage)<br/>• **Beneficiary:** Immediate emergency buffer + per-second linear stream + yield<br/>• **Anti-Drainer:** Guardian Merkle pause & safe cold wallet redirect |
 
 ### Key Architectural Invariants
 1. **Zero Gas-Linkage Cancellation (Constraint #1)**: Vault owners cancel contested claims via `cancelClaimWithSig` using an off-chain EIP-712 stealth signature. The transaction can be submitted by any third-party relayer without linking the owner's primary wallet or identity on-chain.
@@ -66,6 +70,7 @@ flowchart LR
 7. **Strict Beneficiary Control & Zero Custodial Trust (Constraint #7)**: Beneficiary backup claim addresses (`registerBackupClaimAddress`) resolve strictly to `msg.sender`. Neither the vault owner nor consensus guardians possess any method to redirect or override an inheritor's claim.
 8. **Dual-Path Paymaster Architecture (Constraint #8)**: Smart accounts route through ERC-4337 verifying paymasters for 0-ETH user operations; plain EOAs execute direct on-chain check-ins without simulation.
 9. **Zero-Simulation Production Integrity (Constraint #9)**: Zero mock fallbacks or fake hashes. All provisioning and check-ins execute real Sepolia transactions.
+10. **Autonomous Streaming Trust & Circuit Breakers (Constraint #10)**: Estate distribution defaults to immediate lump-sum if unconfigured (`streamingDuration == 0`), or transitions to continuous per-second linear vesting with an emergency buffer and on-chain circuit breakers (`pauseStream`, `redirectStream`) to prevent wallet drainers from looting unvested family wealth.
 
 ---
 
@@ -101,7 +106,7 @@ All contracts are compiled with Solidity 0.8.28 (Via-IR enabled) and verified wi
 |---|---|---|
 | 1 | **`ethereum`** | Primary settlement layer for sovereign inheritance vaults. |
 | 2 | **`solidity`** | Language powering `InheritanceVault`, `ProofOfLifeConsensus`, and `OneClickInheritanceVault`. |
-| 3 | **`foundry`** | Rigorous contract test suite (**198/198 passing unit, integration, and fuzz tests**). |
+| 3 | **`foundry`** | Rigorous contract test suite (**208/208 passing unit, integration, and fuzz tests across 15 suites**). |
 | 4 | **`next.js`** | High-performance Next.js 16 frontend with Turbopack and React 19. |
 | 5 | **`typescript`** | Strict static typing across frontend interfaces and Sentinel daemons. |
 | 6 | **`tailwindcss`** | Cyber-minimalist "Pulse" design system, dark mode, and bespoke UI tokens. |
@@ -132,8 +137,8 @@ All contracts are compiled with Solidity 0.8.28 (Via-IR enabled) and verified wi
 The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby, Coinbase Wallet, etc.) and pre-deployed Sepolia test lockers for rapid evaluation. Follow this sequential guide:
 
 ```
-[ Step 1: Owner Pulse ]  ──>  [ Step 2: Guardian Quorum ]  ──>  [ Step 3: Beneficiary Claim ]  ──>  [ Step 4: Stealth Cancel ]
-   Heartbeat & Interval          Attest Inactivity Lapses          In-Memory ECIES Decrypt & Payout     EIP-712 Zero-Gas Recovery
+[ Step 1: Owner Pulse ]  ──>  [ Step 2: Guardian Quorum ]  ──>  [ Step 3: Beneficiary Claim & Streams ]  ──>  [ Step 4: Stealth Cancel ]
+   Heartbeat & Interval          Attest Inactivity Lapses          In-Memory ECIES Decrypt & Payout          EIP-712 Zero-Gas Recovery
 ```
 
 ### Step 1: Connect as Owner $\rightarrow$ View Heartbeat $\rightarrow$ Test Interval Adjustment (5m)
@@ -152,13 +157,19 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
    - Once 2-of-2 quorum is verified on-chain, click **`[⚡ Trigger Contest Challenge Window]`** (or use **`[⚡ Set 5m Test Grace]`** to set a fast 5-minute testing duration).
    - The locker transitions to `ClaimPending` and the ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`). When the challenge countdown elapses, the Sentinel autonomously dispatches contest-concluded alert emails.
 
-### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation via In-Memory ECIES $\rightarrow$ 1-Click Finalize & Claim
+### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation $\rightarrow$ 1-Click Finalize $\rightarrow$ Cadence Streams Claim
 1. Connect as **Alice** (`0x7099...79C8` or your beneficiary wallet).
 2. Open [`/claim`](https://cadence-ebon-six.vercel.app/claim):
    - **Safe In-Memory Key Derivation**: Beneficiaries sign a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory—**zero raw private keys are ever pasted or exposed in UI text fields**. If encrypted allocations are detected, the card exposes a direct **`[🔑 Unlock Allocation to Claim]`** button.
    - **Single- & Multi-Beneficiary Merkle Compliance**: OpenZeppelin-compliant proof verification natively handles both single-beneficiary vaults (where `leaf == root` with empty proof `[]`) and multi-beneficiary trees without false validation errors.
    - **1-Click Finalize on Claim Card**: When the contest grace period elapses, the beneficiary clicks **`[⚡ Finalize Contest on Sepolia & Unlock Claim]`** right on their claim card to advance on-chain state to `Finalized`.
-   - The button immediately switches to **`[Execute Inheritance Claim]`**: The beneficiary receives their exact pro-rata ETH payout atomically on Sepolia (with snapshot balance preservation across multi-heir distributions).
+   - **Dual Claim Modes & Cadence Streams Execution**:
+     - *Standard Lump-Sum*: If streaming duration is 0, transfers 100% pro-rata inheritance immediately.
+     - *Cadence Streams*: If streaming is configured, releases an immediate emergency liquidity buffer (e.g. 10% Day 1 buffer), and unlocks the remaining 90% linearly per-second.
+   - **Live Real-Time Continuous Ticker (100ms)**: Watch the live streaming ticker increment accrued ETH down to 7 decimal places in real-time alongside a live vesting progress bar and countdown. Click **`[⚡ Withdraw Accrued Stream]`** at any moment to claim.
+   - **Anti-Drainer Emergency Circuit Breakers**:
+     - If the heir's wallet is compromised, click **`[⏸ Pause Stream]`** to instantly freeze outflows. Consensus guardians can also pause the stream using their Merkle proof (`pauseStreamWithGuardian`).
+     - Click **`[Safe Cold Wallet Redirection]`** to permanently redirect unvested streams to a safe cold hardware wallet, completely preventing drainers from stealing the family inheritance!
 
 ### Step 4: Stealth Cancel Demo $\rightarrow$ Demonstrate EIP-712 Zero-Gas Cancellation
 1. If testing false-positive or key-compromise defense, open [`/contest`](https://cadence-ebon-six.vercel.app/contest) while in `ClaimPending` state.
@@ -171,7 +182,7 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
 
 ## 4. Architecture & Security Invariant Matrix
 
-Cadence enforces 9 strict cryptographic and architectural invariants across all layers of the stack:
+Cadence enforces 10 strict cryptographic and architectural invariants across all layers of the stack:
 
 | Invariant | Protocol Specification | Cryptographic Primitive | Failure Mode Prevented |
 | :--- | :--- | :--- | :--- |
@@ -180,10 +191,11 @@ Cadence enforces 9 strict cryptographic and architectural invariants across all 
 | **Constraint #3**<br>Allocation Privacy via ECIES | Smart contracts store only a 32-byte `allocationRoot`. Shares are encrypted client-side per beneficiary. | `ECIES-secp256k1` + `MerkleProof.verify` | **Ledger Leakage**: Public explorers reveal zero beneficiary addresses, token counts, or inheritance percentages. |
 | **Constraint #4**<br>Off-Chain 100% Sum Enforcement | Beneficiary shares must strictly sum to 10,000 basis points (100.00%) before Merkle root computation. | Client-side basis-point mathematical verification | **Estate Insolvency**: Prevents fractional under-allocation or impossible over-allocation (>100%) before funds lock. |
 | **Constraint #5**<br>Smart Account Social Recovery | Inherited funds can route directly into ERC-4337 smart accounts with nominated recovery guardians. | `ERC-4337 v0.7` EntryPoint + Guardian Signatures | **Heir Key-Loss**: Inheritors who lose private keys after inheriting assets can socially recover their smart account. |
-| **Constraint #6**<br>EIP-712 Notification Binding | Email notification addresses require cryptographic proof of wallet ownership via signed typed messages. | `EIP-712` `BindEmail` signature verification | **Phishing & Interception**: Attackers cannot bind unauthorized emails to victim wallets to intercept alerts. |
+| **Constraint #6**<br>EIP-712 Email Notification Binding | Email notification addresses require cryptographic proof of wallet ownership via signed typed messages. | `EIP-712` `BindEmail` signature verification | **Phishing & Interception**: Attackers cannot bind unauthorized emails to victim wallets to intercept alerts. |
 | **Constraint #7**<br>Strict Beneficiary Autonomy | Backup claim addresses resolve strictly to `msg.sender`. Vault owners and guardians have zero override power. | Strict `msg.sender` caller enforcement | **Custodial Griefing**: Vault creators or malicious guardians cannot redirect or confiscate an heir's payout. |
 | **Constraint #8**<br>Dual-Path Paymaster Architecture | Paymaster sponsorship routes strictly to ERC-4337 smart accounts; EOAs execute honest direct transactions. | Bytecode check (`code.length > 0`) + Pimlico Paymaster | **Simulated Sponsoring Fallacy**: Plain EOAs cannot be falsely claimed as gasless; surfaces honest gas states. |
 | **Constraint #9**<br>Zero Simulation Integrity | Zero fake transaction hashes, zero random hex generators. All provisioning and actions hit real Sepolia contracts. | Real on-chain contract execution & Etherscan receipts | **Demo Fragility**: Every button click produces verifiable, broadcasted Ethereum Sepolia transactions. |
+| **Constraint #10**<br>Streaming Trust & Circuit Breakers | Unvested inheritance streams per-second with compounding yield and emergency freeze/redirect controls. | Linear Vesting Math + Merkle Guardian Quorum | **Lump-Sum Drainer Trap**: Attacker who steals an heir's key cannot loot the multi-generational estate. |
 
 ---
 
@@ -193,8 +205,8 @@ The core protocol contracts reside in `/contracts/src`:
 
 | Contract | Description |
 |---|---|
-| [`InheritanceVault.sol`](contracts/src/InheritanceVault.sol) | Primary vault holding deposited ETH and whitelisted ERC-20 tokens (USDC, USDT, WBTC). Handles gasless check-ins, Merkle allocation root commitment, backup claim registrations, and pro-rata distributions. |
-| [`ProofOfLifeConsensus.sol`](contracts/src/ProofOfLifeConsensus.sol) | Standalone consensus primitive managing heartbeat tracking, timeout checks, contest window transitions (`Active` $\rightarrow$ `ClaimPending` $\rightarrow$ `Finalized`), and EIP-712 stealth claim cancellation (`cancelClaimWithSig`). |
+| [`InheritanceVault.sol`](contracts/src/InheritanceVault.sol) | Primary vault holding deposited ETH and whitelisted ERC-20 tokens (USDC, USDT, WBTC). Handles gasless check-ins, Merkle allocation roots, and the **Cadence Streams Engine** (`setStreamingConfig`, `claimStream`, `claimableStreamAmount`, `pauseStream`, `pauseStreamWithGuardian`, `resumeStream`, `redirectStream`). |
+| [`ProofOfLifeConsensus.sol`](contracts/src/ProofOfLifeConsensus.sol) | Standalone consensus primitive managing heartbeat tracking, timeout checks, contest window transitions (`Active` $\rightarrow$ `ClaimPending` $\rightarrow$ `Finalized`), and EIP-712 stealth claim cancellation (`cancelClaimWithSig`). Exposes `guardianRegistry()` for cross-contract circuit breaks. |
 | [`GuardianRegistry.sol`](contracts/src/GuardianRegistry.sol) | Verifies M-of-N cryptographic guardian attestations against committed Merkle roots while keeping guardian identities private until claim time. |
 | [`StealthAddressRegistry.sol`](contracts/src/StealthAddressRegistry.sol) | EIP-5564 stealth key registry and announcement mechanism enabling non-linkable deposit addresses. |
 | [`BeneficiarySmartAccount.sol`](contracts/src/BeneficiarySmartAccount.sol) | ERC-4337 v0.7 compliant smart account with EntryPoint integration, M-of-N guardian recovery, and self-managed backup claim delegation. |
@@ -243,7 +255,7 @@ forge install
 forge build
 forge test -vvv
 ```
-*Expected: 13 test suites, 197/197 passed with 0 failures.*
+*Expected: 15 test suites, 208/208 passed with 0 failures.*
 
 ### 3. Deploy Protocol to Sepolia
 Execute the automated deployment script [`Deploy.s.sol`](contracts/script/Deploy.s.sol):
@@ -400,7 +412,8 @@ Cadence features automated testing across smart contracts, cryptographic routine
 cd contracts
 forge test
 ```
-- **13 Test Suites / 197 Tests Passing (0 Failures)**:
+- **15 Test Suites / 208 Tests Passing (0 Failures)**:
+  - `CadenceStreamsTest`: Linear per-second vesting math down to the wei, compounding idle yield accrual, beneficiary pause/resume, guardian Merkle circuit breaker, and cold wallet redirection.
   - `SecurityAuditTest`: Front-run protection on consensus registration, cross-chain/cross-contract EIP-712 attestation replay defense, independent token claim isolation, and authorized balance commitments.
   - `InheritanceVaultTest`: Deposits, check-ins, token whitelists, upkeep triggers.
   - `ProofOfLifeConsensusTest`: Timeout expiration, consensus state machines.
@@ -412,6 +425,9 @@ forge test
   - `StealthAddressRegistryTest`: EIP-5564 announcements and key recovery.
   - `BalanceCommitmentTest`: Pedersen balance proofs and pro-rata deductions.
   - `GuardianAttestationTest`: M-of-N attestation verification.
+  - `OneClickVaultTest`: 1-click atomic deployment, deposit, and consensus binding.
+  - `StealthCancellerTest`: Off-chain typed digest signature recovery and execution.
+  - `PedersenCommitmentTest`: Homomorphic balance blinding and range validation.
 
 ### 2. Frontend Cryptographic & Paymaster Integration Suites
 ```bash

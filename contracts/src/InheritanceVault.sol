@@ -6,6 +6,7 @@ import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IProofOfLifeConsensus} from "./interfaces/IProofOfLifeConsensus.sol";
+import {IGuardianRegistry} from "./interfaces/IGuardianRegistry.sol";
 import {IChainlinkAutomation} from "./interfaces/IChainlinkAutomation.sol";
 import {MerkleProofLib} from "./libraries/MerkleProofLib.sol";
 
@@ -42,6 +43,13 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     error VetoWindowZero();
     error SelfBackupNotAllowed();
     error MaxTokensExceeded();
+    error StreamNotActive();
+    error StreamIsPaused();
+    error InvalidStreamingConfig();
+    error OnlyBeneficiaryOrRecipient();
+    error OnlyBeneficiaryOrBackup();
+    error UnauthorizedGuardian();
+    error NothingToClaim();
 
     // --- Events ---
     event Deposit(address indexed sender, address indexed token, uint256 amount);
@@ -62,6 +70,12 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         uint256 shareBps,
         uint256 ethAmount
     );
+    event StreamingConfigUpdated(uint256 duration, uint256 initialReleaseBps, uint256 yieldBps);
+    event StreamStarted(address indexed beneficiary, uint256 totalShareEth, uint256 initialPayoutEth, uint256 duration);
+    event StreamClaimed(address indexed beneficiary, address indexed recipient, uint256 claimableEth, uint256 accruedYieldEth);
+    event StreamPaused(address indexed beneficiary, address indexed pausedBy);
+    event StreamResumed(address indexed beneficiary, address indexed resumedBy);
+    event StreamRedirected(address indexed beneficiary, address indexed oldRecipient, address indexed newRecipient);
 
     // --- Constants ---
     uint256 public constant MAX_WHITELISTED_TOKENS = 20;
@@ -78,6 +92,29 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         uint256 vetoDeadline;
         bool active;
     }
+
+    // Cadence Streams Data Structure
+    struct BeneficiaryStream {
+        uint256 totalShareEth;
+        uint256 claimedEth;
+        uint256 initialPayoutEth;
+        uint256 startTime;
+        uint256 duration;
+        bool isPaused;
+        address streamRecipient;
+    }
+
+    /// @notice Duration in seconds over which remaining inheritance is streamed (0 = instant lump-sum).
+    uint256 public streamingDuration;
+
+    /// @notice Basis points of total share unlocked immediately on first claim (e.g. 1000 = 10%).
+    uint256 public initialReleaseBps;
+
+    /// @notice Simulated annual yield rate in basis points accrued on locked principal (e.g. 420 = 4.20% APY).
+    uint256 public streamingYieldBps;
+
+    /// @notice Beneficiary stream records.
+    mapping(address => BeneficiaryStream) public beneficiaryStreams;
 
     /// @notice Pre-registered backup claim address and veto window per beneficiary.
     /// @dev Strictly beneficiary-controlled: only the beneficiary can register or revoke their backup address.
@@ -307,6 +344,31 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         emit AllocationRootCommitted(_allocationRoot, block.timestamp);
     }
 
+    /// @notice Configures Cadence Streams streaming trust parameters before finalization.
+    /// @param duration Duration in seconds over which remaining inheritance is streamed (0 = immediate lump-sum).
+    /// @param initialBps Portion of share unlocked immediately (e.g. 1000 = 10%).
+    /// @param yieldBps Annualized yield rate in basis points (e.g. 420 = 4.2%).
+    function setStreamingConfig(
+        uint256 duration,
+        uint256 initialBps,
+        uint256 yieldBps
+    ) external onlyOwner {
+        if (duration > 10 * 365 days) revert InvalidStreamingConfig();
+        if (initialBps > 10000) revert InvalidStreamingConfig();
+        if (yieldBps > 2000) revert InvalidStreamingConfig(); // max 20% APY guard
+
+        IProofOfLifeConsensus.ConsensusState state = consensus.getState(address(this));
+        if (state == IProofOfLifeConsensus.ConsensusState.Finalized) {
+            revert InvalidState(state);
+        }
+
+        streamingDuration = duration;
+        initialReleaseBps = initialBps;
+        streamingYieldBps = yieldBps;
+
+        emit StreamingConfigUpdated(duration, initialBps, yieldBps);
+    }
+
     /// @notice Claims a beneficiary's inheritance allocation once the vault is Finalized.
     /// @dev Verifies a cryptographic Merkle proof against allocationRoot.
     ///      At first claim, snapshots distributable vault assets to ensure exact pro-rata payouts.
@@ -347,27 +409,64 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
 
         hasClaimed[msg.sender] = true;
 
-        // Distribute proportional native ETH
+        // Total calculated ETH share for this beneficiary
         uint256 totalEth = distributionSnapshot[address(0)];
-        uint256 ethPayout = (totalEth * shareBps) / 10000;
-        if (ethPayout > 0) {
-            (bool success, ) = msg.sender.call{value: ethPayout}("");
-            if (!success) revert TransferFailed();
-        }
+        uint256 fullEthShare = (totalEth * shareBps) / 10000;
 
-        // Distribute proportional whitelisted ERC-20 tokens
-        for (uint256 i = 0; i < whitelistedTokens.length; i++) {
-            address token = whitelistedTokens[i];
-            uint256 totalToken = distributionSnapshot[token];
-            if (totalToken > 0) {
-                uint256 tokenPayout = (totalToken * shareBps) / 10000;
-                if (tokenPayout > 0) {
-                    _safeTransferCatching(token, msg.sender, tokenPayout);
+        if (streamingDuration == 0) {
+            // Legacy / Standard Mode: 100% immediate lump-sum distribution
+            if (fullEthShare > 0) {
+                (bool success, ) = msg.sender.call{value: fullEthShare}("");
+                if (!success) revert TransferFailed();
+            }
+
+            // Distribute proportional whitelisted ERC-20 tokens
+            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+                address token = whitelistedTokens[i];
+                uint256 totalToken = distributionSnapshot[token];
+                if (totalToken > 0) {
+                    uint256 tokenPayout = (totalToken * shareBps) / 10000;
+                    if (tokenPayout > 0) {
+                        _safeTransferCatching(token, msg.sender, tokenPayout);
+                    }
                 }
             }
-        }
 
-        emit ClaimExecuted(msg.sender, shareBps, ethPayout);
+            emit ClaimExecuted(msg.sender, shareBps, fullEthShare);
+        } else {
+            // Cadence Streams Mode: Immediate emergency release + initialize real-time stream
+            uint256 initialEthPayout = (fullEthShare * initialReleaseBps) / 10000;
+            if (initialEthPayout > 0) {
+                (bool success, ) = msg.sender.call{value: initialEthPayout}("");
+                if (!success) revert TransferFailed();
+            }
+
+            // Distribute initial release of whitelisted tokens
+            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+                address token = whitelistedTokens[i];
+                uint256 totalToken = distributionSnapshot[token];
+                if (totalToken > 0) {
+                    uint256 fullTokenShare = (totalToken * shareBps) / 10000;
+                    uint256 initialTokenPayout = (fullTokenShare * initialReleaseBps) / 10000;
+                    if (initialTokenPayout > 0) {
+                        _safeTransferCatching(token, msg.sender, initialTokenPayout);
+                    }
+                }
+            }
+
+            beneficiaryStreams[msg.sender] = BeneficiaryStream({
+                totalShareEth: fullEthShare,
+                claimedEth: initialEthPayout,
+                initialPayoutEth: initialEthPayout,
+                startTime: block.timestamp,
+                duration: streamingDuration,
+                isPaused: false,
+                streamRecipient: msg.sender
+            });
+
+            emit StreamStarted(msg.sender, fullEthShare, initialEthPayout, streamingDuration);
+            emit ClaimExecuted(msg.sender, shareBps, initialEthPayout);
+        }
     }
 
     // --- Beneficiary Backup-Claim Address Feature (Delay / Veto Window) ---
@@ -492,25 +591,199 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
 
         // Distribute proportional native ETH directly to the backup address (msg.sender)
         uint256 totalEth = distributionSnapshot[address(0)];
-        uint256 ethPayout = (totalEth * shareBps) / 10000;
-        if (ethPayout > 0) {
-            (bool success, ) = msg.sender.call{value: ethPayout}("");
+        uint256 fullEthShare = (totalEth * shareBps) / 10000;
+
+        if (streamingDuration == 0) {
+            if (fullEthShare > 0) {
+                (bool success, ) = msg.sender.call{value: fullEthShare}("");
+                if (!success) revert TransferFailed();
+            }
+
+            // Distribute proportional whitelisted ERC-20 tokens directly to the backup address
+            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+                address token = whitelistedTokens[i];
+                uint256 totalToken = distributionSnapshot[token];
+                if (totalToken > 0) {
+                    uint256 tokenPayout = (totalToken * shareBps) / 10000;
+                    if (tokenPayout > 0) {
+                        _safeTransferCatching(token, msg.sender, tokenPayout);
+                    }
+                }
+            }
+
+            emit BackupClaimExecuted(beneficiary, msg.sender, shareBps, fullEthShare);
+        } else {
+            uint256 initialEthPayout = (fullEthShare * initialReleaseBps) / 10000;
+            if (initialEthPayout > 0) {
+                (bool success, ) = msg.sender.call{value: initialEthPayout}("");
+                if (!success) revert TransferFailed();
+            }
+
+            // Distribute initial release of whitelisted tokens
+            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+                address token = whitelistedTokens[i];
+                uint256 totalToken = distributionSnapshot[token];
+                if (totalToken > 0) {
+                    uint256 fullTokenShare = (totalToken * shareBps) / 10000;
+                    uint256 initialTokenPayout = (fullTokenShare * initialReleaseBps) / 10000;
+                    if (initialTokenPayout > 0) {
+                        _safeTransferCatching(token, msg.sender, initialTokenPayout);
+                    }
+                }
+            }
+
+            beneficiaryStreams[beneficiary] = BeneficiaryStream({
+                totalShareEth: fullEthShare,
+                claimedEth: initialEthPayout,
+                initialPayoutEth: initialEthPayout,
+                startTime: block.timestamp,
+                duration: streamingDuration,
+                isPaused: false,
+                streamRecipient: msg.sender
+            });
+
+            emit StreamStarted(beneficiary, fullEthShare, initialEthPayout, streamingDuration);
+            emit BackupClaimExecuted(beneficiary, msg.sender, shareBps, initialEthPayout);
+        }
+    }
+
+    // --- Cadence Streams — Autonomous Streaming Trust & Circuit Breakers ---
+
+    /// @notice Returns current claimable amount, remaining locked, and accrued yield for a beneficiary's stream.
+    /// @param beneficiary The primary beneficiary address.
+    function claimableStreamAmount(address beneficiary)
+        public
+        view
+        returns (
+            uint256 claimableEth,
+            uint256 totalVestedEth,
+            uint256 remainingLockedEth,
+            uint256 accruedYieldEth
+        )
+    {
+        BeneficiaryStream memory stream = beneficiaryStreams[beneficiary];
+        if (stream.totalShareEth == 0 || stream.isPaused) {
+            return (0, 0, 0, 0);
+        }
+
+        uint256 elapsed = block.timestamp > stream.startTime ? block.timestamp - stream.startTime : 0;
+        uint256 effectiveElapsed = elapsed > stream.duration ? stream.duration : elapsed;
+
+        uint256 streamablePrincipal = stream.totalShareEth > stream.initialPayoutEth
+            ? stream.totalShareEth - stream.initialPayoutEth
+            : 0;
+
+        uint256 vestedStream = stream.duration > 0
+            ? (streamablePrincipal * effectiveElapsed) / stream.duration
+            : streamablePrincipal;
+
+        totalVestedEth = stream.initialPayoutEth + vestedStream;
+        uint256 baseClaimable = totalVestedEth > stream.claimedEth ? totalVestedEth - stream.claimedEth : 0;
+
+        remainingLockedEth = stream.totalShareEth > totalVestedEth ? stream.totalShareEth - totalVestedEth : 0;
+
+        if (streamingYieldBps > 0 && remainingLockedEth > 0 && elapsed > 0) {
+            accruedYieldEth = (remainingLockedEth * streamingYieldBps * effectiveElapsed) / (10000 * 365 days);
+        }
+
+        claimableEth = baseClaimable + accruedYieldEth;
+    }
+
+    /// @notice Claims accrued per-second streaming allowance for a beneficiary.
+    /// @param beneficiary The beneficiary whose stream is being claimed.
+    function claimStream(address beneficiary) external nonReentrant {
+        BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
+        if (stream.totalShareEth == 0) revert StreamNotActive();
+        if (stream.isPaused) revert StreamIsPaused();
+
+        address recipient = stream.streamRecipient;
+        if (msg.sender != recipient && msg.sender != beneficiary) {
+            revert OnlyBeneficiaryOrRecipient();
+        }
+
+        (
+            uint256 claimableEth,
+            uint256 totalVestedEth,
+            ,
+            uint256 accruedYieldEth
+        ) = claimableStreamAmount(beneficiary);
+
+        if (claimableEth == 0) revert NothingToClaim();
+
+        // Update claimed base amount (capped at totalShareEth)
+        stream.claimedEth = totalVestedEth > stream.totalShareEth ? stream.totalShareEth : totalVestedEth;
+
+        // Transfer funds to recipient
+        uint256 payout = claimableEth > address(this).balance ? address(this).balance : claimableEth;
+        if (payout > 0) {
+            (bool success, ) = recipient.call{value: payout}("");
             if (!success) revert TransferFailed();
         }
 
-        // Distribute proportional whitelisted ERC-20 tokens directly to the backup address
-        for (uint256 i = 0; i < whitelistedTokens.length; i++) {
-            address token = whitelistedTokens[i];
-            uint256 totalToken = distributionSnapshot[token];
-            if (totalToken > 0) {
-                uint256 tokenPayout = (totalToken * shareBps) / 10000;
-                if (tokenPayout > 0) {
-                    _safeTransferCatching(token, msg.sender, tokenPayout);
-                }
-            }
+        emit StreamClaimed(beneficiary, recipient, payout, accruedYieldEth);
+    }
+
+    /// @notice Emergency pauses an active stream. Callable by beneficiary or current recipient.
+    function pauseStream(address beneficiary) external {
+        BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
+        if (stream.totalShareEth == 0) revert StreamNotActive();
+        if (msg.sender != beneficiary && msg.sender != stream.streamRecipient) {
+            revert OnlyBeneficiaryOrRecipient();
+        }
+        stream.isPaused = true;
+        emit StreamPaused(beneficiary, msg.sender);
+    }
+
+    /// @notice Guardian emergency circuit breaker: pauses a stream upon detecting drainer activity.
+    /// @param beneficiary The beneficiary stream to pause.
+    /// @param guardianProof Merkle proof verifying caller is a consensus guardian for this vault.
+    function pauseStreamWithGuardian(address beneficiary, bytes32[] calldata guardianProof) external {
+        BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
+        if (stream.totalShareEth == 0) revert StreamNotActive();
+
+        IGuardianRegistry guardianReg = consensus.guardianRegistry();
+        bool isGuardian = guardianReg.verifyGuardian(address(this), msg.sender, guardianProof);
+        if (!isGuardian) revert UnauthorizedGuardian();
+
+        stream.isPaused = true;
+        emit StreamPaused(beneficiary, msg.sender);
+    }
+
+    /// @notice Resumes a paused stream. Callable by beneficiary or recipient.
+    function resumeStream(address beneficiary) external {
+        BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
+        if (stream.totalShareEth == 0) revert StreamNotActive();
+        if (msg.sender != beneficiary && msg.sender != stream.streamRecipient) {
+            revert OnlyBeneficiaryOrRecipient();
+        }
+        stream.isPaused = false;
+        emit StreamResumed(beneficiary, msg.sender);
+    }
+
+    /// @notice Reroutes future streaming payouts to a safe address if the primary wallet was compromised.
+    /// @dev Callable by beneficiary OR by the pre-registered backup claim address.
+    function redirectStream(address beneficiary, address newRecipient) external {
+        if (newRecipient == address(0)) revert ZeroAddress();
+        BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
+        if (stream.totalShareEth == 0) revert StreamNotActive();
+
+        address backup = beneficiaryBackups[beneficiary].backupAddress;
+        if (msg.sender != beneficiary && msg.sender != backup && msg.sender != stream.streamRecipient) {
+            revert OnlyBeneficiaryOrBackup();
         }
 
-        emit BackupClaimExecuted(beneficiary, msg.sender, shareBps, ethPayout);
+        address oldRecipient = stream.streamRecipient;
+        stream.streamRecipient = newRecipient;
+        emit StreamRedirected(beneficiary, oldRecipient, newRecipient);
+    }
+
+    /// @notice Returns full stream details for a beneficiary.
+    function getBeneficiaryStream(address beneficiary)
+        external
+        view
+        returns (BeneficiaryStream memory)
+    {
+        return beneficiaryStreams[beneficiary];
     }
 
     /// @notice Attempts ERC-20 token transfer safely without reverting the whole transaction on failure.

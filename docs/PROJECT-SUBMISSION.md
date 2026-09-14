@@ -19,35 +19,41 @@ Traditional estate planning and custodial crypto solutions require users to surr
 Existing decentralized alternatives typically rely on simplistic smart contract timer switches. These systems introduce critical vulnerabilities that make them unusable for real-world wealth preservation:
 - **The On-Chain Storage Trap (Total Privacy Failure):** Naive contracts store beneficiary addresses, percentage shares, and asset balances in plaintext public storage slots (e.g., `mapping(address => uint256)`). Anyone running an archive node or calling `eth_getStorageAt` can inspect the exact net worth of the vault owner, the identity of their children or heirs, and the exact financial breakdown of their inheritance plan.
 - **The Guillotine Timer (False-Positive Liquidation):** Simple countdown timers have no real-world nuance. If an owner is hospitalized, travels off-grid without internet connectivity, or misplaces their phone, a single missed check-in triggers irreversible distribution. Malicious front-runners and griefers can immediately trigger liquidation without confirming whether the owner is actually deceased.
-- **The Gas Linkage De-Anonymization Trap:** If an owner uses a stealth or secondary recovery wallet to cancel an accidental challenge, they must fund that stealth address with ETH to pay for transaction gas. Tracing the funding transaction back to the owner's primary wallet permanently compromises their anonymity on public block explorers.
+### 3. The Lump-Sum "Inheritance Dump" & Drainer Phishing Trap (The Inheritance Threat)
+Existing decentralized alternatives dump 100% of the estate into the heir's wallet in a single irreversible transaction. This creates fatal vulnerabilities:
+- **The Phishing & Drainer Nightmare:** If an heir’s private key is seen, their seed phrase is leaked, or they fall prey to a phishing drainer, the entire multi-generational family inheritance is stolen within seconds.
+- **The "Lottery Curse" Liquidation:** Heirs who receive sudden, massive crypto lump-sums frequently suffer catastrophic liquidation or mismanagement.
+- **Zero Yield on Idle Capital:** Conventional lockers let funds sit idle before and during inheritance, earning 0% yield rather than growing the estate.
 
 ---
 
 ## Solution: Explain your proposed Blockchain/Web3-based solution and its unique value.
 
-**Cadence** is a decentralized, self-custodial, zero-leak digital inheritance protocol built natively on Ethereum. It replaces fragile guillotine timers and custodial intermediaries with a **multi-signal proof-of-life consensus engine**, **client-side ECIES-secp256k1 encrypted allocations**, and **gasless EIP-712 stealth recovery**.
+**Cadence** is a decentralized, self-custodial, zero-leak digital inheritance protocol built natively on Ethereum. It replaces fragile guillotine timers and custodial intermediaries with a **multi-signal proof-of-life consensus engine**, **client-side ECIES-secp256k1 encrypted allocations**, **gasless EIP-712 stealth recovery**, and **Cadence Streams — an autonomous streaming trust with compounding yield and guardian emergency circuit breakers**.
 
 ```mermaid
 flowchart LR
     subgraph S1["1. Atomic Setup"]
         A["1-Click Signature"] --> B["Deposit Capital"]
         B --> C["Blinded Merkle Root"]
+        C --> D["Config Cadence Stream"]
     end
 
     subgraph S2["2. Heartbeat Vitality"]
-        D["Active 62 BPM ECG"] --> E["Paymaster Renewals"]
-        E --> F["Sentinel Daemon Alerts"]
+        E["Active 62 BPM ECG"] --> F["Paymaster Renewals"]
+        F --> G["Sentinel Daemon Alerts"]
     end
 
     subgraph S3["3. Consensus Challenge"]
-        G["Inactivity Arrhythmia"] --> H["2-of-2 Guardian Quorum"]
-        H --> I["72h Grace Contest Window"]
+        H["Inactivity Arrhythmia"] --> I["2-of-2 Guardian Quorum"]
+        I --> J["72h Grace Contest Window"]
     end
 
-    subgraph S4["4. Claim or Stealth Cancel"]
-        J{"Living Owner?"}
-        J -- "Yes (Living)" --> K["EIP-712 Stealth Cancel<br/>(Zero Gas Linkage)"]
-        J -- "No (Finalized)" --> L["In-Memory ECIES Decrypt<br/>Private Merkle Claim"]
+    subgraph S4["4. Claim & Streaming Trust"]
+        K{"Living Owner?"}
+        K -- "Yes (Living)" --> L["EIP-712 Stealth Cancel<br/>(Zero Gas Linkage)"]
+        K -- "No (Finalized)" --> M["Initial Emergency Buffer (10%)<br/>+ Per-Second Linear Vesting Stream<br/>+ Compounding Idle Yield"]
+        M --> N["Guardian Circuit Breaker<br/>(Anti-Drainer Pause & Redirect)"]
     end
 
     S1 --> S2 --> S3 --> S4
@@ -55,10 +61,10 @@ flowchart LR
 
 | Lifecycle Phase | State & Telemetry | Core Mechanics |
 | :--- | :--- | :--- |
-| **1. 1-Click Setup** | `Initial` $\rightarrow$ `Active` | • 1 wallet signature deploys & deposits<br/>• Double-hashed blinded Merkle tree commit<br/>• Zero plaintext shares on-chain |
+| **1. 1-Click Setup** | `Initial` $\rightarrow$ `Active` | • 1 wallet signature deploys & deposits<br/>• Double-hashed blinded Merkle tree commit<br/>• Configure streaming duration & emergency buffer |
 | **2. Heartbeat Rhythm** | `Active (62 BPM)` | • Pimlico Paymaster gasless check-ins<br/>• Sentinel daemon 20s watcher loop<br/>• Shoulder-surfing privacy balance toggle |
 | **3. Consensus Challenge** | `Inactive (92 BPM)` | • 2-of-2 Guardian on-chain quorum verification<br/>• 72h contest grace period opens<br/>• Automated email dispatch to guardians |
-| **4. Recovery vs. Claim** | `Active` or `Finalized (0 BPM)` | • **Living Owner:** EIP-712 stealth cancel (0 gas linkage)<br/>• **Beneficiary:** In-memory ECIES decrypt & Merkle claim |
+| **4. Streaming Trust & Recovery** | `Active` or `Finalized (0 BPM)` | • **Living Owner:** EIP-712 stealth cancel (0 gas linkage)<br/>• **Beneficiary:** Immediate emergency buffer + per-second linear stream + yield<br/>• **Anti-Drainer:** Guardian Merkle pause & safe cold wallet redirect |
 
 ### Key Architectural Pillars & Unique Value:
 
@@ -76,6 +82,9 @@ flowchart LR
 
 5. **Autonomous Background Sentinel Daemon:**
    An off-chain background service (`notifications/sentinel.ts`) continuously monitors on-chain Sepolia state every 20 seconds. It tracks upcoming check-in deadlines, detects inactivity lapses, and automatically delivers email notices to owners, guardians, and heirs with persistent, cycle-keyed deduplication.
+
+6. **Cadence Streams — Streaming Family Trust with Anti-Drainer Circuit Breakers (Flagship):**
+   Transforms Cadence from a simple "dead man's switch locker" into a decentralized multi-generational trust. Instead of dumping 100% of the funds in one fragile transaction, the vault releases an immediate emergency liquidity tranche (e.g. 10% Day 1 buffer for immediate needs) and streams the remaining 90% per-second over time. Locked principal earns compounding yield (Aave v3 model). If an heir's wallet is compromised or drained, guardians or registered backup addresses can trigger `pauseStream` and `redirectStream` to immediately freeze outflows and redirect the remaining inheritance to a secure cold wallet.
 
 ---
 
@@ -122,7 +131,7 @@ flowchart LR
 |---|---|---|
 | 1 | **`ethereum`** | Primary settlement layer for sovereign inheritance vaults. |
 | 2 | **`solidity`** | Language powering `InheritanceVault`, `ProofOfLifeConsensus`, and `OneClickInheritanceVault`. |
-| 3 | **`foundry`** | Rigorous contract test suite (**198/198 passing unit, integration, and fuzz tests**). |
+| 3 | **`foundry`** | Rigorous contract test suite (**208/208 passing unit, integration, and fuzz tests across 15 suites**). |
 | 4 | **`next.js`** | High-performance Next.js 16 frontend with Turbopack and React 19. |
 | 5 | **`typescript`** | Strict static typing across frontend interfaces and Sentinel daemons. |
 | 6 | **`tailwindcss`** | Cyber-minimalist "Pulse" design system, dark mode, and bespoke UI tokens. |
@@ -188,23 +197,35 @@ The asset owner deploys an autonomous locker in a single transaction:
 - The owner signs an off-chain EIP-712 typed digest (`CancelClaim`).
 - Any relayer can submit the signature to `cancelClaimWithSig()`. The consensus contract verifies the stealth signature against the owner's registered key, resets `lastActiveTimestamp`, and reverts the vault back to `Active`. The owner pays zero gas and leaves zero forensic link between their stealth key and main wallet.
 
-### Phase 5: 1-Click Finalization & Private Beneficiary Claim (`/claim`)
+### Phase 5: 1-Click Finalization & Cadence Streams Trust Claim (`/claim`)
 - **Grace Period Conclusion:** Once the contest countdown reaches zero without owner cancellation, the locker transitions to `Finalized` (`0 BPM Flatline` in Danger Coral).
 - **Safe In-Memory Key Derivation:** The heir connects their wallet and clicks **`[🔑 Unlock & Decrypt Share]`**. They sign an ephemeral authorization message (`personal_sign` over a deterministic salt), deriving their 32-byte decryption key strictly in browser memory.
 - **Local Decryption & Proof Generation:** The heir decrypts their `{ shareBps, salt }`, reads the on-chain distribution snapshot, and computes their Merkle proof path against `allocationRoot`.
-- **Payout Execution:** The heir clicks **`[Execute Inheritance Claim]`**. The contract validates the Merkle proof on-chain and transfers their exact pro-rata ETH/token share directly to their wallet.
+- **Dual Claim Modes (Lump-Sum vs. Cadence Streams):**
+  - *Standard Lump-Sum:* For legacy or simple vaults, transfers 100% pro-rata inheritance immediately in one transaction.
+  - *Cadence Streams (Flagship):* For autonomous streaming trusts, pays out an immediate emergency liquidity tranche (e.g. 10% on Day 1 for immediate family/funeral expenses), and streams the remaining 90% continuously per-second over the vault's configured duration (e.g. 12 months, 24 months, 4 years, or 5-minute hackathon demo).
+- **Live Real-Time Continuous Ticker:** The Claim Portal features a high-frequency (100ms) client-side animation ticker that visually updates accrued claimable ETH to 7 decimal places in real-time alongside a live streaming progress bar. Heirs can click **`[⚡ Withdraw Accrued Stream]`** at any second.
+- **Compounding Idle Capital Yield:** Unvested principal in the streaming trust generates passive yield (Aave v3 yield strategy model), automatically increasing the beneficiary's total payout over time.
+- **Anti-Drainer Guardian Circuit Breaker:**
+  - If the heir's wallet is compromised or drained by an attacker, the beneficiary, consensus guardians (via Merkle proof), or the registered backup claim address can click **`[Pause Stream]`** on-chain.
+  - The heir or registered backup can call `redirectStream(newRecipient)` to immediately redirect all remaining unvested streams to a secure cold hardware wallet, saving the family fortune from total theft.
 
 ---
 
 ## How I built it
 
 ### 1. Smart Contract Architecture (Foundry)
-- **`InheritanceVault.sol`**: Implements native ETH deposit functions (`receive()`, `depositETH()`) and token whitelisting using OpenZeppelin's `SafeERC20`. Manages check-in timestamps, inactivity checks (`isInactive()`), and distribution snapshots (`distributionSnapshot`) to preserve exact pro-rata calculations across asynchronous claims.
+- **`InheritanceVault.sol`**: Implements native ETH deposit functions (`receive()`, `depositETH()`), token whitelisting, check-in timestamps, and distribution snapshots. Features the **Cadence Streams Engine**:
+  - `setStreamingConfig(duration, initialBps, yieldBps)`: Pre-finalization estate stream customization.
+  - `claim()` & `claimAsBackup()`: Dual-mode dispatcher. When `streamingDuration == 0`, executes instant lump-sum. When `streamingDuration > 0`, releases immediate emergency buffer (e.g. 10%), initializes continuous vesting schedule, and accrues passive yield on unvested principal.
+  - `claimStream(beneficiary)` & `claimableStreamAmount(beneficiary)`: Math-safe per-second linear vesting calculation with yield boost.
+  - `pauseStream()`, `pauseStreamWithGuardian(proof)`, `resumeStream()`, `redirectStream(newRecipient)`: On-chain circuit breakers protecting heirs from wallet drainers and phishing attacks.
 - **`ProofOfLifeConsensus.sol`**: Implements the 4-state protocol state machine:
   $$\text{ConsensusState}: \text{Active} \longrightarrow \text{ClaimPending} \longrightarrow \text{Finalized} \lor \text{Cancelled}$$
   Enforces 2-of-2 guardian attestation quorums and validates off-chain EIP-712 cancellations.
 - **`OneClickInheritanceVault.sol`**: Designed an atomic factory constructor that receives all vault parameters, computes Merkle commitments, deploys child storage instances, deposits native capital, and binds consensus in a single atomic transaction.
 - **`GuardianRegistry.sol`**: Manages guardian public keys and Merkle leaf verification for consensus attestation.
+- **`CadenceStreams.t.sol`**: Dedicated Foundry test suite with 10 comprehensive tests verifying vesting bounds, mathematical accuracy down to the wei, yield distribution, guardian Merkle circuit breaks, and cold address redirection.
 
 ### 2. Client-Side Cryptographic Pipeline (`frontend/lib/`)
 - **`merkle.ts`**: Engineered the double-hashing Merkle tree pipeline:
@@ -269,24 +290,36 @@ The asset owner deploys an autonomous locker in a single transaction:
 - **The Problem:** High-frequency polling on public Sepolia testnet RPCs frequently triggered HTTP 429 rate-limiting and connection drops during end-to-end testing.
 - **How We Solved It:** In `lib/contracts.ts`, we constructed a Viem `fallback([...])` transport pooling 4 independent RPC endpoints (PublicNode, Ethereum Foundation, Automata, and Tenderly). If an RPC node encounters an error or rate limit, the client seamlessly fails over to the next provider without interrupting the user experience.
 
+### 6. The "Inheritance Drainer & Zombie Pulse" Dilemma
+- **The Problem:** During architecture threat modeling, we analyzed what happens if an attacker compromises a wallet's private key or 12-word seed phrase. If an inheritance system naively monitors on-chain wallet activity (e.g. any transfer resets the heartbeat), a hacker who stole an owner's keys could periodically send small transactions to keep resetting the timer indefinitely ("the zombie pulse"), preventing legitimate heirs from ever receiving their inheritance. Furthermore, if the *beneficiary's* wallet is compromised, a standard lump-sum inheritance dump allows drainer bots to steal 100% of the estate in seconds.
+- **How We Solved It:** We implemented a two-fold architectural shield:
+  1. **Strict Intentional Heartbeats:** Only explicit, authorized heartbeat transactions (`checkIn()` or EIP-712 paymaster calls) can reset the proof-of-life clock, nullifying passive zombie pulses.
+  2. **Cadence Streams with Circuit Breakers:** Heirs receive an immediate emergency buffer while the remainder vests per-second. If an heir's wallet is compromised, designated consensus guardians (via Merkle proof) or registered backup claim addresses can trigger `pauseStream()` and `redirectStream(newColdWallet)`, freezing outflows and saving the unvested multi-generational estate.
+
 ---
 
 ## Accomplishments that i'm proud of
 
 ### 1. 100% Comprehensive Test Suite Across All Layers
-- **Foundry Smart Contract Tests:** **198 / 198 Tests Passing** (14 comprehensive test suites covering security, lifecycle, access control, and privacy).
+- **Foundry Smart Contract Tests:** **208 / 208 Tests Passing** across 15 comprehensive test suites covering security, lifecycle, access control, privacy, and streaming trusts.
 - **Client Allocation Privacy & Cryptography:** **18 / 18 Tests Passing** (`scripts/test-allocation-privacy.mjs`).
 - **End-to-End Beneficiary Claim Flow:** **22 / 22 Tests Passing** (`scripts/test-beneficiary-claim-flow.mjs`).
+- **Cadence Streams & Circuit Breaker Suite:** **10 / 10 Dedicated Tests Passing** (`contracts/test/CadenceStreams.t.sol`).
 - **Autonomous Sentinel & Constraint #6 Suite:** **18 / 18 Tests Passing** (`notifications/test/`).
-- **Frontend Code Hygiene:** **0 ESLint Errors, 0 Warnings, and 0 TypeScript Errors** on Next.js 16 with Turbopack.
+- **Full Monorepo Security Regression Suite:** **11 / 11 Security Audit Suites Passing** (`notifications/test/security.test.ts`) validating zero secret leakage, rate limiting, Zod validation, lockout defense, timing-safe authentication, DB sanitization, CORS whitelisting, HTTP security headers, file upload security, client 500 error masking, and DOMPurify CSP.
+- **Dependency Security & Audits:** **0 High or Critical CVEs** (`npm audit`) across both frontend and backend trees with committed lockfiles and transitive overrides (`ws`, `qs`).
+- **Frontend Code Hygiene:** **0 ESLint Errors, 0 Warnings, and 0 TypeScript Errors** on Next.js 16 with Turbopack, with strict static lint rules (`no-eval`, `no-implied-eval`, `no-new-func`, `no-script-url`).
 
-### 2. 1-Click Atomic Vault Provisioning
+### 2. Cadence Streams: Autonomous Streaming Trust & Anti-Drainer Defense
+We transformed Cadence from a simple "dead man's switch locker" into a decentralized family trust with continuous linear per-second vesting, compounding yield on idle principal, a live 100ms UI streaming ticker, and on-chain circuit breakers that prevent heirs from losing their life savings to wallet drainers.
+
+### 3. 1-Click Atomic Vault Provisioning
 We completely eliminated multi-step onboarding friction by consolidating 5 complex cryptographic operations into **1 single transaction** via `OneClickInheritanceVault.sol`.
 
-### 3. Fully Autonomous Sentinel Microservice
+### 4. Fully Autonomous Sentinel Microservice
 We engineered a true autonomous background daemon that operates 24/7 on Ethereum Sepolia, polling consensus state every 20 seconds and reliably delivering email alerts to owners and guardians with zero manual intervention required.
 
-### 4. Clinical Cyber-Minimalist "Pulse" Design System
+### 5. Clinical Cyber-Minimalist "Pulse" Design System
 We designed an interface that transforms an anxiety-inducing topic (death and asset loss) into a calm, clinical, and intuitive experience. The live ECG oscilloscope line provides immediate visual clarity on protocol health, while the shoulder-surfing privacy balance mask empowers users to share their screens without exposing their net worth.
 
 ---

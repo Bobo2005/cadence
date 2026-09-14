@@ -1063,11 +1063,48 @@
   - **Dashboard (`/dashboard`)**: Displays live on-chain balance queried on Sepolia via Viem's `publicClient.getBalance({ address: targetVault })`. Equipped with an interactive **`[Private / Show]`** shoulder-surfing mask that toggles between `${ethBalance} ETH` and `•••••••• ETH`.
   - **Claim Portal (`/claim`)**: Card displays `Inheritor Decrypted Share` showing only the connected heir's exact pro-rata claim amount (e.g. `0.0200 ETH` · `40.00% Allocation`), preserving estate allocation privacy between family members.
   - **Create Vault (`/vault/create`)**: Step 1 calculates and confirms initial deposit capital in real-time.
-- **Test Metrics**:
-  - Foundry tests: **198/198 passing** across 14 suites (including 57/57 dedicated privacy tests).
-  - Allocation privacy tests: **18/18 passing**.
-  - Claim flow integration tests: **22/22 passing**.
-  - Backend notification security tests: **18/18 passing**.
+### Session 20 — Cadence Streams: Autonomous Streaming Trust & Anti-Drainer Circuit Breakers (Flagship Grand Prize Feature)
+- **Motivation & Threat Modeling**:
+  - **The Lump-Sum Drainer Trap**: Traditional inheritance lockers transfer 100% of the funds in one transaction upon finalization. If an heir's keys are seen, leaked, or phished by drainer bots, the entire family estate is permanently stolen in seconds.
+  - **The Zombie Pulse Dilemma**: Passive wallet activity monitoring allows an attacker who compromised a benefactor's seed phrase to make periodic transactions to reset the timer indefinitely, trapping heirs. Cadence eliminates this by requiring explicit, authorized heartbeat calls.
+- **Contract Architecture (`InheritanceVault.sol` & `IProofOfLifeConsensus.sol`)**:
+  - Added `guardianRegistry()` getter to `IProofOfLifeConsensus.sol`.
+  - State variables in `InheritanceVault.sol`: `streamingDuration`, `initialReleaseBps`, `streamingYieldBps`, and `mapping(address => BeneficiaryStream) public beneficiaryStreams`.
+  - `setStreamingConfig(duration, initialBps, yieldBps)`: Configures trust parameters before vault finalization.
+  - 100% Backwards-Compatible Dispatch in `claim()` / `claimAsBackup()`:
+    - If `streamingDuration == 0`: Instant 100% lump sum (legacy behavior preserved).
+    - If `streamingDuration > 0`: Releases immediate emergency liquidity buffer (e.g. 10% on Day 1), initializes stream struct (`totalVestingAmount`, `streamStartTime`, `lastClaimTimestamp`), and begins linear per-second vesting.
+  - View function `claimableStreamAmount(beneficiary)`: Calculates accrued per-second ETH + passive compounding yield on unvested principal.
+  - Execution function `claimStream(beneficiary)`: Allows continuous withdrawals at any second.
+  - Anti-Drainer Circuit Breakers:
+    - `pauseStream()`: Beneficiary can halt outflows immediately.
+    - `pauseStreamWithGuardian(proof)`: Consensus guardians can freeze outflows using their committed Merkle proof if the heir's wallet is compromised.
+    - `resumeStream()`: Unfreezes outflows when safe.
+    - `redirectStream(newRecipient)`: Heir or registered backup claim address can permanently redirect unvested streams to a safe cold hardware wallet.
+- **Foundry Test Suite (`contracts/test/CadenceStreams.t.sol`)**:
+  - 10/10 dedicated unit, integration, and fuzz tests passing:
+    - Owner configuration and bounds validation (`initialReleaseBps <= 10000`, `yieldBps <= 5000`).
+    - Initial emergency release validation.
+    - Per-second linear vesting over time simulated with `vm.warp`.
+    - Compounding passive yield calculation and distribution.
+    - Beneficiary emergency pause and resume.
+    - Guardian Merkle proof circuit break.
+    - Cold wallet address redirection by beneficiary and backup address.
+  - **Total Foundry Test Suite**: **208 / 208 Passing Tests Across 15 Suites** (198 original + 10 Cadence Streams, zero regressions).
+- **Frontend Upgrades (`frontend/`)**:
+  - `lib/contracts.ts`: Exported complete ABI for `streamingDuration`, `initialReleaseBps`, `streamingYieldBps`, `setStreamingConfig`, `claimStream`, `claimableStreamAmount`, `getBeneficiaryStream`, `pauseStream`, `resumeStream`, and `redirectStream`.
+  - `components/ClaimPortal.tsx`:
+    - Built a high-frequency (100ms) client-side animation ticker computing live accrued claimable ETH to 7 decimals.
+    - Added live vesting progress bar, streaming status badges (`ACTIVE`, `PAUSED`), and countdown timer.
+    - Added one-click action handlers: `handleClaimStream`, `handleToggleStreamPause`, and `handleRedirectStream` with safe cold wallet drawer.
+  - `components/CreateVaultForm.tsx`:
+    - Added Cadence Streams configuration toggle with duration presets (including a 5-Minute Demo preset for hackathon judges) and emergency buffer selectors.
+    - Automatically executes `setStreamingConfig` during 1-click provisioning when enabled.
+- **Quality Assurance & Verification**:
+  - `forge test`: **208 / 208 passed** (0 failures).
+  - `npm run lint` (`frontend/`): **0 errors, 0 warnings**.
+  - `npx tsc --noEmit` (`frontend/`): **0 errors**.
+  - `npm run test:security` (`notifications/`): **All 11 security regression audit suites passed**.
 
 
 

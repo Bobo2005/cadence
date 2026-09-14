@@ -4,6 +4,37 @@
 
 ---
 
+## Handoff — 2026-09-14 (Cadence Streams: Autonomous Streaming Trust & Yield Inheritance with Guardian Emergency Circuit Breakers)
+
+**Who/what worked this session:** Antigravity AI
+
+**What was completed:**
+1. **Cadence Streams Engine (`contracts/src/InheritanceVault.sol` & `IProofOfLifeConsensus.sol`)**:
+   - Transformed Cadence from a simple "dead man's switch locker" into a decentralized multi-generational family trust.
+   - Replaced the vulnerable 100% lump-sum payout with an autonomous streaming trust:
+     - **Immediate Emergency Buffer**: (e.g. 10% Day 1 buffer for immediate needs).
+     - **Linear Per-Second Streaming**: Unlocks remaining 90% continuously over configurable schedules (12m, 24m, 4y, or 5-min demo preset).
+     - **Compounding Idle Capital Yield**: Accrues passive yield on unvested principal (Aave v3 model).
+     - **Anti-Drainer Emergency Circuit Breakers**: Beneficiaries (`pauseStream`), consensus guardians via Merkle proof (`pauseStreamWithGuardian`), and backup claim addresses (`pauseStream`, `redirectStream`) can freeze and permanently redirect unvested streams to a safe cold hardware wallet if an heir's keys are leaked or phished.
+   - 100% backwards-compatible: vaults with `streamingDuration == 0` continue executing legacy 100% lump-sum payouts (zero breaking changes).
+2. **Comprehensive Foundry Test Suite (`contracts/test/CadenceStreams.t.sol`)**:
+   - 10/10 new tests passing, covering configuration limits, initial emergency release, linear vesting progression via `vm.warp`, yield accrual down to the wei, beneficiary pause/resume, guardian Merkle proof circuit break, and cold wallet redirection.
+   - **Total Foundry baseline: 208 / 208 passing tests across 15 suites** (0 failures).
+3. **Frontend Cadence Streams Integration (`frontend/`)**:
+   - `ClaimPortal.tsx`: Real-time 100ms client-side animation ticker computing live accrued claimable ETH to 7 decimal places, streaming progress bar, active/paused status badges, `[⚡ Withdraw Accrued Stream]`, pause/resume circuit breaker buttons, and safe cold wallet redirection drawer.
+   - `CreateVaultForm.tsx`: Cadence Streams toggle in Step 3 with duration presets (including a 5-Minute Demo preset for hackathon judges) and emergency buffer percentages, automatically executing `setStreamingConfig` during 1-click provisioning.
+   - `lib/contracts.ts`: Added complete ABI for streaming trust and circuit breaker methods.
+   - Quality gate: `npm run lint` (**0 errors, 0 warnings**), `npx tsc --noEmit` (**0 errors**).
+4. **Security & Notifications Regression Suite**:
+   - `npm run test:security` in `notifications/`: **All 11 security audit suites passed**.
+   - Notifications microservice: **18 / 18 tests passing**.
+5. **Project Submission & Documentation Upgrades**:
+   - Synchronized `PROJECT-SUBMISSION.md` and `docs/PROJECT-SUBMISSION.md` with Cadence Streams architecture, 208/208 test results, and hackathon presentation content.
+   - Updated `README.md`, `docs/HACKATHON-PITCH.md`, `docs/ARCHITECTURE.md`, and `docs/MEMORY.md` (Session 20 log).
+   - Created comprehensive `walkthrough.md` artifact.
+
+---
+
 ## Handoff — 2026-09-12 (Guardian Email Architecture Refinement, Create Vault Integration & Notification Daemon Network Resilience)
 
 **Who/what worked this session:** Antigravity AI

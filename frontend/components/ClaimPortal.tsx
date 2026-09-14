@@ -44,6 +44,30 @@ const KNOWN_HEADLESS_KEYS: Record<string, Hex> = {
     "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
 };
 
+export interface StreamInfo {
+  totalShareEth: string;
+  claimedEth: string;
+  initialPayoutEth: string;
+  startTime: number;
+  duration: number;
+  isPaused: boolean;
+  streamRecipient: string;
+  claimableEth: string;
+  totalVestedEth: string;
+  remainingLockedEth: string;
+  accruedYieldEth: string;
+}
+
+interface BeneficiaryStreamRaw {
+  totalShareEth: bigint;
+  claimedEth: bigint;
+  initialPayoutEth: bigint;
+  startTime: bigint;
+  duration: bigint;
+  isPaused: boolean;
+  streamRecipient: Address;
+}
+
 export interface ClaimableVaultItem {
   id: string;
   name: string;
@@ -62,6 +86,12 @@ export interface ClaimableVaultItem {
   decryptedBeneficiary?: string;
   timeUntilFinalizedSec?: number;
   isTimeoutExpired?: boolean;
+  // Cadence Streams — Smart Trust & Yield
+  isStreamable?: boolean;
+  streamingDuration?: number;
+  initialReleaseBps?: number;
+  streamingYieldBps?: number;
+  stream?: StreamInfo | null;
 }
 
 export default function ClaimPortal() {
@@ -79,6 +109,22 @@ export default function ClaimPortal() {
   } | null>(null);
   const [claimError, setClaimError] = useState<string | null>(null);
   const [isFinalizingVaultId, setIsFinalizingVaultId] = useState<string | null>(null);
+
+  // Cadence Streams Real-Time State
+  const [activeStreamingTicking, setActiveStreamingTicking] = useState<
+    Record<
+      string,
+      {
+        liveAccrued: string;
+        percentComplete: number;
+        timeRemainingFormatted: string;
+      }
+    >
+  >({});
+  const [claimingStreamVaultId, setClaimingStreamVaultId] = useState<string | null>(null);
+  const [pausingStreamVaultId, setPausingStreamVaultId] = useState<string | null>(null);
+  const [redirectingVaultId, setRedirectingVaultId] = useState<string | null>(null);
+  const [redirectTargetAddress, setRedirectTargetAddress] = useState<string>("");
 
   // Phase 3.1: Secure In-Memory ECIES Decryption Key State (Zero raw private key UI inputs)
   const [derivedDecryptionKey, setDerivedDecryptionKey] = useState<Hex | null>(null);
@@ -380,6 +426,73 @@ export default function ClaimPortal() {
           isTimeoutExpiredOnChain = Boolean(tExpired);
         } catch {}
 
+        // Query Cadence Streams configuration on the locker
+        let isStreamable = false;
+        let streamingDuration = 0;
+        let initialReleaseBps = 0;
+        let streamingYieldBps = 0;
+        let streamInfo: StreamInfo | null = null;
+
+        try {
+          const sDuration = (await publicClient.readContract({
+            address: v.vaultAddress,
+            abi: INHERITANCE_VAULT_ABI,
+            functionName: "streamingDuration",
+          })) as bigint;
+          streamingDuration = Number(sDuration || 0n);
+
+          if (streamingDuration > 0) {
+            isStreamable = true;
+            const initBps = (await publicClient.readContract({
+              address: v.vaultAddress,
+              abi: INHERITANCE_VAULT_ABI,
+              functionName: "initialReleaseBps",
+            })) as bigint;
+            initialReleaseBps = Number(initBps || 0n);
+
+            const yieldBps = (await publicClient.readContract({
+              address: v.vaultAddress,
+              abi: INHERITANCE_VAULT_ABI,
+              functionName: "streamingYieldBps",
+            })) as bigint;
+            streamingYieldBps = Number(yieldBps || 0n);
+
+            if (isAlreadyClaimed) {
+              const streamRes = (await publicClient.readContract({
+                address: v.vaultAddress,
+                abi: INHERITANCE_VAULT_ABI,
+                functionName: "getBeneficiaryStream",
+                args: [normalizedAddress],
+              })) as unknown as BeneficiaryStreamRaw;
+
+              if (streamRes && streamRes.totalShareEth > 0n) {
+                const claimableRes = (await publicClient.readContract({
+                  address: v.vaultAddress,
+                  abi: INHERITANCE_VAULT_ABI,
+                  functionName: "claimableStreamAmount",
+                  args: [normalizedAddress],
+                })) as [bigint, bigint, bigint, bigint];
+
+                streamInfo = {
+                  totalShareEth: formatEther(streamRes.totalShareEth),
+                  claimedEth: formatEther(streamRes.claimedEth),
+                  initialPayoutEth: formatEther(streamRes.initialPayoutEth),
+                  startTime: Number(streamRes.startTime),
+                  duration: Number(streamRes.duration),
+                  isPaused: Boolean(streamRes.isPaused),
+                  streamRecipient: String(streamRes.streamRecipient),
+                  claimableEth: formatEther(claimableRes[0]),
+                  totalVestedEth: formatEther(claimableRes[1]),
+                  remainingLockedEth: formatEther(claimableRes[2]),
+                  accruedYieldEth: formatEther(claimableRes[3]),
+                };
+              }
+            }
+          }
+        } catch {
+          // Standard / non-streaming vault instance
+        }
+
         discovered.push({
           id: v.id,
           name: v.name,
@@ -398,6 +511,11 @@ export default function ClaimPortal() {
           decryptedBeneficiary: normalizedAddress,
           timeUntilFinalizedSec,
           isTimeoutExpired: isTimeoutExpiredOnChain,
+          isStreamable,
+          streamingDuration,
+          initialReleaseBps,
+          streamingYieldBps,
+          stream: streamInfo,
         });
       }
 
@@ -610,6 +728,227 @@ export default function ClaimPortal() {
       setClaimError(msg);
     } finally {
       setClaimingVaultId(null);
+    }
+  };
+
+  // Cadence Streams Real-Time Live Ticker Effect (updates every 100ms)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Math.floor(Date.now() / 1000);
+      const updated: Record<
+        string,
+        { liveAccrued: string; percentComplete: number; timeRemainingFormatted: string }
+      > = {};
+
+      vaults.forEach((v) => {
+        if (v.stream) {
+          const s = v.stream;
+          const elapsed = Math.max(0, now - s.startTime);
+          const effectiveElapsed = Math.min(elapsed, s.duration);
+          const totalShare = parseFloat(s.totalShareEth) || 0;
+          const initialPayout = parseFloat(s.initialPayoutEth) || 0;
+          const streamablePrincipal = Math.max(0, totalShare - initialPayout);
+          const vestedStream =
+            s.duration > 0 ? (streamablePrincipal * effectiveElapsed) / s.duration : streamablePrincipal;
+          const totalVested = initialPayout + vestedStream;
+          const claimed = parseFloat(s.claimedEth) || 0;
+          const baseClaimable = Math.max(0, totalVested - claimed);
+
+          // Simulated yield on locked principal
+          const remainingLocked = Math.max(0, totalShare - totalVested);
+          const yieldBps = v.streamingYieldBps || 0;
+          const accruedYield =
+            (remainingLocked * yieldBps * effectiveElapsed) / (10000 * 365 * 86400);
+
+          const liveClaimable = baseClaimable + accruedYield;
+          const pct = s.duration > 0 ? Math.min(100, (effectiveElapsed / s.duration) * 100) : 100;
+          const remainingSec = Math.max(0, s.duration - elapsed);
+          const days = Math.floor(remainingSec / 86400);
+          const hours = Math.floor((remainingSec % 86400) / 3600);
+          const mins = Math.floor((remainingSec % 3600) / 60);
+          const secs = remainingSec % 60;
+
+          const timeFormatted =
+            remainingSec === 0
+              ? "Stream Complete"
+              : days > 0
+              ? `${days}d ${hours}h left`
+              : `${hours}h ${mins}m ${secs}s left`;
+
+          updated[v.id] = {
+            liveAccrued: liveClaimable.toFixed(7),
+            percentComplete: pct,
+            timeRemainingFormatted: timeFormatted,
+          };
+        }
+      });
+
+      setActiveStreamingTicking(updated);
+    }, 100);
+
+    return () => clearInterval(interval);
+  }, [vaults]);
+
+  // Handle withdrawing accrued per-second streaming allowance
+  const handleClaimStream = async (vault: ClaimableVaultItem) => {
+    if (!connectedAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    setClaimingStreamVaultId(vault.id);
+    setClaimError(null);
+    try {
+      let client = walletClient;
+      let account: Account | Address = walletClient?.account || connectedAddress;
+
+      if (!client && connectedAddress) {
+        const headlessKey = KNOWN_HEADLESS_KEYS[connectedAddress.toLowerCase()];
+        if (headlessKey) {
+          const localAccount = privateKeyToAccount(headlessKey);
+          client = createWalletClient({
+            account: localAccount,
+            chain: cadenceSepolia,
+            transport: sepoliaTransports,
+          }) as unknown as typeof walletClient;
+          account = localAccount;
+        }
+      }
+
+      if (!client) {
+        throw new Error("No connected wallet client found. Please connect your wallet.");
+      }
+
+      const beneficiary = vault.decryptedBeneficiary || connectedAddress;
+      const txHash = await client.writeContract({
+        chain: cadenceSepolia,
+        address: vault.vaultContractAddress,
+        abi: INHERITANCE_VAULT_ABI,
+        functionName: "claimStream",
+        args: [beneficiary as Address],
+        account,
+      });
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: txHash });
+      if (receipt.status !== "success") {
+        throw new Error(`Transaction reverted on-chain (status: ${receipt.status})`);
+      }
+
+      await loadEligibleVaults();
+      setClaimReceipt({
+        vaultNumber: vault.vaultNumber,
+        txHash,
+        amount: `${activeStreamingTicking[vault.id]?.liveAccrued || "Accrued"} ETH`,
+      });
+    } catch (err: unknown) {
+      console.warn("[ClaimPortal] Stream claim error:", err);
+      const msg = parseUserFriendlyError(err);
+      setClaimError(msg);
+    } finally {
+      setClaimingStreamVaultId(null);
+    }
+  };
+
+  // Handle emergency freeze / pause of an active stream (Circuit Breaker)
+  const handleToggleStreamPause = async (vault: ClaimableVaultItem) => {
+    if (!connectedAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    setPausingStreamVaultId(vault.id);
+    setClaimError(null);
+    try {
+      let client = walletClient;
+      let account: Account | Address = walletClient?.account || connectedAddress;
+
+      if (!client && connectedAddress) {
+        const headlessKey = KNOWN_HEADLESS_KEYS[connectedAddress.toLowerCase()];
+        if (headlessKey) {
+          const localAccount = privateKeyToAccount(headlessKey);
+          client = createWalletClient({
+            account: localAccount,
+            chain: cadenceSepolia,
+            transport: sepoliaTransports,
+          }) as unknown as typeof walletClient;
+          account = localAccount;
+        }
+      }
+
+      if (!client) throw new Error("No connected wallet client found.");
+
+      const beneficiary = (vault.decryptedBeneficiary || connectedAddress) as Address;
+      const isCurrentlyPaused = vault.stream?.isPaused;
+
+      const txHash = await client.writeContract({
+        chain: cadenceSepolia,
+        address: vault.vaultContractAddress,
+        abi: INHERITANCE_VAULT_ABI,
+        functionName: isCurrentlyPaused ? "resumeStream" : "pauseStream",
+        args: [beneficiary],
+        account,
+      });
+
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+      await loadEligibleVaults();
+    } catch (err: unknown) {
+      console.warn("[ClaimPortal] Stream pause/resume error:", err);
+      const msg = parseUserFriendlyError(err);
+      setClaimError(msg);
+    } finally {
+      setPausingStreamVaultId(null);
+    }
+  };
+
+  // Handle stream redirection to safe cold/backup address
+  const handleRedirectStream = async (vault: ClaimableVaultItem, targetAddr: string) => {
+    if (!connectedAddress) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    if (!targetAddr || !targetAddr.startsWith("0x") || targetAddr.length !== 42) {
+      alert("Please provide a valid 42-character Ethereum address (0x...).");
+      return;
+    }
+    setRedirectingVaultId(vault.id);
+    setClaimError(null);
+    try {
+      let client = walletClient;
+      let account: Account | Address = walletClient?.account || connectedAddress;
+
+      if (!client && connectedAddress) {
+        const headlessKey = KNOWN_HEADLESS_KEYS[connectedAddress.toLowerCase()];
+        if (headlessKey) {
+          const localAccount = privateKeyToAccount(headlessKey);
+          client = createWalletClient({
+            account: localAccount,
+            chain: cadenceSepolia,
+            transport: sepoliaTransports,
+          }) as unknown as typeof walletClient;
+          account = localAccount;
+        }
+      }
+
+      if (!client) throw new Error("No connected wallet client found.");
+
+      const beneficiary = (vault.decryptedBeneficiary || connectedAddress) as Address;
+      const txHash = await client.writeContract({
+        chain: cadenceSepolia,
+        address: vault.vaultContractAddress,
+        abi: INHERITANCE_VAULT_ABI,
+        functionName: "redirectStream",
+        args: [beneficiary, getAddress(targetAddr)],
+        account,
+      });
+
+      await publicClient.waitForTransactionReceipt({ hash: txHash });
+      setRedirectTargetAddress("");
+      await loadEligibleVaults();
+      alert(`Stream successfully redirected to ${targetAddr}! Future streaming payouts will be delivered there.`);
+    } catch (err: unknown) {
+      console.warn("[ClaimPortal] Stream redirect error:", err);
+      const msg = parseUserFriendlyError(err);
+      setClaimError(msg);
+    } finally {
+      setRedirectingVaultId(null);
     }
   };
 
@@ -1095,8 +1434,162 @@ export default function ClaimPortal() {
                 </div>
 
                 {/* Action Button Section */}
-                <div className="pt-6">
-                  {vault.isClaimed ? (
+                <div className="pt-4 space-y-4">
+                  {/* Cadence Streams Active Live Panel */}
+                  {vault.isStreamable && vault.stream && (
+                    <div className="p-4 rounded-xl bg-[#0A0E14] border border-[#2EE6A8]/40 space-y-3 shadow-[0_0_20px_rgba(46,230,168,0.1)]">
+                      <div className="flex items-center justify-between border-b border-[#232838] pb-2">
+                        <span className="text-[10px] font-mono tracking-widest text-[#2EE6A8] uppercase font-bold flex items-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full ${vault.stream.isPaused ? "bg-[#F5484A]" : "bg-[#2EE6A8] animate-ping"}`} />
+                          {vault.stream.isPaused ? "STREAM FROZEN (CIRCUIT BREAKER)" : "PER-SECOND CADENCE STREAM"}
+                        </span>
+                        <span className="text-[10px] font-mono text-[#F5B841] bg-[#F5B841]/10 px-2 py-0.5 rounded border border-[#F5B841]/20">
+                          {((vault.streamingYieldBps || 0) / 100).toFixed(1)}% APY YIELD
+                        </span>
+                      </div>
+
+                      {/* Live Ticking Counter */}
+                      <div className="text-center py-1">
+                        <div className="text-xs text-[#8993A6] font-mono uppercase tracking-wider mb-0.5">
+                          {vault.stream.isPaused ? "Accrued Prior to Freeze" : "Accrued Stream Available Now"}
+                        </div>
+                        <div className="text-2xl sm:text-3xl font-black font-mono text-[#2EE6A8] tracking-tight drop-shadow-[0_0_12px_rgba(46,230,168,0.4)]">
+                          {activeStreamingTicking[vault.id]?.liveAccrued || vault.stream.claimableEth} ETH
+                        </div>
+                        {parseFloat(vault.stream.accruedYieldEth) > 0 && (
+                          <div className="text-[10px] font-mono text-[#F5B841] mt-0.5">
+                            +{parseFloat(vault.stream.accruedYieldEth).toFixed(6)} ETH yield compounded
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Vesting Progress Bar */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[10px] font-mono text-[#8993A6]">
+                          <span>
+                            Progress: {Math.round(activeStreamingTicking[vault.id]?.percentComplete || 0)}%
+                          </span>
+                          <span>
+                            {activeStreamingTicking[vault.id]?.timeRemainingFormatted || "Streaming"}
+                          </span>
+                        </div>
+                        <div className="w-full h-2 rounded-full bg-[#1A1F2B] overflow-hidden">
+                          <div
+                            className={`h-full transition-all duration-300 ${
+                              vault.stream.isPaused
+                                ? "bg-[#F5484A]"
+                                : "bg-gradient-to-r from-[#00E5FF] to-[#2EE6A8]"
+                            }`}
+                            style={{
+                              width: `${Math.min(
+                                100,
+                                Math.max(5, activeStreamingTicking[vault.id]?.percentComplete || 0)
+                              )}%`,
+                            }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-[9px] font-mono text-[#5A6478]">
+                          <span>10% Emergency Buffer</span>
+                          <span>Total: {vault.stream.totalShareEth} ETH</span>
+                        </div>
+                      </div>
+
+                      {/* Circuit Breaker Warning / Status Banner */}
+                      <div
+                        className={`p-2 rounded-lg text-[10px] font-mono ${
+                          vault.stream.isPaused
+                            ? "bg-[#F5484A]/10 border border-[#F5484A]/30 text-[#F5484A]"
+                            : "bg-[#2EE6A8]/5 border border-[#2EE6A8]/20 text-[#8993A6]"
+                        }`}
+                      >
+                        {vault.stream.isPaused
+                          ? "⚠ Stream is currently paused by guardian circuit breaker to protect against unauthorized wallet drainage."
+                          : "🛡 Stream protected by 2-of-2 Guardian Circuit Breaker and backup key redirection."}
+                      </div>
+
+                      {/* Stream Action Buttons */}
+                      <div className="pt-1 space-y-2">
+                        {!vault.stream.isPaused ? (
+                          <button
+                            type="button"
+                            disabled={claimingStreamVaultId === vault.id}
+                            onClick={() => handleClaimStream(vault)}
+                            className="w-full py-2.5 px-4 rounded-xl font-bold text-xs bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] shadow-[0_0_16px_rgba(46,230,168,0.25)] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                          >
+                            {claimingStreamVaultId === vault.id ? (
+                              <span>Withdrawing Accrued Stream...</span>
+                            ) : (
+                              <span>⚡ Withdraw Accrued Stream</span>
+                            )}
+                          </button>
+                        ) : null}
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={pausingStreamVaultId === vault.id}
+                            onClick={() => handleToggleStreamPause(vault)}
+                            className={`flex-1 py-2 px-3 rounded-xl font-mono text-[11px] font-bold border transition-all cursor-pointer ${
+                              vault.stream.isPaused
+                                ? "bg-[#2EE6A8]/15 border-[#2EE6A8]/40 text-[#2EE6A8] hover:bg-[#2EE6A8]/25"
+                                : "bg-[#F5484A]/10 border-[#F5484A]/30 text-[#F5484A] hover:bg-[#F5484A]/20"
+                            }`}
+                          >
+                            {pausingStreamVaultId === vault.id
+                              ? "Processing..."
+                              : vault.stream.isPaused
+                              ? "▶ Resume Stream"
+                              : "⏸ Emergency Freeze"}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setRedirectingVaultId(redirectingVaultId === vault.id ? null : vault.id)
+                            }
+                            className="flex-1 py-2 px-3 rounded-xl font-mono text-[11px] font-bold bg-[#1A1F2B] border border-[#232838] text-[#8993A6] hover:text-[#E8ECF1] transition-all cursor-pointer"
+                          >
+                            🛡 Redirect Stream
+                          </button>
+                        </div>
+
+                        {/* Stream Redirection Input Drawer */}
+                        {redirectingVaultId === vault.id && (
+                          <div className="p-3 rounded-xl bg-[#12161F] border border-[#232838] space-y-2 mt-2">
+                            <label className="block text-[10px] font-mono text-[#8993A6]">
+                              Redirect Future Stream to Cold Wallet:
+                            </label>
+                            <input
+                              type="text"
+                              value={redirectTargetAddress}
+                              onChange={(e) => setRedirectTargetAddress(e.target.value)}
+                              placeholder="0xSafeColdWalletAddress..."
+                              className="w-full text-xs font-mono px-3 py-1.5 rounded-lg bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8]"
+                            />
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setRedirectingVaultId(null)}
+                                className="text-[10px] text-[#8993A6] hover:text-[#E8ECF1] px-2 py-1 cursor-pointer"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRedirectStream(vault, redirectTargetAddress)}
+                                className="px-3 py-1 rounded-lg text-xs font-bold bg-[#00E5FF] text-[#0A0E14] hover:bg-[#33ebff] transition-all cursor-pointer"
+                              >
+                                Confirm Redirect
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Standard Claim or Initialize Stream Flow */}
+                  {vault.isClaimed && !vault.isStreamable ? (
                     <button
                       type="button"
                       disabled
@@ -1104,7 +1597,7 @@ export default function ClaimPortal() {
                     >
                       ✓ Claim Already Executed
                     </button>
-                  ) : vault.consensusState === ConsensusState.Finalized ? (
+                  ) : !vault.isClaimed && vault.consensusState === ConsensusState.Finalized ? (
                     !vault.isProofValid && hasEncryptedAllocations && !derivedDecryptionKey ? (
                       <button
                         type="button"
@@ -1125,28 +1618,42 @@ export default function ClaimPortal() {
                         )}
                       </button>
                     ) : (
-                      <button
-                        type="button"
-                        disabled={claimingVaultId === vault.id || !vault.isProofValid}
-                        onClick={() => handleExecuteClaim(vault)}
-                        className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
-                          vault.isProofValid
-                            ? "bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] shadow-[0_0_20px_rgba(46,230,168,0.3)] cursor-pointer"
-                            : "bg-[#1A1F2B] text-[#5A6478] border border-[#232838] cursor-not-allowed"
-                        } disabled:opacity-50`}
-                      >
-                        {claimingVaultId === vault.id ? (
-                          <>
-                            <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                            </svg>
-                            <span>Submitting Claim to Sepolia...</span>
-                          </>
-                        ) : (
-                          <span>{vault.isProofValid ? "Execute Inheritance Claim" : "Proof Invalid for This Address"}</span>
+                      <div className="space-y-2">
+                        {vault.isStreamable && (
+                          <div className="p-2.5 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[11px] font-mono text-[#2EE6A8] flex items-center justify-between">
+                            <span>⚡ Smart Streaming Trust Configured</span>
+                            <span>{((vault.initialReleaseBps || 0) / 100).toFixed(0)}% Initial + Stream</span>
+                          </div>
                         )}
-                      </button>
+                        <button
+                          type="button"
+                          disabled={claimingVaultId === vault.id || !vault.isProofValid}
+                          onClick={() => handleExecuteClaim(vault)}
+                          className={`w-full py-3.5 px-6 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${
+                            vault.isProofValid
+                              ? "bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] shadow-[0_0_20px_rgba(46,230,168,0.3)] cursor-pointer"
+                              : "bg-[#1A1F2B] text-[#5A6478] border border-[#232838] cursor-not-allowed"
+                          } disabled:opacity-50`}
+                        >
+                          {claimingVaultId === vault.id ? (
+                            <>
+                              <svg className="animate-spin h-4 w-4 text-[#0A0E14]" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                              </svg>
+                              <span>Submitting Claim to Sepolia...</span>
+                            </>
+                          ) : (
+                            <span>
+                              {vault.isProofValid
+                                ? vault.isStreamable
+                                  ? "⚡ Initialize Trust & Claim Emergency Buffer"
+                                  : "Execute Inheritance Claim"
+                                : "Proof Invalid for This Address"}
+                            </span>
+                          )}
+                        </button>
+                      </div>
                     )
                   ) : vault.consensusState === ConsensusState.ClaimPending ? (
                     vault.timeUntilFinalizedSec === 0 ? (

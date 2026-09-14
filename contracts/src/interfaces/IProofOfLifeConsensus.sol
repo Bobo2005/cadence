@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import {IGuardianRegistry} from "./IGuardianRegistry.sol";
+
 /// @title IProofOfLifeConsensus
 /// @notice Interface for the standalone Proof-of-Life Consensus primitive.
 /// @dev InheritanceVault calls this interface — it does not embed consensus logic directly.
 ///      This separation allows the primitive to be reused by other protocols (DAO succession,
 ///      insurance payouts, dead-hand governance). See docs/ARCHITECTURE.md Feature Spotlight C.
 interface IProofOfLifeConsensus {
+    /// @notice Returns the address of the GuardianRegistry contract.
+    function guardianRegistry() external view returns (IGuardianRegistry);
+
     /// @notice States of the Proof-of-Life consensus lifecycle.
     /// @dev Active: Normal operation, owner checking in.
     ///      ClaimPending: Timeout expired AND guardian M-of-N threshold met; contest window running.

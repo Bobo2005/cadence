@@ -73,6 +73,103 @@ export const INHERITANCE_VAULT_ABI = [
   },
   {
     "type": "function",
+    "name": "streamingDuration",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "initialReleaseBps",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "streamingYieldBps",
+    "inputs": [],
+    "outputs": [{ "name": "", "type": "uint256", "internalType": "uint256" }],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setStreamingConfig",
+    "inputs": [
+      { "name": "duration", "type": "uint256", "internalType": "uint256" },
+      { "name": "initialBps", "type": "uint256", "internalType": "uint256" },
+      { "name": "yieldBps", "type": "uint256", "internalType": "uint256" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimStream",
+    "inputs": [{ "name": "beneficiary", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "claimableStreamAmount",
+    "inputs": [{ "name": "beneficiary", "type": "address", "internalType": "address" }],
+    "outputs": [
+      { "name": "claimableEth", "type": "uint256", "internalType": "uint256" },
+      { "name": "totalVestedEth", "type": "uint256", "internalType": "uint256" },
+      { "name": "remainingLockedEth", "type": "uint256", "internalType": "uint256" },
+      { "name": "accruedYieldEth", "type": "uint256", "internalType": "uint256" }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "getBeneficiaryStream",
+    "inputs": [{ "name": "beneficiary", "type": "address", "internalType": "address" }],
+    "outputs": [
+      {
+        "name": "",
+        "type": "tuple",
+        "internalType": "struct InheritanceVault.BeneficiaryStream",
+        "components": [
+          { "name": "totalShareEth", "type": "uint256", "internalType": "uint256" },
+          { "name": "claimedEth", "type": "uint256", "internalType": "uint256" },
+          { "name": "initialPayoutEth", "type": "uint256", "internalType": "uint256" },
+          { "name": "startTime", "type": "uint256", "internalType": "uint256" },
+          { "name": "duration", "type": "uint256", "internalType": "uint256" },
+          { "name": "isPaused", "type": "bool", "internalType": "bool" },
+          { "name": "streamRecipient", "type": "address", "internalType": "address" }
+        ]
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pauseStream",
+    "inputs": [{ "name": "beneficiary", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "resumeStream",
+    "inputs": [{ "name": "beneficiary", "type": "address", "internalType": "address" }],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "redirectStream",
+    "inputs": [
+      { "name": "beneficiary", "type": "address", "internalType": "address" },
+      { "name": "newRecipient", "type": "address", "internalType": "address" }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "allocationRoot",
     "inputs": [],
     "outputs": [

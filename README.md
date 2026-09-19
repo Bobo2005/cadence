@@ -199,7 +199,60 @@ Cadence enforces 10 strict cryptographic and architectural invariants across all
 
 ---
 
-## 5. Smart Contract Architecture
+## 5. Complete 12-Page Frontend Architecture & Design System
+
+The Cadence frontend is built with **Next.js 15 (App Router)**, **Viem**, **Wagmi v2**, and custom CSS implementing the clinical **Light Editorial** aesthetic:
+
+```mermaid
+flowchart TD
+    subgraph Core["Core Vault Lifecycle"]
+        P1["Page 1: Landing Page<br/>(/)"] --> P2["Page 2: Create Vault<br/>(/vault/create)"]
+        P2 --> P3["Page 3: Vault Pulse Dashboard<br/>(/dashboard)"]
+        P3 --> P4["Page 4: Check-In Action<br/>(EOA / Paymaster)"]
+        P3 --> P5["Page 5: Contest Window<br/>(/contest)"]
+        P5 --> P6["Page 6: Claim Portal<br/>(/claim)"]
+        P6 --> P7["Page 7: Claim Success<br/>(/claim/success)"]
+    end
+
+    subgraph System["System & Infrastructure"]
+        P8["Page 8: Network Status<br/>(/network)"]
+        P9["Page 9: Security Pillars<br/>(/security)"]
+        P10["Page 10: Help Center<br/>(/help)"]
+    end
+
+    subgraph Global["Global Framework"]
+        P11["Page 11: Mobile Navigation Drawer"]
+        P12["Page 12: Global System States"]
+    end
+```
+
+### Complete Page Directory
+
+| Page | Route | Description & Key Components |
+| :--- | :--- | :--- |
+| **Page 1: Landing Page** | `/` | High-contrast editorial hero, live Sepolia telemetry strip (`ACTIVE SIGNAL`, `NEXT CHECK-IN`, `GUARDIANS`, `PROTECTED BALANCE`), product preview with interactive ECG card and streaming trust showcase, security architecture grid, and final CTA. |
+| **Page 2: Create Vault** | `/vault/create` | 5-step intuitive provisioning wizard: Token selection & deposit, private allocations with ECIES encryption, heartbeat frequency presets (**5 Min (TEST)**, **10 Min (TEST)**, 30d, 90d, 180d), dual guardian quorum pairing with automated alert email inputs, Cadence Streams configuration, and 1-click atomic deployment via `OneClickInheritanceVault.sol`. |
+| **Page 3: Vault Pulse Dashboard** | `/dashboard` | Primary heartbeat monitor card, live SVG ECG oscilloscope (62 BPM normal, 92 BPM erratic, 0 BPM flatline), countdown ticker, quick-adjust interval modal, protected balance with shoulder-surfing mask (`SHOW / HIDE`), guardian consensus quorum status, and EIP-712 email notification binding. |
+| **Page 4: Heartbeat Check-In** | `/dashboard` (Action) | One-click Proof-of-Life check-in executing on Sepolia via direct EOA transaction or sponsored ERC-4337 verifying paymaster (Pimlico), with instant optimistic UI update and confirmation toast. |
+| **Page 5: Contest Window** | `/contest` | 72-hour reversible challenge countdown, irregular amber ECG monitor, EIP-712 stealth reset (`cancelClaimWithSig`) ensuring **Constraint #1 (Zero Gas Linkage)**, guardian attestation verification, and contest finalization. |
+| **Page 6: Beneficiary Claim Portal** | `/claim` | Client-side ECIES private allocation decryption with deterministic signature-derived keys (zero raw private key inputs), double-hashed Merkle verification, live 100ms streaming accrual ticker, and anti-drainer circuit breakers (`pauseStream`, `redirectStream`). |
+| **Page 7: Claim Settlement Receipt** | `/claim/success` | Calm, finalized confirmation receipt ("Inheritance Claim Settled"), transaction hash link to Etherscan, network badge, and clean whitespace. Zero confetti or gamification. |
+| **Page 8: Network & System Status** | `/network` | Technical transparency dashboard showing live Sepolia block sync height, RPC latency, verified contract addresses with Etherscan links, Chain ID (11155111), and expandable technical details accordions. |
+| **Page 9: Security Architecture** | `/security` | Plain-English first + technical details second across all 9 protocol security pillars: Self-custody, ECIES client-side encryption, Guardian consensus, Merkle commitments, Heartbeat mechanism, Contest Window, EIP-712 emergency reset, Beneficiary privacy, and On-chain settlement. |
+| **Page 10: Documentation & Help Center** | `/help` | 9 operational categories, full-text client search, expandable FAQs, and a prominent Emergency Safety-Valve Section explaining how to execute the Reset Protocol if a locker enters the Contest Window. |
+| **Page 11: Mobile Responsive Navigation** | Global | Responsive mobile navigation drawer (`MobileNavbar`), vertically stacked cards, responsive typography, and full-width touch actions preserving the complete desktop capability. |
+| **Page 12: Global System States** | Global (`GlobalStates.tsx`) | Consistent global states: light shimmer skeletons, wallet disconnected modal callout, wrong-network mismatch banner with 1-click Sepolia switch, transaction pending overlay, and clean empty state. |
+
+### Visual Direction & Craft
+- **Canvas**: Pure off-white paper canvas (`#F7F9FC`) with elevated bordered shells (`.landing-shell`, `.app-shell`).
+- **Typography**: Deep ink headings (`#09090B`, `#0E1526`) with tight tracking (`tracking-[-0.05em]`) paired with technical monospace values in JetBrains Mono / IBM Plex Mono.
+- **Surfaces**: Solid white `#FFFFFF` cards with structural `1px solid #ECE9EF` borders and restrained ground shadows.
+- **Zero AI Diffuse Blobs**: Eliminates diffuse multi-stop gradients (`blur-3xl`), ensuring a human-crafted, institutional appearance.
+- **Status Accents**: Flat, solid status pills (`.status-pill.live`, `.status-pill.contest`, `.status-pill.done`).
+
+---
+
+## 6. Smart Contract Architecture
 
 The core protocol contracts reside in `/contracts/src`:
 

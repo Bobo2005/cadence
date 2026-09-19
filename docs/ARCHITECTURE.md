@@ -303,27 +303,41 @@ Active ──(timeout expired + guardian M-of-N)──> ClaimPending ──(canc
   .env.example
 
 /frontend
-  /app (Next.js app router)
-    /vault/create
-    /dashboard
-    /contest
-    /claim
+  /app (Next.js 15 App Router)
+    page.tsx              — Page 1: Landing Page
+    /vault/create         — Page 2: Create Vault Wizard
+    /dashboard            — Page 3: Vault Pulse Dashboard
+    /contest              — Page 5: Contest Window
+    /claim                — Page 6: Beneficiary Claim Portal
+    /claim/success        — Page 7: Claim Settlement Receipt
+    /network              — Page 8: Network & Telemetry Status
+    /security             — Page 9: Security Architecture Pillars
+    /help                 — Page 10: Documentation & Help Center
   /components
-    VaultPulseDashboard.tsx
-    ContestWindowPanel.tsx
-    ClaimPortal.tsx
-    CreateVaultForm.tsx
-    CheckInButton.tsx
-    AppShell.tsx
+    AppShell.tsx          — Page 11: Application Shell & Desktop Frame
+    PublicNavbar.tsx      — Public Landing Header
+    MobileNavbar.tsx      — Page 11: Mobile Navigation Drawer
+    VaultPulseDashboard.tsx — Dashboard & Telemetry
+    CheckInButton.tsx     — Page 4: Heartbeat Check-In Action
+    ContestWindowPanel.tsx — Contest Challenge & Reset
+    ClaimPortal.tsx       — Claim Portal & Cadence Streams Ticker
+    ClaimSuccessPanel.tsx — Claim Success Receipt
+    CreateVaultForm.tsx   — 1-Click Vault Creation Wizard
+    NetworkStatusPanel.tsx — Network Status & Sync Gauges
+    SecurityPillarsPanel.tsx — Security Pillars & Details Accordions
+    HelpCenterPanel.tsx   — Operational Categories & Safety Valve
+    ui/GlobalStates.tsx   — Page 12: Global System States & Skeletons
+    ui/LiveECGMonitor.tsx — Dynamic SVG Oscilloscope ECG
   /lib
-    contracts.ts        — viem contract clients & multi-RPC failover pool
-    stealth.ts           — EIP-5564 keygen/derivation
-    encryption.ts         — ECIES encrypt/decrypt (EthCrypto)
+    contracts.ts          — Viem contract clients & 5-node fallback RPC pool
+    stealth.ts            — EIP-5564 keygen/derivation
+    encryption.ts         — Client-side ECIES encryption/decryption
     merkle.ts             — allocationRoot + guardian Merkle tree builders
-    paymaster.ts          — Pimlico permissionless.js client
-    eip712.ts             — cancelClaimWithSig digest builder
+    paymaster.ts          — Pimlico permissionless.js ERC-4337 client
+    eip712.ts             — cancelClaimWithSig & bindEmail digest builders
+    sanitize.ts           — DOMPurify SSR-safe HTML sanitization
   /styles
-    tokens.css            — design tokens, see DESIGN-SYSTEM.md
+    tokens.css            — Light editorial design tokens & Sequence layout classes
   package.json
 
 /notifications

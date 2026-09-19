@@ -1,49 +1,55 @@
 # Cadence Protocol — Frontend
 
-The web application for **Cadence Protocol**, built on **Next.js 16 (App Router + Turbopack)**, **Viem**, **Wagmi**, and custom vanilla CSS following the clinical **"Pulse"** cyber-minimalism design system.
+The web application for **Cadence Protocol**, built with **Next.js 15 (App Router)**, **Viem**, **Wagmi v2**, and custom vanilla CSS following the clinical **Light Editorial ("Pulse")** design system inspired by modern fintech craft.
 
 ---
 
-## Key Features
+## Complete 12-Page Architecture & Route Directory
 
-1. **Vault Pulse Dashboard (`/dashboard`)**:
-   - Live on-chain telemetry for Ethereum Sepolia vaults.
-   - Real-time oscilloscope ECG monitor reacting dynamically to consensus state (`active` 62 BPM, `erratic` 92 BPM, `flatline` 0 BPM).
-   - Dynamic countdown ticker reflecting on-chain `lastActiveTimestamp` and `checkInInterval`.
-   - **`[⚡ Adjust Interval]`**: Interactive on-chain modal to switch check-in frequency to **5 Min (Test)** or **10 Min (Test)** or back to production intervals directly on Sepolia.
-   - **Automated Owner Heartbeat Alerts**: Built-in real-time monitor automatically evaluates heartbeat state against consensus. Dispatches an "Approaching Check-In" email warning when $\le 2$ minutes remain (or $\le 3$ days / 25% remaining on standard intervals) and an "Urgent: Overdue" email alert upon lapse via `/api/notify/owner-reminder` with cycle-keyed deduplication.
+Cadence implements the complete 12-page specification defined in `docs/Cadence_Page_Prompts (1).md` and `docs/Cadence_Design_System (1).md`:
 
-2. **1-Click Atomic Vault Provisioning (`/vault/create`)**:
-   - **Reduced from 4 wallet signatures to 1 single transaction**: Uses `OneClickInheritanceVault.sol` to atomically bundle: (1) Contract Deployment, (2) Capital Deposit (`msg.value`), (3) Beneficiary Merkle Root Commitment, (4) Guardian Consensus Quorum Pairing, and (5) Custom Contest Window Configuration in one seamless wallet confirmation.
-   - **Cadence Streams Trust Configuration (Step 3)**: Toggle on autonomous streaming trusts with duration presets (**5-Min Demo**, **12 Months**, **24 Months**, **4 Years**) and initial emergency buffers (**10% to 50%**), automatically executing `setStreamingConfig` during provisioning.
-   - **Dual Guardian Configuration with Automated Alert Emails**: Dedicated side-by-side cards for Guardian Node 1 and Guardian Node 2 allow specifying both the on-chain consensus wallet address and an optional alert email, automatically synchronized to the background Sentinel daemon upon deployment.
-   - Built-in **Rapid Testing Presets**: Supports fast heartbeat intervals (**5 Min** and **10 Min**) as well as fast challenge grace periods (**⚡ 5 Minutes Fast Testing**).
-   - Resilient live status modal tracking the atomic setup and linking directly to Etherscan.
+| Page / Component | Route | Key Features & On-Chain Mechanics |
+| :--- | :--- | :--- |
+| **Page 1: Landing Page** | `/` | Editorial split-hero with live Sepolia telemetry strip (`ACTIVE SIGNAL`, `NEXT CHECK-IN`, `GUARDIANS: 2/2 VERIFIED`, `PROTECTED BALANCE`), product preview with interactive ECG card and streaming showcase, security architecture grid, and final CTA. |
+| **Page 2: Create Locker / Vault** | `/vault/create` | 5-step intuitive provisioning wizard, rapid heartbeat interval presets (**5 Min (TEST)** and **10 Min (TEST)** alongside standard 30d/90d/180d intervals), 1-click atomic deployment via `OneClickInheritanceVault.sol`, client-side ECIES encryption, dual guardian configuration, and Cadence Streams toggle. |
+| **Page 3: Vault Pulse Dashboard** | `/dashboard` | Primary heartbeat monitor card, live SVG ECG oscilloscope (62 BPM normal, 92 BPM erratic, 0 BPM flatline), countdown ticker, quick-adjust interval modal, protected balance with shoulder-surfing mask (`SHOW / HIDE`), guardian consensus quorum status, and EIP-712 email notification binding. |
+| **Page 4: Heartbeat Check-In Flow** | `/dashboard` (Action) | One-click Proof-of-Life check-in executing on Sepolia via direct EOA transaction or sponsored ERC-4337 verifying paymaster (Pimlico), with instant optimistic UI update and confirmation toast. |
+| **Page 5: Contest Window & Emergency Reset** | `/contest` | 72-hour reversible challenge countdown, irregular amber ECG monitor, EIP-712 stealth reset (`cancelClaimWithSig`) ensuring **Constraint #1 (Zero Gas Linkage)**, guardian attestation verification, and contest finalization. |
+| **Page 6: Beneficiary Claim Portal** | `/claim` | Client-side ECIES private allocation decryption with deterministic signature-derived keys (zero raw private key inputs), double-hashed Merkle verification, live 100ms streaming accrual ticker, and anti-drainer circuit breakers (`pauseStream`, `redirectStream`). |
+| **Page 7: Claim Settlement Receipt** | `/claim/success` | Calm, finalized confirmation receipt ("Inheritance Claim Settled"), transaction hash link to Etherscan, network badge, and clean whitespace. Zero confetti or gamification. |
+| **Page 8: Network & System Status** | `/network` | Technical transparency dashboard showing live Sepolia block sync height, RPC latency, verified contract addresses with Etherscan links, Chain ID (11155111), and expandable technical details accordions. |
+| **Page 9: Security Architecture** | `/security` | Plain-English first + technical details second across all 9 protocol security pillars: Self-custody, ECIES client-side encryption, Guardian consensus, Merkle commitments, Heartbeat mechanism, Contest Window, EIP-712 emergency reset, Beneficiary privacy, and On-chain settlement. |
+| **Page 10: Documentation & Help Center** | `/help` | 9 operational categories, full-text client search, expandable FAQs, and a prominent Emergency Safety-Valve Section explaining how to execute the Reset Protocol if a locker enters the Contest Window. |
+| **Page 11: Mobile Responsive Navigation** | Global | Responsive mobile navigation drawer (`MobileNavbar`), vertically stacked cards, responsive typography, and full-width touch actions preserving the complete desktop capability. |
+| **Page 12: Global System States** | Global (`GlobalStates.tsx`) | Consistent global states: light shimmer skeletons, wallet disconnected modal callout, wrong-network mismatch banner with 1-click Sepolia switch, transaction pending overlay, and clean empty state. |
 
-3. **Contest Window & Stealth Cancellation (`/contest`)**:
-   - Live challenge countdown timer reflecting dynamic on-chain state (`Active` $\rightarrow$ `ClaimPending` $\rightarrow$ `Finalized`).
-   - **Interactive Guardian Attestation**: Real-time connected guardian detection with **`[⚡ Attest Lapse]`** action buttons directly submitting on-chain Merkle proofs to `GuardianRegistry.sol`.
-   - **Dynamic Quorum Tracking**: Smart trigger button enforces `isThresholdMet` on-chain, tracking progress from `Awaiting Guardian Quorum (0/2)` to **`[⚡ Trigger Contest Challenge Window]`**.
-   - **Automated Guardian Email Dispatch (2 Distinct Alerts)**: Autonomous and client-side dispatch sending two separate, personalized email alerts to **Guardian Node 1** and **Guardian Node 2** when the heartbeat lapses, complete with vault address and direct links to attest.
-   - **Automated Contest Concluded Alerts & Finalization**: Automatically dispatches contest-concluded alert emails to guardians and heirs upon countdown zero, and provides **`[⚡ Finalize Contest on Sepolia]`** to advance the locker to `Finalized`.
-   - Demonstrates **Constraint #1 (Zero Gas-Linkage)**: living owner cancels contested claims off-chain via an EIP-712 stealth signature relayed with zero owner gas payment.
+---
 
-4. **Beneficiary Claim Portal & Cadence Streams (`/claim`)**:
-   - Client-side **ECIES (secp256k1)** private allocation decryption — zero plaintext on-chain (Constraint #3).
-   - **Safe In-Memory Key Derivation**: Completely eliminates raw private key text boxes from the user interface. Beneficiaries sign a cryptographic authorization message (`personal_sign` over deterministic salt `keccak256(sig)`) to derive the 32-byte ECIES decryption key strictly in-memory.
-   - **Cadence Streams Real-Time Live Ticker (100ms)**: High-frequency client animation ticker computing accrued streaming ETH down to 7 decimal places in real-time, alongside a linear vesting progress bar and remaining countdown.
-   - **Anti-Drainer Emergency Circuit Breakers**:
-     - **`[⚡ Withdraw Accrued Stream]`**: Claims accrued streaming funds directly on Sepolia.
-     - **`[⏸ Pause Stream]` / `[▶ Resume Stream]`**: Instantly halts unvested stream outflows on-chain if a wallet compromise is suspected. Consensus guardians can also pause using Merkle proofs (`pauseStreamWithGuardian`).
-     - **Safe Cold Redirection Drawer**: Heirs and registered backup addresses can permanently migrate remaining streaming capital to a safe cold hardware wallet (`redirectStream`), stopping drainers in their tracks.
-   - **Snapshot-Preserved Payouts**: Pro-rata execution via `InheritanceVault.claim()`, reading on-chain `distributionSnapshot` to preserve exact allocations across multi-heir claims.
-   - **Wrong-Wallet Recovery**: Privacy-preserving reminder email dispatcher for beneficiaries with multiple addresses.
+## Design System: Light Editorial Craft
+
+Cadence adheres to a human-designed, clinical aesthetic:
+- **Paper Canvas**: Subtle off-white canvas `#F7F9FC` with elevated bordered shells (`.landing-shell`, `.app-shell`).
+- **Deep Ink Typography**: High-contrast `#09090B` and `#0E1526` headings with tight tracking (`tracking-[-0.05em]`) using modern Inter and monospace telemetry fonts (JetBrains Mono / IBM Plex Mono).
+- **Solid Surfaces & Crisp Borders**: Pure `#FFFFFF` panels with deliberate `1px solid #ECE9EF` or `rgba(220, 216, 226, 0.9)` structural borders and restrained ground shadows.
+- **Zero AI-Style Diffuse Gradients**: No diffuse rainbow blur blobs (`blur-3xl`), ensuring the UI looks human-designed, institutional, and precise.
+- **Flat Semantic Status Pills**: Crisp, solid badges (`.status-pill.live`, `.status-pill.contest`, `.status-pill.done`).
+- **Telemetry Indicators**: Real-time SVG oscilloscope ECG monitors reflecting live on-chain heartbeat states.
+
+---
+
+## Monorepo Security & Policy Compliance
+
+Cadence enforces strict security policies across all frontend and backend code:
+- **Zero Frontend Secret Leakage**: All keys reside in `.env` files; frontend code accesses only public, whitelisted configuration.
+- **Strict Content Security Policy (CSP)**: `default-src 'self'`, `frame-ancestors 'none'`, zero `eval()`, zero inline executable scripts, and sanitized HTML rendering via DOMPurify (`frontend/lib/sanitize.ts` and `SafeHtml.tsx`).
+- **Full Security Test Suite**: 11/11 automated security regression tests passing in `notifications/test/security.test.ts`.
+- **Zero Vulnerabilities**: Dependencies pinned with overrides (`overrides: { "ws": "^8.20.2" }`), yielding 0 vulnerabilities on `npm audit`.
 
 ---
 
 ## High-Availability Multi-RPC Failover Pool
 
-To prevent HTTP 429 rate-limiting during high-volume hackathon judging, `lib/contracts.ts` and `lib/wagmi.ts` implement Viem's `fallback([...])` pooling 4 Sepolia nodes:
+To prevent HTTP 429 rate-limiting during testing and evaluation, `lib/contracts.ts` and `lib/wagmi.ts` implement Viem's `fallback([...])` pooling 5 Sepolia nodes:
 1. `NEXT_PUBLIC_RPC_URL` (Primary custom RPC)
 2. `https://ethereum-sepolia-rpc.publicnode.com` (PublicNode)
 3. `https://rpc.sepolia.org` (Ethereum Foundation)
@@ -54,8 +60,8 @@ To prevent HTTP 429 rate-limiting during high-volume hackathon judging, `lib/con
 
 ## Deployment on Vercel
 
-1. In the [Vercel Dashboard](https://vercel.com), import your repository.
-2. Set **Root Directory** to `frontend` (leave Build & Output settings at default).
+1. In the [Vercel Dashboard](https://vercel.com), import the repository.
+2. Set **Root Directory** to `frontend` (leave Build & Output settings at default Next.js).
 3. Copy environment variables from `.env.production.example`:
    ```env
    NEXT_PUBLIC_CHAIN_ID=11155111
@@ -69,22 +75,25 @@ To prevent HTTP 429 rate-limiting during high-volume hackathon judging, `lib/con
    NEXT_PUBLIC_PIMLICO_API_KEY=your_pimlico_api_key_here
    NEXT_PUBLIC_NOTIFICATION_URL=https://cadence-notifications.onrender.com
    ```
-4. Deploy! Static asset caching and security headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`) are configured in `vercel.json`.
+4. Deploy! Production security headers and edge caching are configured in `vercel.json` and `next.config.ts`.
 
 ---
 
-## Local Development
+## Local Development & Quality Gates
 
 ```bash
+# Install dependencies
 npm install
+
+# Start development server
 npm run dev
-```
 
-Open [http://localhost:3000](http://localhost:3000).
+# Run linting (0 errors, 0 warnings enforced)
+npm run lint
 
-### Code Quality & Production Build
-```bash
-npx eslint .        # ESLint check (0 errors, 0 warnings)
-npx tsc --noEmit    # Strict TypeScript typecheck (0 errors)
-npm run build        # Production Next.js 16 build with Turbopack
+# Run strict TypeScript typechecking
+npx tsc --noEmit
+
+# Run security regression suite (in notifications/)
+cd ../notifications && npm run test:security
 ```

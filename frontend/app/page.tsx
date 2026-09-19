@@ -1,7 +1,6 @@
 "use client";
 
 import React from "react";
-import AnnouncementStrip from "@/components/landing/AnnouncementStrip";
 import PublicNavbar from "@/components/landing/PublicNavbar";
 import EditorialHero from "@/components/landing/EditorialHero";
 import EditorialProductPreview from "@/components/landing/EditorialProductPreview";
@@ -11,9 +10,6 @@ import EditorialFinalCTA from "@/components/landing/EditorialFinalCTA";
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white text-[#111111] selection:bg-[#7C5CFF]/15 selection:text-[#111111] font-sans">
-      {/* Top coral announcement strip */}
-      <AnnouncementStrip />
-
       {/* Clean centered public navigation bar */}
       <PublicNavbar />
 

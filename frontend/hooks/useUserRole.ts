@@ -15,55 +15,9 @@ import {
   findVaultsForBeneficiary,
 } from "../lib/vaultRegistry.ts";
 
-export type RoleType = "owner" | "beneficiary" | "guardian" | "new_user";
+import type { RoleType, VaultRoleMatch, UserRoleState } from "../types";
 
-export interface VaultRoleMatch {
-  vaultAddress: Address;
-  name: string;
-  role: RoleType;
-  details?: string;
-}
-
-export interface UserRoleState {
-  /** True if the connected address owns one or more vaults */
-  isOwner: boolean;
-  /** True if the connected address is a registered/listed beneficiary on one or more vaults */
-  isBeneficiary: boolean;
-  /** True if the connected address is an active or committed guardian on one or more vaults */
-  isGuardian: boolean;
-  /** True if the connected address holds none of the above roles (brand new visitor) */
-  isNewUser: boolean;
-
-  /** List of all roles held simultaneously (non-exclusive) */
-  roles: RoleType[];
-
-  /** Primary role prioritized for initial landing navigation */
-  primaryRole: RoleType;
-
-  /** Recommended navigation route based on roles */
-  recommendedRoute: string;
-
-  /** Formatted human-readable role badge string, e.g. "Owner", "Owner · Guardian", "New User" */
-  roleBadge: string;
-
-  /** Vaults where connected wallet is owner */
-  ownedVaults: VaultRoleMatch[];
-
-  /** Vaults where connected wallet is a beneficiary */
-  beneficiaryVaults: VaultRoleMatch[];
-
-  /** Vaults where connected wallet is a guardian */
-  guardianVaults: VaultRoleMatch[];
-
-  /** Loading state while performing on-chain queries */
-  isLoading: boolean;
-
-  /** Error if contract calls fail */
-  error: Error | null;
-
-  /** Re-evaluates role detection */
-  refetch: () => Promise<void>;
-}
+export type { RoleType, VaultRoleMatch, UserRoleState };
 
 // Known protocol guardians committed to standard & demo vaults
 export const KNOWN_PROTOCOL_GUARDIANS: Address[] = [

@@ -396,7 +396,6 @@ export default function HelpCenterPanel() {
   const [selectedCategory, setSelectedCategory] = useState<HelpCategory>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedFaqId, setExpandedFaqId] = useState<string | null>("gs-01");
-  const [expandedTechId, setExpandedTechId] = useState<string | null>(null);
 
   // Filter items by category and search term
   const filteredFaqs = useMemo(() => {
@@ -410,23 +409,13 @@ export default function HelpCenterPanel() {
       const inQuestion = item.question.toLowerCase().includes(query);
       const inAnswer = item.answer.toLowerCase().includes(query);
       const inCategory = item.category.toLowerCase().includes(query);
-      const inTech =
-        item.technicalDetails &&
-        (item.technicalDetails.explanation.toLowerCase().includes(query) ||
-          item.technicalDetails.functionSignature?.toLowerCase().includes(query) ||
-          item.technicalDetails.cryptography?.toLowerCase().includes(query));
 
-      return inQuestion || inAnswer || inCategory || inTech;
+      return inQuestion || inAnswer || inCategory;
     });
   }, [selectedCategory, searchQuery]);
 
   const toggleFaq = (id: string) => {
     setExpandedFaqId((prev) => (prev === id ? null : id));
-  };
-
-  const toggleTech = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    setExpandedTechId((prev) => (prev === id ? null : id));
   };
 
   return (
@@ -609,7 +598,6 @@ export default function HelpCenterPanel() {
         ) : (
           filteredFaqs.map((faq) => {
             const isExpanded = expandedFaqId === faq.id;
-            const isTechExpanded = expandedTechId === faq.id;
 
             return (
               <div
@@ -650,79 +638,10 @@ export default function HelpCenterPanel() {
 
                 {/* Answer Content */}
                 {isExpanded && (
-                  <div className="px-5 pb-6 sm:px-6 space-y-4 border-t border-[#F1F3F5] pt-4 animate-in fade-in duration-150">
+                  <div className="px-5 pb-6 sm:px-6 border-t border-[#F1F3F5] pt-4 animate-in fade-in duration-150">
                     <p className="text-sm sm:text-base text-[#5F6368] leading-relaxed font-normal">
                       {faq.answer}
                     </p>
-
-                    {/* Collapsible Technical Detail Accordion */}
-                    {faq.technicalDetails && (
-                      <div className="pt-2">
-                        <button
-                          type="button"
-                          onClick={(e) => toggleTech(e, faq.id)}
-                          className="flex items-center gap-2 text-xs font-mono font-medium text-[#7C5CFF] hover:text-[#5B39E0] transition-colors cursor-pointer py-1"
-                        >
-                          <svg
-                            className={`w-3.5 h-3.5 transition-transform duration-150 ${
-                              isTechExpanded ? "rotate-90" : ""
-                            }`}
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                          <span>{isTechExpanded ? "Hide Technical Details" : "Show Technical Details"}</span>
-                        </button>
-
-                        {isTechExpanded && (
-                          <div className="mt-3 p-4 rounded-xl bg-[#F7F8FA] border border-[#E8EAED] font-mono text-xs space-y-2.5 animate-in fade-in duration-150">
-                            {faq.technicalDetails.functionSignature && (
-                              <div className="space-y-1">
-                                <div className="text-[10px] text-[#8A8F98] uppercase tracking-wider">
-                                  FUNCTION SIGNATURE
-                                </div>
-                                <div className="text-[#111111] bg-white p-2 rounded border border-[#E8EAED] break-all">
-                                  {faq.technicalDetails.functionSignature}
-                                </div>
-                              </div>
-                            )}
-
-                            {faq.technicalDetails.cryptography && (
-                              <div className="space-y-1">
-                                <div className="text-[10px] text-[#8A8F98] uppercase tracking-wider">
-                                  CRYPTOGRAPHIC PRIMITIVES
-                                </div>
-                                <div className="text-[#111111] bg-white p-2 rounded border border-[#E8EAED]">
-                                  {faq.technicalDetails.cryptography}
-                                </div>
-                              </div>
-                            )}
-
-                            {faq.technicalDetails.contractFile && (
-                              <div className="space-y-1">
-                                <div className="text-[10px] text-[#8A8F98] uppercase tracking-wider">
-                                  ON-CHAIN CONTRACT
-                                </div>
-                                <div className="text-[#111111] bg-white p-2 rounded border border-[#E8EAED] break-all">
-                                  {faq.technicalDetails.contractFile}
-                                </div>
-                              </div>
-                            )}
-
-                            <div className="space-y-1">
-                              <div className="text-[10px] text-[#8A8F98] uppercase tracking-wider">
-                                PROTOCOL SPECIFICATION
-                              </div>
-                              <p className="text-[#5F6368] font-sans text-xs leading-relaxed">
-                                {faq.technicalDetails.explanation}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

@@ -62,22 +62,8 @@ export const GRACE_PERIOD_OPTIONS = [
   { label: "72 HOURS", display: "72 Hours (Default)", seconds: 259200 },
   { label: "7 DAYS", display: "7 Days", seconds: 86400 * 7 },
 ];
-
-export const CHECKIN_INTERVALS = [
-  { label: "5 MIN (TEST)", seconds: 300 },
-  { label: "10 MIN (TEST)", seconds: 600 },
-  { label: "30 DAYS", seconds: 86400 * 30 },
-  { label: "60 DAYS", seconds: 86400 * 60 },
-  { label: "90 DAYS", seconds: 86400 * 90 },
-  { label: "180 DAYS", seconds: 86400 * 180 },
-];
-
-const SUPPORTED_TOKENS = [
-  { symbol: "ETH", name: "Ethereum", icon: "Ξ" },
-  { symbol: "USDC", name: "USD Coin", icon: "$" },
-  { symbol: "USDT", name: "Tether USD", icon: "₮" },
-  { symbol: "WBTC", name: "Wrapped Bitcoin", icon: "₿" },
-];
+import { CHECKIN_INTERVALS, SUPPORTED_TOKENS } from "../lib/constants";
+export { CHECKIN_INTERVALS };
 
 export function parseUserFriendlyError(err: unknown): string {
   if (!err) return "An unexpected error occurred.";

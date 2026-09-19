@@ -117,7 +117,6 @@ export default function ClaimPortal() {
   const [selectedVaultId, setSelectedVaultId] = useState<string | null>(null);
   const [stage01State, setStage01State] = useState<"Ready" | "Signing" | "Decrypting" | "Unlocked">("Ready");
   const [settlementMode, setSettlementMode] = useState<"lump-sum" | "stream">("lump-sum");
-  const [isTechnicalDetailsOpen, setIsTechnicalDetailsOpen] = useState(false);
 
   // Phase 3.1: Secure In-Memory ECIES Decryption Key State (Zero raw private key UI inputs)
   const [derivedDecryptionKey, setDerivedDecryptionKey] = useState<Hex | null>(null);
@@ -991,35 +990,6 @@ export default function ClaimPortal() {
               <p className="text-xs text-[#5F6368] font-sans leading-relaxed pt-2 border-t border-[#E8EAED]">
                 Your allocation is cryptographically verified against the on-chain consensus root committed by the locker owner. No third party can alter or intercept your entitlement.
               </p>
-
-              {/* Technical Details Accordion */}
-              <div className="pt-2 border-t border-[#E8EAED]">
-                <button
-                  type="button"
-                  onClick={() => setIsTechnicalDetailsOpen(!isTechnicalDetailsOpen)}
-                  className="text-xs font-mono text-[#5F6368] hover:text-[#111111] flex items-center gap-1.5 cursor-pointer select-none"
-                >
-                  <span>{isTechnicalDetailsOpen ? "▾" : "▸"}</span>
-                  <span className="underline">Technical Details</span>
-                </button>
-
-                {isTechnicalDetailsOpen && (
-                  <div className="mt-3 p-3 rounded-xl bg-white border border-[#E8EAED] space-y-1.5 text-[11px] font-mono text-[#5F6368]">
-                    <div className="break-all">
-                      <strong className="text-[#111111]">Root Hash:</strong> {activeVault.allocationRoot}
-                    </div>
-                    <div className="break-all">
-                      <strong className="text-[#111111]">Salt:</strong> {activeVault.salt}
-                    </div>
-                    <div className="break-all">
-                      <strong className="text-[#111111]">Contract:</strong> {activeVault.vaultContractAddress}
-                    </div>
-                    <div>
-                      <strong className="text-[#111111]">Verification:</strong> Verified on-chain via Sepolia
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </div>
 

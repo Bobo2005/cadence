@@ -45,15 +45,7 @@ interface GuardianDisplayInfo {
   label: string;
   attested: boolean;
 }
-
-const INTERVAL_PRESETS = [
-  { label: "5 Min (Test)", display: "5 Minutes", seconds: 300, isTest: true, desc: "Rapid heartbeat testing (300s)" },
-  { label: "10 Min (Test)", display: "10 Minutes", seconds: 600, isTest: true, desc: "Short inactivity testing (600s)" },
-  { label: "30 Days", display: "30 Days", seconds: 30 * 86400, isTest: false, desc: "Active / Frequent check-in" },
-  { label: "60 Days", display: "60 Days", seconds: 60 * 86400, isTest: false, desc: "Standard personal vault" },
-  { label: "90 Days", display: "90 Days", seconds: 90 * 86400, isTest: false, desc: "Recommended Cadence default" },
-  { label: "180 Days", display: "180 Days", seconds: 180 * 86400, isTest: false, desc: "Long-term cold storage" },
-];
+import { INTERVAL_PRESETS } from "../lib/constants";
 
 export default function VaultPulseDashboard({
   initialVaultAddress,

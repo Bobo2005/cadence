@@ -188,21 +188,16 @@ export default function BeneficiarySetupForm({
   return (
     <div
       id={`${formId}-beneficiary-form`}
-      className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)] p-6 shadow-xl transition-all"
+      className="space-y-6"
     >
       {/* Form Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-[var(--border-subtle)]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-[#E8EAED]">
         <div>
-          <div className="flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-              Beneficiary Allocations
-            </h3>
-            <span className="text-xs px-2.5 py-0.5 rounded-full bg-[var(--bg-surface-alt)] text-[var(--accent-pulse)] font-mono border border-[var(--accent-pulse)]/20">
-              Off-Chain Merkle Root
-            </span>
-          </div>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Specify heir addresses and share splits in basis points (100 bps = 1.00%).
+          <h3 className="text-base font-bold text-[#111111]">
+            Beneficiary Allocation
+          </h3>
+          <p className="text-xs text-[#5F6368] mt-0.5">
+            Specify heir addresses and share splits in basis points (100 BPS = 1.00%).
           </p>
         </div>
 
@@ -210,10 +205,10 @@ export default function BeneficiarySetupForm({
           <button
             type="button"
             onClick={autoBalanceEvenly}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--bg-surface-alt)] hover:bg-[var(--border-subtle)] text-[var(--text-primary)] transition-colors border border-[var(--border-subtle)] flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-1.5 text-xs font-semibold rounded-full bg-[#F7F8FA] hover:bg-[#E8EAED] text-[#111111] transition-colors border border-[#E8EAED] flex items-center gap-1.5 cursor-pointer"
             title="Split 10,000 bps evenly among all beneficiaries"
           >
-            <svg className="w-3.5 h-3.5 text-[var(--accent-pulse)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-3.5 h-3.5 text-[#7C5CFF]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
             Auto-Balance
@@ -237,76 +232,80 @@ export default function BeneficiarySetupForm({
                 },
               ]);
             }}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[var(--bg-surface-alt)] hover:bg-[var(--border-subtle)] text-[var(--accent-pulse)] transition-colors border border-[var(--border-subtle)] flex items-center gap-1.5 cursor-pointer"
-            title="Prefill with Alice and Bob demo addresses for testing"
+            className="px-3.5 py-1.5 text-xs font-semibold rounded-full bg-[#F0ECFF] hover:bg-[#E5DFFF] text-[#7C5CFF] transition-colors border border-[#7C5CFF]/30 flex items-center gap-1.5 cursor-pointer"
+            title="Prefill with Alice and Bob example addresses for testing"
           >
-            + Demo Beneficiaries
+            + Example Heirs
           </button>
 
           <button
             type="button"
             onClick={() => setShowExplainer(!showExplainer)}
-            className="p-1.5 text-xs rounded-lg bg-[var(--bg-surface-alt)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] cursor-pointer"
-            aria-label="Explain constraint #4"
+            className="w-7 h-7 flex items-center justify-center text-xs rounded-full bg-[#F7F8FA] text-[#5F6368] hover:text-[#111111] border border-[#E8EAED] cursor-pointer"
+            aria-label="Explain allocation privacy"
             title="Why does total validation happen client-side?"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+            ?
           </button>
         </div>
       </div>
 
-      {/* Explainer Accordion (Anti-Bridge-Anxiety & Constraint #4) */}
+      {/* Explainer Card */}
       {showExplainer && (
-        <div className="mt-4 p-4 rounded-lg bg-[var(--bg-surface-alt)] border border-[var(--accent-pulse)]/20 text-xs text-[var(--text-secondary)] space-y-2">
-          <div className="font-semibold text-[var(--text-primary)] flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[var(--accent-pulse)] animate-ping" />
-            Why must allocations sum to exactly 10,000 bps client-side? (Constraint #4)
+        <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] text-xs text-[#5F6368] space-y-2 animate-in fade-in">
+          <div className="font-semibold text-[#111111] flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-[#7C5CFF]" />
+            Why must allocations sum to exactly 10,000 BPS client-side?
           </div>
-          <p>
-            Cadence enforces <strong>complete allocation privacy</strong> (Constraint #3). The smart contract stores only a 32-byte cryptographic Merkle root (<code>allocationRoot</code>) — individual percentages and blinding salts are ECIES-encrypted and never touch the blockchain in plaintext.
+          <p className="leading-relaxed">
+            Cadence enforces <strong>complete allocation privacy</strong>. The smart contract stores only a 32-byte cryptographic Merkle root (<code>allocationRoot</code>) — individual percentages and blinding salts are ECIES-encrypted and never touch the blockchain in plaintext.
           </p>
-          <p>
-            Because the contract cannot inspect or decrypt plaintext shares on-chain, <strong>total-allocation validation structurally cannot happen on-chain</strong>. It must be strictly enforced here in the client UI before the Merkle tree is generated and submitted to the blockchain.
+          <p className="leading-relaxed">
+            Because the contract cannot inspect or decrypt plaintext shares on-chain, <strong>total allocation validation structurally cannot happen on-chain</strong>. It must be strictly verified here in the client UI before the Merkle tree is generated.
           </p>
         </div>
       )}
 
-      {/* Live Allocation Visual Progress Bar */}
-      <div className="mt-5 space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-[var(--text-secondary)] font-medium">
-            Total Allocated:
-          </span>
-          <div className="flex items-center gap-2 font-mono">
-            <span
-              className={`font-semibold ${
-                isExact10000
-                  ? "text-[var(--accent-pulse)]"
-                  : isOverAllocated
-                  ? "text-[var(--accent-danger)]"
-                  : "text-[var(--accent-warning)]"
-              }`}
-            >
-              {totalBps.toLocaleString()} / 10,000 bps
-            </span>
-            <span
-              className={`px-2 py-0.5 rounded text-[11px] font-bold ${
-                isExact10000
-                  ? "bg-[var(--accent-pulse)]/15 text-[var(--accent-pulse)] border border-[var(--accent-pulse)]/30"
-                  : isOverAllocated
-                  ? "bg-[var(--accent-danger)]/15 text-[var(--accent-danger)] border border-[var(--accent-danger)]/30"
-                  : "bg-[var(--accent-warning)]/15 text-[var(--accent-warning)] border border-[var(--accent-warning)]/30"
-              }`}
-            >
+      {/* ========================================================================= */}
+      {/* PROMINENT ALLOCATION VALIDATOR BANNER                                     */}
+      {/* ========================================================================= */}
+      <div
+        className={`p-5 rounded-2xl border transition-all ${
+          isExact10000
+            ? "bg-[#E9F8F1] border-[#22A06B]/40 text-[#22A06B]"
+            : isOverAllocated
+            ? "bg-[#FDECEC] border-[#D64545]/40 text-[#D64545]"
+            : "bg-[#FFF6D8] border-[#D99A00]/40 text-[#996B00]"
+        }`}
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="space-y-0.5">
+            <div className="text-[11px] font-mono font-bold tracking-wider uppercase">
+              TOTAL ALLOCATION
+            </div>
+            <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight">
+              {totalBps.toLocaleString()} / 10,000 BPS
+            </div>
+          </div>
+
+          <div className="sm:text-right space-y-0.5">
+            <div className="text-2xl sm:text-3xl font-bold font-mono">
               {totalPercent}%
-            </span>
+            </div>
+            <div className="text-xs font-mono font-semibold">
+              {isExact10000 ? (
+                <span>✓ EXACT 100.00% VERIFIED</span>
+              ) : isOverAllocated ? (
+                <span>OVERALLOCATED BY {((totalBps - 10000) / 100).toFixed(2)}%</span>
+              ) : (
+                <span>UNDERALLOCATED BY {((10000 - totalBps) / 100).toFixed(2)}%</span>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Progress Bar Track */}
-        <div className="h-3 w-full rounded-full bg-[var(--bg-primary)] overflow-hidden flex border border-[var(--border-subtle)] relative">
+        {/* Visual Progress Track */}
+        <div className="mt-3.5 h-2 w-full rounded-full bg-black/10 overflow-hidden flex relative">
           {beneficiaries.map((b, idx) => {
             const share = Number(b.shareBps) || 0;
             const widthPct = Math.min(100, Math.max(0, (share / 10000) * 100));
@@ -319,95 +318,22 @@ export default function BeneficiarySetupForm({
                   backgroundColor: SEGMENT_COLORS[idx % SEGMENT_COLORS.length],
                 }}
                 className="h-full transition-all duration-300 relative group"
-                title={`${b.name || `Beneficiary ${idx + 1}`}: ${share} bps (${(share / 100).toFixed(2)}%)`}
+                title={`${b.name || `Beneficiary ${idx + 1}`}: ${share} BPS (${(share / 100).toFixed(2)}%)`}
               />
             );
           })}
-
-          {/* Over-allocation indicator */}
           {isOverAllocated && (
             <div
-              className="h-full bg-[var(--accent-danger)] animate-pulse"
+              className="h-full bg-[#D64545] animate-pulse"
               style={{ width: `${Math.min(100, ((totalBps - 10000) / 10000) * 100)}%` }}
-              title={`Over-allocated by ${totalBps - 10000} bps`}
+              title={`Over-allocated by ${totalBps - 10000} BPS`}
             />
           )}
         </div>
       </div>
 
-      {/* Clear Inline Error / Success Alert */}
-      <div className="mt-4">
-        {isUnderAllocated && (
-          <div
-            id="allocation-inline-warning"
-            className="flex items-start gap-3 p-3.5 rounded-lg border border-[var(--accent-warning)]/40 bg-[var(--accent-warning)]/10 text-[var(--accent-warning)] text-xs leading-relaxed"
-          >
-            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <div className="flex-1">
-              <div className="font-semibold text-sm">Allocation Incomplete</div>
-              <p className="mt-0.5">
-                Current total is <strong className="font-mono">{totalBps.toLocaleString()} bps</strong> ({totalPercent}%). You must allocate the remaining <strong className="font-mono">{remainingBps.toLocaleString()} bps</strong> ({(remainingBps / 100).toFixed(2)}%) to reach exactly 10,000 bps (100%) before constructing the Merkle tree.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isOverAllocated && (
-          <div
-            id="allocation-inline-error"
-            className="flex items-start gap-3 p-3.5 rounded-lg border border-[var(--accent-danger)]/40 bg-[var(--accent-danger)]/10 text-[var(--accent-danger)] text-xs leading-relaxed"
-          >
-            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="flex-1">
-              <div className="font-semibold text-sm">Allocation Exceeds 100%</div>
-              <p className="mt-0.5">
-                Current total is <strong className="font-mono">{totalBps.toLocaleString()} bps</strong> ({totalPercent}%). Overallocated by <strong className="font-mono">{(totalBps - 10000).toLocaleString()} bps</strong> ({((totalBps - 10000) / 100).toFixed(2)}%). Please reduce beneficiary shares to exactly 10,000 bps before proceeding.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isExact10000 && areAddressesValid && (
-          <div
-            id="allocation-inline-success"
-            className="flex items-start gap-3 p-3.5 rounded-lg border border-[var(--accent-pulse)]/40 bg-[var(--accent-pulse)]/10 text-[var(--accent-pulse)] text-xs leading-relaxed"
-          >
-            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <div className="flex-1">
-              <div className="font-semibold text-sm">Perfect Allocation Verified</div>
-              <p className="mt-0.5">
-                All shares sum to exactly <strong className="font-mono">10,000 bps (100.00%)</strong> across {beneficiaries.length} beneficiaries. Ready to generate cryptographically blind Merkle leaves and build the vault deployment commitment.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {isExact10000 && !areAddressesValid && (
-          <div
-            id="allocation-inline-address-error"
-            className="flex items-start gap-3 p-3.5 rounded-lg border border-[var(--accent-warning)]/40 bg-[var(--accent-warning)]/10 text-[var(--accent-warning)] text-xs leading-relaxed"
-          >
-            <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-            </svg>
-            <div className="flex-1">
-              <div className="font-semibold text-sm">Invalid Beneficiary Address</div>
-              <p className="mt-0.5">
-                Total shares sum to 10,000 bps, but one or more beneficiary addresses are invalid. Enter valid 42-character 0x addresses.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Beneficiary Rows List */}
-      <div className="mt-6 space-y-4">
+      {/* Repeatable Beneficiary Rows */}
+      <div className="space-y-4">
         {beneficiaries.map((b, index) => {
           const isAddrValid = !b.address || isAddress(b.address);
           const color = SEGMENT_COLORS[index % SEGMENT_COLORS.length];
@@ -415,12 +341,12 @@ export default function BeneficiarySetupForm({
           return (
             <div
               key={b.id}
-              className="p-4 rounded-xl bg-[var(--bg-surface-alt)] border border-[var(--border-subtle)] space-y-3 transition-all hover:border-[var(--border-subtle)]/80"
+              className="p-5 rounded-2xl bg-white border border-[#E8EAED] shadow-sm space-y-4 transition-all hover:border-[#111111]"
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <span
-                    className="w-3 h-3 rounded-full flex-shrink-0"
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: color }}
                   />
                   <input
@@ -428,7 +354,7 @@ export default function BeneficiarySetupForm({
                     value={b.name}
                     onChange={(e) => updateBeneficiary(b.id, "name", e.target.value)}
                     placeholder={`Beneficiary ${index + 1}`}
-                    className="text-sm font-medium bg-transparent text-[var(--text-primary)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-pulse)]/50 rounded px-1.5 py-0.5 border border-transparent hover:border-[var(--border-subtle)]"
+                    className="text-sm font-semibold bg-transparent text-[#111111] focus:outline-none focus:border-b focus:border-[#111111] px-1 py-0.5 border-b border-transparent"
                   />
                 </div>
 
@@ -437,10 +363,10 @@ export default function BeneficiarySetupForm({
                     <button
                       type="button"
                       onClick={() => fillRemaining(b.id)}
-                      className="px-2 py-1 text-[11px] font-mono rounded bg-[var(--bg-primary)] hover:bg-[var(--border-subtle)] text-[var(--accent-pulse)] border border-[var(--accent-pulse)]/30 transition-colors cursor-pointer"
-                      title={`Add remaining ${remainingBps} bps to this beneficiary`}
+                      className="px-2.5 py-1 text-[11px] font-mono font-medium rounded-full bg-[#F0ECFF] hover:bg-[#E5DFFF] text-[#7C5CFF] border border-[#7C5CFF]/30 transition-colors cursor-pointer"
+                      title={`Add remaining ${remainingBps} BPS to this beneficiary`}
                     >
-                      + {remainingBps} bps
+                      + {remainingBps} BPS
                     </button>
                   )}
 
@@ -448,7 +374,7 @@ export default function BeneficiarySetupForm({
                     <button
                       type="button"
                       onClick={() => removeBeneficiary(b.id)}
-                      className="p-1 text-[var(--text-secondary)] hover:text-[var(--accent-danger)] transition-colors cursor-pointer"
+                      className="p-1.5 text-[#8A8F98] hover:text-[#D64545] rounded-full hover:bg-[#FDECEC] transition-colors cursor-pointer"
                       title="Remove beneficiary"
                       aria-label="Remove beneficiary"
                     >
@@ -460,38 +386,38 @@ export default function BeneficiarySetupForm({
                 </div>
               </div>
 
-              {/* Address and Share Inputs */}
-              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+              {/* Address and Allocation Inputs */}
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                 {/* Beneficiary Address */}
-                <div className="sm:col-span-8">
-                  <label className="block text-[11px] font-medium text-[var(--text-secondary)] mb-1">
-                    Beneficiary Wallet / Stealth Address
+                <div className="sm:col-span-8 space-y-1.5">
+                  <label className="block text-[11px] font-mono font-semibold text-[#8A8F98] uppercase tracking-wider">
+                    BENEFICIARY ADDRESS
                   </label>
                   <input
                     type="text"
                     value={b.address}
                     onChange={(e) => updateBeneficiary(b.id, "address", e.target.value.trim())}
-                    placeholder="0x..."
-                    className={`w-full font-mono text-xs px-3 py-2 rounded-lg bg-[var(--bg-primary)] text-[var(--text-primary)] border focus:outline-none focus:ring-1 ${
+                    placeholder="0xABCD...1234"
+                    className={`w-full font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#F7F8FA] text-[#111111] border focus:outline-none focus:bg-white transition-all ${
                       isAddrValid
-                        ? "border-[var(--border-subtle)] focus:border-[var(--accent-pulse)] focus:ring-[var(--accent-pulse)]/30"
-                        : "border-[var(--accent-danger)] focus:border-[var(--accent-danger)] focus:ring-[var(--accent-danger)]/30"
+                        ? "border-[#E8EAED] focus:border-[#111111]"
+                        : "border-[#D64545] focus:border-[#D64545]"
                     }`}
                   />
                   {!isAddrValid && (
-                    <span className="text-[10px] text-[var(--accent-danger)] mt-1 block">
+                    <span className="text-[10px] text-[#D64545] mt-1 block">
                       Invalid Ethereum address format
                     </span>
                   )}
                 </div>
 
-                {/* Share in Basis Points */}
-                <div className="sm:col-span-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
-                      Share Allocation
+                {/* Allocation in Basis Points */}
+                <div className="sm:col-span-4 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-[11px] font-mono font-semibold text-[#8A8F98] uppercase tracking-wider">
+                      ALLOCATION
                     </label>
-                    <span className="text-[11px] font-mono text-[var(--accent-pulse)] font-semibold">
+                    <span className="text-xs font-mono text-[#7C5CFF] font-bold">
                       {((Number(b.shareBps) || 0) / 100).toFixed(2)}%
                     </span>
                   </div>
@@ -507,11 +433,11 @@ export default function BeneficiarySetupForm({
                         const val = e.target.value === "" ? 0 : parseInt(e.target.value, 10);
                         updateBeneficiary(b.id, "shareBps", isNaN(val) ? 0 : Math.max(0, val));
                       }}
-                      placeholder="0"
-                      className="w-full font-mono text-xs px-3 py-2 pr-12 rounded-lg bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-subtle)] focus:outline-none focus:border-[var(--accent-pulse)] focus:ring-1 focus:ring-[var(--accent-pulse)]/30"
+                      placeholder="6000"
+                      className="w-full font-mono text-xs px-3.5 py-2.5 pr-12 rounded-xl bg-[#F7F8FA] text-[#111111] border border-[#E8EAED] focus:outline-none focus:bg-white focus:border-[#111111] transition-all font-semibold"
                     />
-                    <span className="absolute right-3 top-2 text-[11px] font-mono text-[var(--text-secondary)]">
-                      bps
+                    <span className="absolute right-3.5 top-2.5 text-[11px] font-mono text-[#8A8F98]">
+                      BPS
                     </span>
                   </div>
                 </div>
@@ -519,33 +445,33 @@ export default function BeneficiarySetupForm({
 
               {/* Quick Presets for this beneficiary */}
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                <span className="text-[10px] text-[var(--text-secondary)]">Presets:</span>
+                <span className="text-[10px] text-[#8A8F98] font-mono uppercase">Presets:</span>
                 {[1000, 2500, 3333, 5000, 10000].map((presetBps) => (
                   <button
                     key={presetBps}
                     type="button"
                     onClick={() => updateBeneficiary(b.id, "shareBps", presetBps)}
-                    className="px-1.5 py-0.5 text-[10px] font-mono rounded bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors cursor-pointer"
+                    className="px-2 py-0.5 text-[10px] font-mono rounded-full bg-[#F7F8FA] text-[#5F6368] hover:text-[#111111] hover:bg-[#E8EAED] border border-[#E8EAED] transition-colors cursor-pointer"
                   >
                     {(presetBps / 100).toFixed(presetBps % 100 === 0 ? 0 : 2)}%
                   </button>
                 ))}
               </div>
 
-              {/* Optional Beneficiary Email Suggestion (DESIGN-SYSTEM.md item 3) */}
-              <div className="pt-2.5 border-t border-[var(--border-subtle)]/50 space-y-1">
-                <label className="block text-[11px] font-medium text-[var(--text-secondary)]">
-                  Suggest an email for this beneficiary (optional)
+              {/* Optional Beneficiary Email Suggestion */}
+              <div className="pt-3 border-t border-[#E8EAED] space-y-1">
+                <label className="block text-[11px] text-[#5F6368]">
+                  Notification Email for Heir <span className="text-[#8A8F98]">(Optional)</span>
                 </label>
                 <input
                   type="email"
                   value={b.suggestedEmail || ""}
                   onChange={(e) => updateBeneficiary(b.id, "suggestedEmail", e.target.value.trim())}
-                  placeholder="beneficiary@example.com"
-                  className="w-full font-mono text-xs px-3 py-1.5 rounded-lg bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-subtle)] focus:outline-none focus:border-[var(--accent-pulse)]"
+                  placeholder="heir@example.com"
+                  className="w-full font-mono text-xs px-3.5 py-2 rounded-xl bg-[#F7F8FA] text-[#111111] border border-[#E8EAED] focus:outline-none focus:bg-white focus:border-[#111111] transition-all"
                 />
-                <p className="text-[10px] text-[var(--text-secondary)]">
-                  They&apos;ll need to confirm this themselves before any notification is sent
+                <p className="text-[10px] text-[#8A8F98]">
+                  Heirs will be prompted to verify this email with a wallet signature before any claim notification is dispatched.
                 </p>
               </div>
             </div>
@@ -553,31 +479,31 @@ export default function BeneficiarySetupForm({
         })}
       </div>
 
-      {/* Add Beneficiary Action */}
-      <div className="mt-5 flex items-center justify-between pt-4 border-t border-[var(--border-subtle)]">
+      {/* Add Beneficiary Action Row */}
+      <div className="flex items-center justify-between pt-2">
         <button
           type="button"
           onClick={addBeneficiary}
-          className="px-4 py-2 text-xs font-medium rounded-lg bg-[var(--bg-surface-alt)] hover:bg-[var(--border-subtle)] text-[var(--text-primary)] border border-[var(--border-subtle)] transition-colors flex items-center gap-2 cursor-pointer"
+          className="px-5 py-2.5 text-xs font-semibold rounded-full bg-[#F7F8FA] hover:bg-[#E8EAED] text-[#111111] border border-[#E8EAED] transition-colors flex items-center gap-2 cursor-pointer shadow-sm"
         >
-          <svg className="w-4 h-4 text-[var(--accent-pulse)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          <svg className="w-4 h-4 text-[#111111]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
           </svg>
-          Add Beneficiary
+          <span>Add Beneficiary</span>
         </button>
 
         <div className="text-right text-xs font-mono">
-          <span className="text-[var(--text-secondary)]">Sum: </span>
+          <span className="text-[#8A8F98]">Total: </span>
           <span
-            className={`font-semibold ${
+            className={`font-bold ${
               isExact10000
-                ? "text-[var(--accent-pulse)]"
+                ? "text-[#22A06B]"
                 : isOverAllocated
-                ? "text-[var(--accent-danger)]"
-                : "text-[var(--accent-warning)]"
+                ? "text-[#D64545]"
+                : "text-[#D99A00]"
             }`}
           >
-            {totalBps.toLocaleString()} / 10,000 bps ({totalPercent}%)
+            {totalBps.toLocaleString()} / 10,000 BPS ({totalPercent}%)
           </span>
         </div>
       </div>

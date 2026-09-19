@@ -57,16 +57,58 @@ export default function LiveECGMonitor({
       }
 
       if (mode === "erratic") {
-        // High-amplitude chaotic arrhythmia with dense irregular spikes
-        const chaoticPhase = (phase * 1.8) % 1;
-        if (chaoticPhase > 0.1 && chaoticPhase < 0.16) return -12;
-        if (chaoticPhase >= 0.16 && chaoticPhase < 0.22) return 38;
-        if (chaoticPhase >= 0.22 && chaoticPhase < 0.28) return -34;
-        if (chaoticPhase >= 0.28 && chaoticPhase < 0.35) return 18;
-        if (chaoticPhase >= 0.5 && chaoticPhase < 0.58) return 25;
-        if (chaoticPhase >= 0.7 && chaoticPhase < 0.76) return -28;
-        if (chaoticPhase >= 0.76 && chaoticPhase < 0.84) return 36;
-        return Math.sin(phase * Math.PI * 4) * 3;
+        // Authentic, slightly irregular sinus arrhythmia with gentle ectopic variation
+        // Uses a 2-beat macro rhythm to create an organic, non-chaotic irregular interval
+        const macroPhase = (phase * 0.5) % 1; // 2-beat repeating macro cycle
+        // Gentle baseline wander reflecting slight autonomic irregularity
+        const wander = Math.sin(macroPhase * Math.PI * 4) * 1.2;
+
+        // Beat 1: Slightly premature cardiac cycle (fires around macroPhase 0.15 - 0.45)
+        if (macroPhase >= 0.10 && macroPhase < 0.17) {
+          const p = (macroPhase - 0.10) / 0.07;
+          return Math.sin(p * Math.PI) * 5 + wander;
+        }
+        if (macroPhase >= 0.19 && macroPhase < 0.22) {
+          const q = (macroPhase - 0.19) / 0.03;
+          return -Math.sin(q * Math.PI) * 6 + wander;
+        }
+        if (macroPhase >= 0.22 && macroPhase < 0.27) {
+          const r = (macroPhase - 0.22) / 0.05;
+          return Math.sin(r * Math.PI) * 38 + wander;
+        }
+        if (macroPhase >= 0.27 && macroPhase < 0.31) {
+          const s = (macroPhase - 0.27) / 0.04;
+          return -Math.sin(s * Math.PI) * 14 + wander;
+        }
+        if (macroPhase >= 0.35 && macroPhase < 0.45) {
+          const t = (macroPhase - 0.35) / 0.10;
+          return Math.sin(t * Math.PI) * 9 + wander;
+        }
+
+        // Beat 2: Delayed compensatory cardiac cycle with slightly taller deflection
+        // (fires around macroPhase 0.65 - 0.95, giving a noticeable but calm irregular pause)
+        if (macroPhase >= 0.62 && macroPhase < 0.68) {
+          const p = (macroPhase - 0.62) / 0.06;
+          return Math.sin(p * Math.PI) * 6 + wander;
+        }
+        if (macroPhase >= 0.70 && macroPhase < 0.73) {
+          const q = (macroPhase - 0.70) / 0.03;
+          return -Math.sin(q * Math.PI) * 8 + wander;
+        }
+        if (macroPhase >= 0.73 && macroPhase < 0.79) {
+          const r = (macroPhase - 0.73) / 0.06;
+          return Math.sin(r * Math.PI) * 44 + wander;
+        }
+        if (macroPhase >= 0.79 && macroPhase < 0.84) {
+          const s = (macroPhase - 0.79) / 0.05;
+          return -Math.sin(s * Math.PI) * 18 + wander;
+        }
+        if (macroPhase >= 0.88 && macroPhase < 0.98) {
+          const t = (macroPhase - 0.88) / 0.10;
+          return Math.sin(t * Math.PI) * 12 + wander;
+        }
+
+        return wander; // Calm isoelectric pause between irregular beats
       }
 
       // Active state: Clinically accurate P-Q-R-S-T wave complex
@@ -103,9 +145,9 @@ export default function LiveECGMonitor({
       if (!startTime) startTime = timestamp;
       const elapsed = timestamp - startTime;
 
-      // Pulse trigger indication near peak of R-wave
+      // Pulse trigger indication near peak of R-wave (only in steady active state; no flashing in erratic)
       const currentCyclePhase = (elapsed % beatPeriod) / beatPeriod;
-      setPulseBeating(currentCyclePhase > 0.32 && currentCyclePhase < 0.40);
+      setPulseBeating(state === "active" && currentCyclePhase > 0.32 && currentCyclePhase < 0.40);
 
       // Generate continuous polyline points across the viewport
       const step = 4; // resolution step in pixels
@@ -146,35 +188,35 @@ export default function LiveECGMonitor({
     };
   }, [state, bpm]);
 
-  // Color selection according to DESIGN-SYSTEM.md table
+  // Calm teal color selection for light editorial aesthetic
   const strokeColor =
     state === "active"
-      ? "#2EE6A8"
+      ? "#0D9488"
       : state === "erratic"
-      ? "#F5B841"
-      : "#F5484A";
+      ? "#D97706"
+      : "#E11D48";
 
   const glowShadow =
     state === "active"
-      ? "drop-shadow(0 0 14px rgba(46,230,168,0.7))"
+      ? "drop-shadow(0 0 8px rgba(13,148,136,0.35))"
       : state === "erratic"
-      ? "drop-shadow(0 0 14px rgba(245,184,65,0.7))"
-      : "drop-shadow(0 0 14px rgba(245,72,74,0.7))";
+      ? "drop-shadow(0 0 8px rgba(217,119,6,0.35))"
+      : "drop-shadow(0 0 8px rgba(225,29,72,0.35))";
 
   return (
     <div className={`relative w-full h-28 my-2 flex items-center justify-center select-none ${className}`}>
-      {/* Background Subtle Oscilloscope Grid Lines */}
+      {/* Background Subtle Oscilloscope Grid Lines - Light Theme */}
       <svg
-        className="absolute inset-0 w-full h-full pointer-events-none opacity-20"
+        className="absolute inset-0 w-full h-full pointer-events-none opacity-40"
         viewBox="0 0 1000 100"
         fill="none"
         preserveAspectRatio="none"
       >
-        <line x1="0" y1="20" x2="1000" y2="20" stroke="#232838" strokeWidth="1" strokeDasharray="4 4" />
-        <line x1="0" y1="50" x2="1000" y2="50" stroke="#232838" strokeWidth="1" />
-        <line x1="0" y1="80" x2="1000" y2="80" stroke="#232838" strokeWidth="1" strokeDasharray="4 4" />
+        <line x1="0" y1="20" x2="1000" y2="20" stroke="#E8EAED" strokeWidth="1" strokeDasharray="4 4" />
+        <line x1="0" y1="50" x2="1000" y2="50" stroke="#E8EAED" strokeWidth="1" />
+        <line x1="0" y1="80" x2="1000" y2="80" stroke="#E8EAED" strokeWidth="1" strokeDasharray="4 4" />
         {[100, 200, 300, 400, 500, 600, 700, 800, 900].map((gx) => (
-          <line key={gx} x1={gx} y1="0" x2={gx} y2="100" stroke="#232838" strokeWidth="0.8" strokeDasharray="4 4" />
+          <line key={gx} x1={gx} y1="0" x2={gx} y2="100" stroke="#E8EAED" strokeWidth="0.8" strokeDasharray="4 4" />
         ))}
       </svg>
 

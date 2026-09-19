@@ -4,29 +4,33 @@
 @import "../styles/tokens.css";
 
 @theme inline {
-  /* Wire Cadence tokens into Tailwind's colour system */
-  --color-bg-primary:     var(--bg-primary);
-  --color-bg-surface:     var(--bg-surface);
-  --color-bg-surface-alt: var(--bg-surface-alt);
-  --color-accent-pulse:   var(--accent-pulse);
-  --color-accent-warning: var(--accent-warning);
-  --color-accent-danger:  var(--accent-danger);
-  --color-text-primary:   var(--text-primary);
-  --color-text-secondary: var(--text-secondary);
-  --color-border-subtle:  var(--border-subtle);
-  --color-border-active:  var(--border-active);
-  --color-border-warning: var(--border-warning);
-  --color-border-danger:  var(--border-danger);
+  /* Wire Cadence light tokens into Tailwind */
+  --color-bg-primary:     var(--background-primary);
+  --color-bg-secondary:   var(--background-secondary);
+  --color-bg-surface:     var(--background-primary);
+  --color-text-primary:   var(--foreground-primary);
+  --color-text-secondary: var(--foreground-secondary);
+  --color-text-muted:     var(--foreground-muted);
+  --color-border-primary: var(--border-primary);
+  --color-border-secondary: var(--border-secondary);
 
-  /* Wire font variables loaded by layout.tsx */
+  --color-accent-purple:  var(--purple);
+  --color-accent-cyan:    var(--cyan-50);
+  --color-accent-lavender: var(--lavender-50);
+  --color-accent-coral:   var(--coral);
+  --color-accent-success: var(--success);
+  --color-accent-warning: var(--warning);
+  --color-accent-danger:  var(--error);
+
+  /* Fonts */
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 }
 
-/* Base reset — Cadence "Pulse" dark theme */
+/* Base reset — Cadence Light Editorial theme */
 body {
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  background-color: #FFFFFF;
+  color: #111111;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

@@ -126,22 +126,20 @@ export default function CheckInButton({
   return (
     <>
       {/* Primary Trigger Button with Pre-Commit Honest Badges */}
-      <div className="flex flex-col items-center gap-2">
+      <div className="flex flex-col items-start sm:items-center gap-2">
         <button
           type="button"
           onClick={handleOpen}
           disabled={disabled}
-          className={`relative group inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-medium text-base transition-all duration-300 cursor-pointer ${
+          className={`relative group inline-flex items-center justify-center gap-3 px-8 py-3.5 rounded-full font-semibold text-sm transition-all duration-200 cursor-pointer ${
             disabled
-              ? "bg-[#1A1F2B] text-[#8993A6] cursor-not-allowed border border-[#232838]"
-              : isSponsored
-              ? "bg-[#2EE6A8] hover:bg-[#25C791] text-[#0A0E14] font-semibold shadow-[0_0_24px_rgba(46,230,168,0.25)] hover:shadow-[0_0_36px_rgba(46,230,168,0.4)] transform hover:-translate-y-0.5 active:translate-y-0"
-              : "bg-[#F5B841] hover:bg-[#E5AA33] text-[#0A0E14] font-semibold shadow-[0_0_24px_rgba(245,184,65,0.25)] hover:shadow-[0_0_36px_rgba(245,184,65,0.4)] transform hover:-translate-y-0.5 active:translate-y-0"
+              ? "bg-[#E8EAED] text-[#8A8F98] cursor-not-allowed"
+              : "bg-[#111111] hover:bg-black text-white shadow-sm hover:shadow-md transform hover:-translate-y-0.5 active:translate-y-0"
           } ${className}`}
         >
           {/* Heartbeat Icon */}
           <svg
-            className={`w-5 h-5 ${disabled ? "text-[#8993A6]" : "text-[#0A0E14] animate-pulse"}`}
+            className={`w-4 h-4 ${disabled ? "text-[#8A8F98]" : "text-[#22A06B] animate-pulse"}`}
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -152,69 +150,46 @@ export default function CheckInButton({
             <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
           </svg>
 
-          <span>Record Heartbeat Now</span>
+          <span>RECORD HEARTBEAT NOW</span>
 
-          {/* Pre-Commit Badge: Teal for Sponsored (Smart Account), Amber for Direct (EOA) */}
+          {/* Pre-Commit Badge: Green for Sponsored (Smart Account), Neutral for Direct (EOA) */}
           {isSmartAccount === null ? (
-            <span className="text-xs px-2 py-0.5 rounded-full font-mono uppercase bg-[#0A0E14]/15 text-[#0A0E14]">
+            <span className="text-[11px] px-2 py-0.5 rounded-full font-mono uppercase bg-white/10 text-white/80">
               Checking...
             </span>
           ) : isSponsored ? (
             <span
-              className="text-xs px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider bg-[#0A0E14]/20 text-[#0A0E14] font-bold border border-[#0A0E14]/20"
+              className="text-[11px] px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider bg-[#22A06B]/20 text-[#22A06B] font-bold"
               title="ERC-4337 Smart Account detected — gas sponsored by Pimlico paymaster"
             >
-              <span className="hidden sm:inline">Sponsored · </span>0 ETH
+              SPONSORED · 0 ETH
             </span>
           ) : (
             <span
-              className="text-xs px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider bg-[#0A0E14]/20 text-[#0A0E14] font-bold border border-[#0A0E14]/20"
+              className="text-[11px] px-2.5 py-0.5 rounded-full font-mono uppercase tracking-wider bg-white/15 text-white/90 font-medium"
               title="Plain EOA detected — direct on-chain transaction paid by wallet"
             >
-              <span className="hidden sm:inline">Direct · </span>EOA Gas
+              DIRECT · EOA GAS
             </span>
           )}
         </button>
-
-        {/* Status pill under button */}
-        <div className="flex items-center gap-1.5 text-xs text-[#8993A6]">
-          <span className="relative flex h-2 w-2">
-            <span
-              className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-                isSponsored ? "bg-[#2EE6A8]" : "bg-[#F5B841]"
-              }`}
-            />
-            <span
-              className={`relative inline-flex rounded-full h-2 w-2 ${
-                isSponsored ? "bg-[#2EE6A8]" : "bg-[#F5B841]"
-              }`}
-            />
-          </span>
-          <span>
-            {isSmartAccount === null
-              ? "Detecting account bytecode..."
-              : isSponsored
-              ? "Pimlico ERC-4337 Paymaster active · Sepolia"
-              : "Direct EOA heartbeat · Standard Sepolia gas"}
-          </span>
-        </div>
       </div>
 
       {/* Honest Confirmation Modal */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-200">
           <div
-            className="relative w-full max-w-lg bg-[#12161F] border border-[#232838] rounded-2xl p-6 shadow-2xl text-[#E8ECF1] overflow-hidden"
+            className="relative w-full max-w-lg bg-white border border-[#E8EAED] rounded-3xl p-6 sm:p-8 shadow-2xl text-[#111111] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-[#232838]">
-              <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-between pb-4 border-b border-[#E8EAED]">
+              <div className="flex items-center gap-3">
                 <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                  className={`w-9 h-9 rounded-full flex items-center justify-center ${
                     isSponsored
-                      ? "bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[#2EE6A8]"
-                      : "bg-[#F5B841]/10 border border-[#F5B841]/30 text-[#F5B841]"
+                      ? "bg-[#E9F8F1] text-[#22A06B]"
+                      : "bg-[#FFF6D8] text-[#D99A00]"
                   }`}
                 >
                   <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -222,8 +197,8 @@ export default function CheckInButton({
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg text-[#E8ECF1]">Proof-of-Life Heartbeat</h3>
-                  <p className="text-xs text-[#8993A6]">
+                  <h3 className="font-bold text-lg text-[#111111]">Proof-of-Life Heartbeat</h3>
+                  <p className="text-xs text-[#5F6368]">
                     {isSponsored
                       ? "ERC-4337 Smart Account Sponsored Route"
                       : "Direct On-Chain Transaction Route"}
@@ -234,7 +209,7 @@ export default function CheckInButton({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="text-[#8993A6] hover:text-[#E8ECF1] p-1 rounded-lg hover:bg-[#1A1F2B] transition-colors cursor-pointer"
+                  className="w-8 h-8 rounded-full border border-[#E8EAED] text-[#5F6368] hover:text-[#111111] hover:border-[#AEB3BB] flex items-center justify-center transition-colors cursor-pointer"
                 >
                   ✕
                 </button>
@@ -245,79 +220,77 @@ export default function CheckInButton({
             {!executionResult ? (
               <div className="py-5 space-y-5">
                 {/* Cost Highlight Card */}
-                <div className="grid grid-cols-2 gap-3 p-4 rounded-xl bg-[#0A0E14] border border-[#232838]">
+                <div className="grid grid-cols-2 gap-3 p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED]">
                   <div>
-                    <span className="text-xs text-[#8993A6] block">Execution Path</span>
-                    <span className="text-sm font-mono font-semibold text-[#E8ECF1]">
-                      {isSponsored ? "ERC-4337 Paymaster" : "Direct EOA Call"}
+                    <span className="text-xs text-[#5F6368] block">Execution Path</span>
+                    <span className="font-mono text-sm font-semibold text-[#111111]">
+                      {isSponsored ? "ERC-4337 UserOp" : "Direct Standard EOA"}
                     </span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-xs text-[#8993A6] font-medium block">
-                      {isSponsored ? "Your Cost (Sponsored)" : "Estimated Gas Cost"}
-                    </span>
+                  <div>
+                    <span className="text-xs text-[#5F6368] block">Estimated Gas Cost</span>
                     <span
-                      className={`text-base font-bold font-mono ${
-                        isSponsored ? "text-[#2EE6A8]" : "text-[#F5B841]"
+                      className={`font-mono text-sm font-semibold ${
+                        isSponsored ? "text-[#22A06B]" : "text-[#D99A00]"
                       }`}
                     >
-                      {isSponsored ? "0.0000 ETH" : "~0.0002 ETH"}
+                      {isSponsored ? "0.0000 ETH (Sponsored)" : quote ? `${quote.userCostEth} ETH` : "Wallet Balance"}
                     </span>
                   </div>
                 </div>
 
                 {/* Explanation */}
-                <div className="text-sm text-[#8993A6] leading-relaxed bg-[#1A1F2B]/50 p-3.5 rounded-xl border border-[#232838]/80">
+                <div className="text-sm text-[#5F6368] leading-relaxed bg-[#F7F8FA] p-4 rounded-2xl border border-[#E8EAED]">
                   <p>
-                    Submitting this heartbeat calls <code className="text-[#2EE6A8] font-mono">checkIn()</code> on your vault, resetting the inactivity countdown back to full duration.
+                    Submitting this heartbeat calls <code className="text-[#111111] bg-white px-1.5 py-0.5 rounded border border-[#E8EAED] font-mono">checkIn()</code> on your vault, resetting the inactivity countdown back to full duration.
                   </p>
                   {isSponsored ? (
-                    <p className="mt-2 text-xs text-[#2EE6A8]">
+                    <p className="mt-2 text-xs text-[#22A06B] font-medium">
                       ✓ Your wallet is an ERC-4337 smart account. Gas is sponsored by Pimlico Verifying Paymaster via EntryPoint v0.7.
                     </p>
                   ) : (
-                    <p className="mt-2 text-xs text-[#F5B841]">
-                      ℹ Your wallet is an EOA (Externally Owned Account). In accordance with ERC-4337 architecture constraints, gas will be signed and paid directly from your wallet balance.
+                    <p className="mt-2 text-xs text-[#5F6368]">
+                      ℹ Your wallet is an EOA (Externally Owned Account). Gas will be signed and paid directly from your wallet balance.
                     </p>
                   )}
                 </div>
 
                 {/* Technical Parameters */}
                 <div className="space-y-2 text-xs font-mono">
-                  <div className="flex justify-between py-1 border-b border-[#232838]/50">
-                    <span className="text-[#8993A6]">Target Locker</span>
-                    <span className="text-[#E8ECF1]">
+                  <div className="flex justify-between py-1 border-b border-[#E8EAED]">
+                    <span className="text-[#5F6368]">Target Locker</span>
+                    <span className="text-[#111111]">
                       {vaultAddress.slice(0, 10)}...{vaultAddress.slice(-6)}
                     </span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-[#232838]/50">
-                    <span className="text-[#8993A6]">Function Call</span>
-                    <span className="text-[#2EE6A8]">checkIn() · 0x183ff085</span>
+                  <div className="flex justify-between py-1 border-b border-[#E8EAED]">
+                    <span className="text-[#5F6368]">Function Call</span>
+                    <span className="text-[#111111]">checkIn() · 0x183ff085</span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-[#232838]/50">
-                    <span className="text-[#8993A6]">Account Type</span>
-                    <span className="text-[#E8ECF1]">
+                  <div className="flex justify-between py-1 border-b border-[#E8EAED]">
+                    <span className="text-[#5F6368]">Account Type</span>
+                    <span className="text-[#111111]">
                       {isSmartAccount ? "Smart Contract Account" : "Plain EOA"}
                     </span>
                   </div>
                   {isSponsored && (
-                    <div className="flex justify-between py-1 border-b border-[#232838]/50">
-                      <span className="text-[#8993A6]">EntryPoint</span>
-                      <span className="text-[#E8ECF1]">{entryPoint07Address.slice(0, 10)}... (v0.7)</span>
+                    <div className="flex justify-between py-1 border-b border-[#E8EAED]">
+                      <span className="text-[#5F6368]">EntryPoint</span>
+                      <span className="text-[#111111]">{entryPoint07Address.slice(0, 10)}... (v0.7)</span>
                     </div>
                   )}
                   {quote && (
                     <div className="flex justify-between py-1">
-                      <span className="text-[#8993A6]">Sepolia Fast Gas</span>
-                      <span className="text-[#E8ECF1]">{quote.estimatedGasGwei} Gwei</span>
+                      <span className="text-[#5F6368]">Sepolia Fast Gas</span>
+                      <span className="text-[#111111]">{quote.estimatedGasGwei} Gwei</span>
                     </div>
                   )}
                 </div>
 
                 {/* Real Pending Status */}
                 {isSubmitting && submissionStep && (
-                  <div className="p-3 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-[#2EE6A8] text-xs font-mono flex items-center gap-2">
-                    <svg className="animate-spin h-3.5 w-3.5 text-[#2EE6A8]" fill="none" viewBox="0 0 24 24">
+                  <div className="p-3.5 rounded-xl bg-[#E9F8F1] border border-[#22A06B]/30 text-[#22A06B] text-xs font-mono flex items-center gap-2">
+                    <svg className="animate-spin h-3.5 w-3.5 text-[#22A06B]" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                     </svg>
@@ -327,7 +300,7 @@ export default function CheckInButton({
 
                 {/* Real Error Message */}
                 {errorMessage && (
-                  <div className="p-3 rounded-xl bg-[#F5484A]/10 border border-[#F5484A]/30 text-[#F5484A] text-xs font-mono break-words">
+                  <div className="p-3.5 rounded-xl bg-[#FDECEC] border border-[#D64545]/30 text-[#D64545] text-xs font-mono break-words">
                     {errorMessage}
                   </div>
                 )}
@@ -338,7 +311,7 @@ export default function CheckInButton({
                     type="button"
                     onClick={handleClose}
                     disabled={isSubmitting}
-                    className="flex-1 px-4 py-3 rounded-xl bg-[#1A1F2B] hover:bg-[#232838] text-[#8993A6] hover:text-[#E8ECF1] text-sm font-medium transition-colors cursor-pointer"
+                    className="flex-1 px-5 py-3 rounded-full bg-[#F7F8FA] hover:bg-[#F1F3F5] text-[#5F6368] hover:text-[#111111] text-sm font-medium transition-colors cursor-pointer border border-[#E8EAED]"
                   >
                     Cancel
                   </button>
@@ -346,15 +319,11 @@ export default function CheckInButton({
                     type="button"
                     onClick={handleConfirmCheckIn}
                     disabled={isSubmitting || isQuoting}
-                    className={`flex-1 px-4 py-3 rounded-xl text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                      isSponsored
-                        ? "bg-[#2EE6A8] hover:bg-[#25C791] text-[#0A0E14] shadow-[0_0_20px_rgba(46,230,168,0.25)]"
-                        : "bg-[#F5B841] hover:bg-[#E5AA33] text-[#0A0E14] shadow-[0_0_20px_rgba(245,184,65,0.25)]"
-                    }`}
+                    className="flex-1 px-5 py-3 rounded-full bg-[#111111] hover:bg-black text-white text-sm font-semibold transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm"
                   >
                     {isSubmitting ? (
                       <>
-                        <svg className="animate-spin w-4 h-4 text-[#0A0E14]" viewBox="0 0 24 24" fill="none">
+                        <svg className="animate-spin w-4 h-4 text-white" viewBox="0 0 24 24" fill="none">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
@@ -363,7 +332,7 @@ export default function CheckInButton({
                     ) : isSponsored ? (
                       <span>Confirm Check-In (0 ETH)</span>
                     ) : (
-                      <span>Sign &amp; Broadcast Heartbeat</span>
+                      <span>Sign &amp; Broadcast Check-In</span>
                     )}
                   </button>
                 </div>
@@ -371,43 +340,43 @@ export default function CheckInButton({
             ) : (
               /* Genuine Success View with On-Chain Link */
               <div className="py-6 space-y-4 text-center">
-                <div className="w-14 h-14 mx-auto rounded-2xl bg-[#2EE6A8]/15 border border-[#2EE6A8]/40 flex items-center justify-center text-[#2EE6A8]">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-[#E9F8F1] border border-[#22A06B]/30 flex items-center justify-center text-[#22A06B]">
                   <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
                 </div>
 
                 <div className="space-y-1">
-                  <h4 className="font-semibold text-lg text-[#E8ECF1]">Heartbeat Confirmed on Sepolia!</h4>
-                  <p className="text-xs text-[#8993A6]">
+                  <h4 className="font-semibold text-lg text-[#111111]">Heartbeat Confirmed on Sepolia!</h4>
+                  <p className="text-xs text-[#5F6368]">
                     Your vault inactivity countdown has been reset on-chain.
                   </p>
                 </div>
 
-                <div className="p-3.5 bg-[#0A0E14] border border-[#232838] rounded-xl text-left space-y-2 text-xs font-mono">
+                <div className="p-4 bg-[#F7F8FA] border border-[#E8EAED] rounded-2xl text-left space-y-2.5 text-xs font-mono">
                   <div className="flex justify-between items-center">
-                    <span className="text-[#8993A6]">Transaction Hash:</span>
+                    <span className="text-[#5F6368]">Transaction Hash:</span>
                     <a
                       href={`https://sepolia.etherscan.io/tx/${executionResult.txHash}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-[#2EE6A8] hover:underline flex items-center gap-1 font-bold"
+                      className="text-[#7C5CFF] hover:underline flex items-center gap-1 font-bold"
                     >
                       <span>{executionResult.txHash.slice(0, 10)}...{executionResult.txHash.slice(-6)}</span>
                       <span className="text-[10px]">↗</span>
                     </a>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#8993A6]">Execution Route:</span>
-                    <span className="text-[#E8ECF1]">
+                    <span className="text-[#5F6368]">Execution Route:</span>
+                    <span className="text-[#111111] font-medium">
                       {executionResult.mode === "sponsored_smart_account"
                         ? "Pimlico Paymaster (Sponsored)"
                         : "Direct Wallet Transaction"}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-[#8993A6]">Gas Cost:</span>
-                    <span className="text-[#2EE6A8] font-bold">
+                    <span className="text-[#5F6368]">Gas Cost:</span>
+                    <span className="text-[#22A06B] font-bold">
                       {executionResult.mode === "sponsored_smart_account"
                         ? "0.0000 ETH (Sponsored)"
                         : "Normal Gas Paid by Wallet"}
@@ -418,7 +387,7 @@ export default function CheckInButton({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="w-full mt-3 px-4 py-3 rounded-xl bg-[#2EE6A8] hover:bg-[#25C791] text-[#0A0E14] text-sm font-semibold transition-colors cursor-pointer"
+                  className="w-full mt-3 px-6 py-3 rounded-full bg-[#111111] hover:bg-black text-white text-sm font-semibold transition-colors cursor-pointer shadow-sm"
                 >
                   Done
                 </button>

@@ -8,6 +8,7 @@ import DashboardEmptyState from "../../components/DashboardEmptyState";
 import { useUserRole } from "../../hooks/useUserRole";
 import { type Address } from "viem";
 
+
 function DashboardContent() {
   const { isOwner, isNewUser, ownedVaults, beneficiaryVaults, guardianVaults, isLoading } = useUserRole();
   const [selectedVaultAddress, setSelectedVaultAddress] = useState<Address | undefined>(undefined);
@@ -15,9 +16,9 @@ function DashboardContent() {
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="rounded-[22px] bg-[#12161F] border border-[#232838] p-10 flex flex-col items-center justify-center min-h-[300px] space-y-4">
-          <div className="w-8 h-8 rounded-full border-2 border-[#2EE6A8] border-t-transparent animate-spin" />
-          <div className="text-xs font-mono text-[#8993A6] tracking-wider uppercase">
+        <div className="rounded-3xl bg-white border border-[#E8EAED] p-12 flex flex-col items-center justify-center min-h-[320px] space-y-4 shadow-sm">
+          <div className="w-8 h-8 rounded-full border-2 border-[#111111] border-t-transparent animate-spin" />
+          <div className="text-xs font-mono text-[#5F6368] tracking-wider uppercase">
             Scanning on-chain locker registries...
           </div>
         </div>

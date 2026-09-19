@@ -2,12 +2,13 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { useAccount, useWalletClient, useSwitchChain } from "wagmi";
+import { useAccount, useWalletClient, useSwitchChain, useBalance } from "wagmi";
 import { useToast } from "./ui/Toast";
 import {
   type Address,
   type Hex,
   parseEther,
+  formatUnits,
   getAddress,
   isAddress,
   createWalletClient,
@@ -34,48 +35,48 @@ import {
   ONE_CLICK_VAULT_BYTECODE,
   INHERITANCE_VAULT_ABI,
   ConsensusState,
-} from "../lib/contracts.ts";
+} from "../lib/contracts";
 import {
   saveRegisteredVault,
   getProvisioningState,
   clearProvisioningState,
   type ProvisioningState,
-} from "../lib/vaultRegistry.ts";
+} from "../lib/vaultRegistry";
 
 export const STREAMING_DURATION_OPTIONS = [
-  { label: "5 Min (Demo)", display: "5 Minutes (Judge Demo)", seconds: 300 },
-  { label: "6 Months", display: "6 Months (180 Days)", seconds: 180 * 86400 },
-  { label: "1 Year", display: "1 Year (365 Days)", seconds: 365 * 86400 },
-  { label: "2 Years", display: "2 Years (730 Days)", seconds: 730 * 86400 },
+  { label: "5 MIN (TEST)", display: "5 Minutes (Testing)", seconds: 300 },
+  { label: "6 MONTHS", display: "6 Months (180 Days)", seconds: 180 * 86400 },
+  { label: "1 YEAR", display: "1 Year (365 Days)", seconds: 365 * 86400 },
+  { label: "2 YEARS", display: "2 Years (730 Days)", seconds: 730 * 86400 },
 ];
 
 export const INITIAL_RELEASE_OPTIONS = [
-  { label: "10% Emergency", bps: 1000 },
-  { label: "20% Buffer", bps: 2000 },
-  { label: "0% Pure Stream", bps: 0 },
+  { label: "10% EMERGENCY", bps: 1000 },
+  { label: "20% BUFFER", bps: 2000 },
+  { label: "0% PURE STREAM", bps: 0 },
 ];
 
 export const GRACE_PERIOD_OPTIONS = [
-  { label: "5 Min (Test)", display: "5 Minutes (Testing)", seconds: 300 },
-  { label: "15 Min (Test)", display: "15 Minutes (Testing)", seconds: 900 },
-  { label: "24 Hours", display: "24 Hours", seconds: 86400 },
-  { label: "72 Hours", display: "72 Hours (Default)", seconds: 259200 },
+  { label: "5 MIN (TEST)", display: "5 Minutes (Testing)", seconds: 300 },
+  { label: "24 HOURS", display: "24 Hours", seconds: 86400 },
+  { label: "72 HOURS", display: "72 Hours (Default)", seconds: 259200 },
+  { label: "7 DAYS", display: "7 Days", seconds: 86400 * 7 },
 ];
 
 export const CHECKIN_INTERVALS = [
-  { label: "5 Min (Test)", seconds: 300 },
-  { label: "10 Min (Test)", seconds: 600 },
-  { label: "30 Days", seconds: 86400 * 30 },
-  { label: "60 Days", seconds: 86400 * 60 },
-  { label: "90 Days", seconds: 86400 * 90 },
-  { label: "180 Days", seconds: 86400 * 180 },
+  { label: "5 MIN (TEST)", seconds: 300 },
+  { label: "10 MIN (TEST)", seconds: 600 },
+  { label: "30 DAYS", seconds: 86400 * 30 },
+  { label: "60 DAYS", seconds: 86400 * 60 },
+  { label: "90 DAYS", seconds: 86400 * 90 },
+  { label: "180 DAYS", seconds: 86400 * 180 },
 ];
 
 const SUPPORTED_TOKENS = [
-  { symbol: "ETH", name: "Ethereum" },
-  { symbol: "USDC", name: "USD Coin" },
-  { symbol: "USDT", name: "Tether USD" },
-  { symbol: "WBTC", name: "Wrapped Bitcoin" },
+  { symbol: "ETH", name: "Ethereum", icon: "Ξ" },
+  { symbol: "USDC", name: "USD Coin", icon: "$" },
+  { symbol: "USDT", name: "Tether USD", icon: "₮" },
+  { symbol: "WBTC", name: "Wrapped Bitcoin", icon: "₿" },
 ];
 
 export function parseUserFriendlyError(err: unknown): string {
@@ -93,7 +94,6 @@ export function parseUserFriendlyError(err: unknown): string {
   const shortMsg = String(errorObj?.shortMessage || "");
   const name = String(errorObj?.name || "");
 
-  // Detect user rejection in wallet (MetaMask error code 4001, UserRejectedRequestError, etc.)
   if (
     name === "UserRejectedRequestError" ||
     errorObj?.code === 4001 ||
@@ -106,7 +106,6 @@ export function parseUserFriendlyError(err: unknown): string {
     return "Transaction was cancelled or rejected in your wallet. Click 'Retry Step' whenever you are ready to proceed.";
   }
 
-  // Detect insufficient funds
   if (
     message.toLowerCase().includes("insufficient funds") ||
     shortMsg.toLowerCase().includes("insufficient funds") ||
@@ -115,14 +114,45 @@ export function parseUserFriendlyError(err: unknown): string {
     return "Insufficient Sepolia ETH in your connected wallet to cover gas and deposit fees.";
   }
 
-  // Return clean short message if available (avoids huge hex bytecode dumps)
   if (shortMsg && shortMsg.length < 200) {
     return shortMsg;
   }
 
-  // Fallback to first line of error message
   const firstLine = message.split("\n")[0] || String(err);
   return firstLine.length > 180 ? firstLine.slice(0, 180) + "..." : firstLine;
+}
+
+export type DeploymentConfirmationState =
+  | "awaiting_wallet"
+  | "signature_requested"
+  | "transaction_pending"
+  | "confirmed"
+  | "failed"
+  | "rejected";
+
+export function isRejectionError(err: unknown): boolean {
+  if (!err) return false;
+  const errorObj = err as {
+    message?: string;
+    details?: string;
+    shortMessage?: string;
+    name?: string;
+    code?: number;
+  };
+  const message = String(errorObj?.message || "").toLowerCase();
+  const details = String(errorObj?.details || "").toLowerCase();
+  const shortMsg = String(errorObj?.shortMessage || "").toLowerCase();
+  const name = String(errorObj?.name || "");
+
+  return (
+    name === "UserRejectedRequestError" ||
+    errorObj?.code === 4001 ||
+    message.includes("user rejected") ||
+    details.includes("user rejected") ||
+    shortMsg.includes("user rejected") ||
+    message.includes("rejected the request") ||
+    details.includes("rejected the request")
+  );
 }
 
 interface CreateVaultFormProps {
@@ -134,6 +164,11 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   const { data: wagmiWalletClient } = useWalletClient();
   const { switchChainAsync } = useSwitchChain();
   const { showToast } = useToast();
+
+  // Fetch real connected wallet balance
+  const { data: balanceData } = useBalance({
+    address: connectedAddress,
+  });
 
   const getEffectiveWalletClient = useCallback(async () => {
     if (wagmiWalletClient) return wagmiWalletClient;
@@ -155,6 +190,9 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     return null;
   }, [wagmiWalletClient, connectedAddress]);
 
+  // Operational 3-step active state
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3>(1);
+
   // Step 1: Deposit Capital state
   const [depositAmount, setDepositAmount] = useState<string>("0.05");
   const [selectedToken, setSelectedToken] = useState<string>("ETH");
@@ -167,17 +205,17 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   const [validationError, setValidationError] = useState<string | undefined>();
 
   // Step 3: Heartbeat & Guardians state
-  const [selectedInterval, setSelectedInterval] = useState(CHECKIN_INTERVALS[4]); // 90 Days default
-  const [selectedGracePeriod, setSelectedGracePeriod] = useState(GRACE_PERIOD_OPTIONS[0]); // 5 Min (Test) default for quick testing
+  const [selectedInterval, setSelectedInterval] = useState(CHECKIN_INTERVALS[2]); // 30 DAYS default
+  const [selectedGracePeriod, setSelectedGracePeriod] = useState(GRACE_PERIOD_OPTIONS[2]); // 72 HOURS default
   const [guardian1, setGuardian1] = useState("");
   const [guardian2, setGuardian2] = useState("");
   const [guardian1Email, setGuardian1Email] = useState("");
   const [guardian2Email, setGuardian2Email] = useState("");
 
-  // Step 3b: Cadence Streams — Autonomous Streaming Trust
-  const [isStreamingTrust, setIsStreamingTrust] = useState(true); // Default enabled for hackathon showcase
-  const [selectedStreamDuration, setSelectedStreamDuration] = useState(STREAMING_DURATION_OPTIONS[0]); // 5-Min demo default
-  const [selectedInitialReleaseBps, setSelectedInitialReleaseBps] = useState(1000); // 10% emergency buffer
+  // Step 3b: Cadence Streams — Autonomous Streaming Trust (default OFF per specs)
+  const [isStreamingTrust, setIsStreamingTrust] = useState(false);
+  const [selectedStreamDuration, setSelectedStreamDuration] = useState(STREAMING_DURATION_OPTIONS[0]);
+  const [selectedInitialReleaseBps, setSelectedInitialReleaseBps] = useState(1000);
   const [selectedYieldBps] = useState(500); // 5.0% APY
 
   // Pre-fill guardian emails from storage if available
@@ -198,14 +236,13 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   // In-progress provisioning state (Partial-failure recovery & Resume mechanism)
   const [savedProvisioning, setSavedProvisioning] = useState<ProvisioningState | null>(null);
 
-  // Modal State
+  // Page 4: Atomic Deployment Confirmation Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentStep, setCurrentStep] = useState<number>(1);
-  const [stepStatus, setStepStatus] = useState<"idle" | "in_progress" | "success" | "error">("idle");
+  const [modalState, setModalState] = useState<DeploymentConfirmationState>("awaiting_wallet");
   const [activeStepDescription, setActiveStepDescription] = useState<string>("");
   const [stepError, setStepError] = useState<string | null>(null);
 
-  // Deployed artifacts during multi-step provisioning
+  // Deployed artifacts
   const [provisionedVaultAddress, setProvisionedVaultAddress] = useState<Address | null>(null);
   const [txHashes, setTxHashes] = useState<{
     deploy?: Hex;
@@ -213,7 +250,6 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     allocationRoot?: Hex;
     guardianRoot?: Hex;
   }>({});
-  const [isCompleted, setIsCompleted] = useState(false);
 
   // Check localStorage for in-progress provisioning on mount / address change
   useEffect(() => {
@@ -270,7 +306,6 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     }
   };
 
-  // Discard saved provisioning session
   const handleDiscardSavedProvisioning = () => {
     if (window.confirm("Are you sure you want to discard the previous in-progress vault setup?")) {
       if (connectedAddress) {
@@ -279,33 +314,29 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
       setSavedProvisioning(null);
       setProvisionedVaultAddress(null);
       setTxHashes({});
-      setCurrentStep(1);
     }
   };
 
-  // Resume provisioning from saved point
   const handleResumeSavedProvisioning = () => {
     if (!savedProvisioning) return;
-    setCurrentStep(savedProvisioning.step);
     if (savedProvisioning.vaultAddress) {
       setProvisionedVaultAddress(savedProvisioning.vaultAddress);
     }
     if (savedProvisioning.txHashes) {
       setTxHashes(savedProvisioning.txHashes);
     }
+    setModalState("awaiting_wallet");
     setIsModalOpen(true);
-    setStepStatus("idle");
     setStepError(null);
   };
 
-  // Start fresh provisioning
+  // Start deployment flow
   const handleStartProvisioning = async () => {
     if (!connectedAddress) {
       showToast("Please connect your wallet to deploy a vault.", "warning");
       return;
     }
 
-    // Auto-switch to Sepolia if on another network (Mainnet, Polygon, Base, etc.)
     if (chain && chain.id !== 11155111) {
       try {
         if (switchChainAsync) {
@@ -337,11 +368,12 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     }
 
     if (!isBeneficiaryValid || currentTotalBps !== 10000) {
-      setValidationError("Beneficiary shares must sum to exactly 10,000 bps (100%) before deploying.");
+      setActiveStep(2);
+      setValidationError("Beneficiary shares must sum to exactly 10,000 BPS (100.00%) before deploying.");
+      showToast("Total allocation must equal exactly 10,000 BPS.", "warning");
       return;
     }
 
-    // Auto-fill demo guardians if left empty to prevent user drop-off
     let effectiveG1 = guardian1.trim();
     let effectiveG2 = guardian2.trim();
     if (!effectiveG1 || !effectiveG2) {
@@ -352,38 +384,33 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     }
 
     if (!isAddress(effectiveG1) || !isAddress(effectiveG2)) {
+      setActiveStep(3);
       showToast("Please specify two valid guardian Ethereum addresses.", "warning");
       return;
     }
 
-    setCurrentStep(1);
-    setIsModalOpen(true);
-    setStepStatus("idle");
+    setModalState("awaiting_wallet");
     setStepError(null);
-    executeStep();
+    setIsModalOpen(true);
   };
 
-  // 1-Click Unified Provisioning Orchestrator (Single Signature & Single Transaction)
-  const executeStep = async () => {
+  // 1-Click Atomic Deployment Orchestrator
+  const executeDeployment = async () => {
     const client = await getEffectiveWalletClient();
     if (!connectedAddress || !client) {
       setStepError("Wallet signer not connected or not on Sepolia. Please verify your wallet connection.");
-      setStepStatus("error");
+      setModalState("failed");
       return;
     }
 
-    setStepStatus("in_progress");
+    setModalState("signature_requested");
     setStepError(null);
-    setCurrentStep(1);
+    setActiveStepDescription("Please approve the atomic deployment transaction in your wallet...");
 
     try {
-      // 1-Click deployment
-      setActiveStepDescription("Requesting 1-Click Vault deployment authorization in wallet...");
-
       const effectiveG1 = guardian1.trim() || "0x81C3D582F3473F71C4C8bF394E1d32BA218991a2";
       const effectiveG2 = guardian2.trim() || "0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0";
 
-      // Compute cryptographic Merkle tree commitments client-side
       const guardianTree = buildGuardianTree([getAddress(effectiveG1), getAddress(effectiveG2)]);
       const allocTree = buildAllocationTree(allocationsList);
 
@@ -391,7 +418,6 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
       const checkInSec = BigInt(selectedInterval.seconds);
       const contestSec = BigInt(selectedGracePeriod.seconds);
 
-      // Deploy OneClickInheritanceVault
       const deployHash = await client.deployContract({
         abi: ONE_CLICK_VAULT_ABI,
         bytecode: ONE_CLICK_VAULT_BYTECODE,
@@ -417,7 +443,8 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         guardianRoot: deployHash,
       };
       setTxHashes(singleTxHashes);
-      setActiveStepDescription("Mining 1-click deployment transaction on Sepolia block...");
+      setModalState("transaction_pending");
+      setActiveStepDescription("Confirming atomic deployment transaction on Sepolia blockchain...");
 
       const receipt = await publicClient.waitForTransactionReceipt({ hash: deployHash });
       if (!receipt.contractAddress) {
@@ -426,7 +453,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
       const deployedAddress = receipt.contractAddress;
       setProvisionedVaultAddress(deployedAddress);
 
-      // Configure Cadence Streams Smart Trust if enabled
+      // Configure streaming parameters if enabled
       if (isStreamingTrust) {
         try {
           setActiveStepDescription("Configuring Cadence Streams Smart Trust & Yield parameters...");
@@ -447,7 +474,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         }
       }
 
-      // Build encrypted allocations for beneficiaries
+      // Build encrypted allocations
       const encryptedAllocationsList = await Promise.all(
         allocationsList.map(async (a, idx) => {
           const pubKey = (beneficiaryItems[idx] as BeneficiaryItem & { publicKey?: string })?.publicKey;
@@ -474,7 +501,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         })
       );
 
-      // Register in local vault registry
+      // Save to local registry
       saveRegisteredVault({
         id: `vault-${Date.now()}`,
         vaultAddress: deployedAddress,
@@ -492,7 +519,6 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         allocationRoot: allocTree.root,
       });
 
-      // Persist guardian emails for this vault and globally
       if (typeof window !== "undefined") {
         if (guardian1Email.trim()) {
           localStorage.setItem(`cadence_guardian_email_1_${deployedAddress}`, guardian1Email.trim());
@@ -504,7 +530,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         }
       }
 
-      // Register monitored vault with Sentinel for automated alerts
+      // Register with Sentinel for live notifications
       registerMonitoredVault({
         vaultAddress: deployedAddress,
         name: "Inheritance Vault",
@@ -514,7 +540,6 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         ],
       }).catch(() => {});
 
-      // Suggest unverified beneficiary emails (Constraint #6)
       for (const item of beneficiaryItems) {
         if (item.suggestedEmail && item.address) {
           suggestBeneficiaryEmail(item.address, item.suggestedEmail, connectedAddress).catch((e) => {
@@ -525,60 +550,91 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
 
       clearProvisioningState(connectedAddress);
       setSavedProvisioning(null);
-      setIsCompleted(true);
-      setStepStatus("success");
+      setModalState("confirmed");
       setActiveStepDescription("Locker successfully created and funded in 1 single transaction!");
-      showToast("Vault deployed, funded & configured with 1 single signature!", "success");
+      showToast("Locker deployed, funded & configured successfully!", "success");
 
       if (onDeploySuccess) {
         onDeploySuccess(allocTree);
       }
     } catch (err: unknown) {
-      console.warn("[CreateVaultForm] 1-Click execution paused/declined:", err);
+      console.warn("[CreateVaultForm] Atomic deployment execution error:", err);
       const friendlyMsg = parseUserFriendlyError(err);
       setStepError(friendlyMsg);
-      setStepStatus("error");
+      if (isRejectionError(err)) {
+        setModalState("rejected");
+      } else {
+        setModalState("failed");
+      }
     }
   };
 
+  // Real-time Deposit Amount Validation
+  const depositNum = parseFloat(depositAmount || "0");
+  const isDepositValid = !isNaN(depositNum) && depositNum > 0;
+  const formattedBalance = balanceData
+    ? formatUnits(balanceData.value, balanceData.decimals)
+    : "0";
+  const balanceNum = parseFloat(formattedBalance);
+  const isDepositExceedingBalance = selectedToken === "ETH" && isDepositValid && depositNum > balanceNum;
+
+  // Max balance fill helper
+  const handleSetMaxDeposit = () => {
+    if (!balanceData) return;
+    const maxVal = parseFloat(formattedBalance);
+    if (maxVal <= 0) return;
+    // Leave small gas buffer if ETH
+    const safeMax = selectedToken === "ETH" ? Math.max(0, maxVal - 0.005) : maxVal;
+    setDepositAmount(safeMax > 0 ? safeMax.toFixed(4) : "0");
+  };
+
+  // Can deploy check
+  const isDeploymentReady =
+    isDepositValid &&
+    isBeneficiaryValid &&
+    currentTotalBps === 10000 &&
+    !isDepositExceedingBalance;
+
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 text-[#E8ECF1] font-sans">
+    <div className="w-full max-w-6xl mx-auto space-y-8 text-[#111111]">
       {/* ========================================================================= */}
-      {/* IN-PROGRESS PROVISIONING RESUME BANNER (Architecture Constraint)          */}
+      {/* HEADER                                                                    */}
+      {/* ========================================================================= */}
+      <div className="space-y-1.5">
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#111111]">
+          Create a Locker
+        </h1>
+        <p className="text-base sm:text-lg text-[#5F6368]">
+          Configure how your inheritance will activate.
+        </p>
+      </div>
+
+      {/* ========================================================================= */}
+      {/* IN-PROGRESS PROVISIONING RESUME BANNER                                    */}
       {/* ========================================================================= */}
       {savedProvisioning && (
-        <div className="p-4 sm:p-5 rounded-2xl bg-[#F5B841]/10 border border-[#F5B841]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
-          <div className="flex items-start sm:items-center gap-3.5">
-            <div className="w-9 h-9 rounded-xl bg-[#F5B841]/20 text-[#F5B841] flex items-center justify-center shrink-0">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#FFF6D8] border border-[#D99A00]/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-[#996B00] font-bold text-sm">
+              <span>⚠️</span>
+              <span>Pending Locker Setup In Progress</span>
             </div>
-            <div className="space-y-0.5">
-              <div className="text-sm font-bold text-[#E8ECF1] flex items-center gap-2">
-                <span>Incomplete Vault Provisioning Detected</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#F5B841]/20 text-[#F5B841] border border-[#F5B841]/30">
-                  Step {savedProvisioning.step} of 4 Pending
-                </span>
-              </div>
-              <p className="text-xs text-[#8993A6]">
-                Vault Instance: <span className="font-mono text-[#E8ECF1]">{savedProvisioning.vaultAddress?.slice(0, 10)}...{savedProvisioning.vaultAddress?.slice(-6)}</span>. You can resume setup without re-deploying.
-              </p>
-            </div>
+            <p className="text-xs text-[#5F6368]">
+              An earlier deployment attempt was paused at step {savedProvisioning.step} of 4. You can resume without losing your state.
+            </p>
           </div>
-
-          <div className="flex items-center gap-2.5 self-end sm:self-center">
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={handleDiscardSavedProvisioning}
-              className="px-3 py-2 rounded-xl text-xs font-medium text-[#8993A6] hover:text-[#E8ECF1] hover:bg-[#1A1F2B] transition-colors cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white border border-[#E8EAED] text-[#5F6368] hover:text-[#111111] hover:bg-[#F7F8FA] transition-colors cursor-pointer"
             >
               Discard
             </button>
             <button
               type="button"
               onClick={handleResumeSavedProvisioning}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-[#F5B841] hover:bg-[#e5aa33] text-[#0A0E14] transition-all shadow-[0_0_15px_rgba(245,184,65,0.3)] cursor-pointer"
+              className="px-4 py-1.5 rounded-full text-xs font-bold bg-[#111111] hover:bg-black text-white shadow-sm transition-all cursor-pointer"
             >
               Resume Setup →
             </button>
@@ -586,622 +642,986 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         </div>
       )}
 
-      {/* PAGE HEADER */}
-      <div className="space-y-1">
-        <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#E8ECF1]">
-          Provision Inheritance Vault
-        </h1>
-        <p className="text-sm text-[#8993A6]">
-          Deploy a privacy-preserving vault protected by decentralized guardian consensus.
-        </p>
-      </div>
-
       {/* ========================================================================= */}
-      {/* STEP PROGRESS INDICATOR                                                    */}
+      {/* STEP INDICATOR                                                            */}
+      {/* States: completed = teal, current = black/purple, upcoming = muted gray   */}
       {/* ========================================================================= */}
-      <div className="flex items-center gap-0 rounded-2xl bg-[#12161F] border border-[#232838] p-4 overflow-x-auto" aria-label="Form steps">
+      <div
+        className="flex items-center gap-2 sm:gap-4 p-2 rounded-2xl bg-white border border-[#E8EAED] shadow-sm overflow-x-auto"
+        aria-label="Provisioning steps"
+      >
         {[
-          { n: 1, label: "Deposit Capital" },
-          { n: 2, label: "Beneficiaries" },
-          { n: 3, label: "Heartbeat & Guardians" },
-        ].map(({ n, label }, idx) => {
-          const isDone = isModalOpen && currentStep > n;
+          { step: 1 as const, num: "01", label: "DEPOSIT" },
+          { step: 2 as const, num: "02", label: "ALLOCATION" },
+          { step: 3 as const, num: "03", label: "HEARTBEAT" },
+        ].map(({ step, num, label }) => {
+          const isCurrent = activeStep === step;
+          const isCompletedStep =
+            (step === 1 && isDepositValid && activeStep > 1) ||
+            (step === 2 && currentTotalBps === 10000 && isBeneficiaryValid && activeStep > 2);
+
           return (
-            <React.Fragment key={n}>
-              {idx > 0 && (
-                <div className="flex-1 h-px min-w-[16px] bg-[#232838] mx-2 shrink-0" aria-hidden="true" />
-              )}
-              <div className="flex items-center gap-2 shrink-0">
-                <div
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold font-mono border transition-all ${
-                    isDone
-                      ? "bg-[#2EE6A8] border-[#2EE6A8] text-[#0A0E14]"
-                      : "bg-[#1A1F2B] border-[#2EE6A8]/50 text-[#2EE6A8]"
-                  }`}
-                  aria-label={`Step ${n}${isDone ? " completed" : ""}`}
-                >
-                  {isDone ? (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : n}
-                </div>
-                <span className={`text-xs font-medium hidden sm:block ${
-                  isDone ? "text-[#2EE6A8]" : "text-[#E8ECF1]"
-                }`}>{label}</span>
-              </div>
-            </React.Fragment>
+            <button
+              key={step}
+              type="button"
+              onClick={() => setActiveStep(step)}
+              className={`flex-1 min-w-[140px] flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl text-xs font-mono font-bold transition-all cursor-pointer ${
+                isCurrent
+                  ? "bg-[#111111] text-white shadow-sm ring-1 ring-[#7C5CFF]/40"
+                  : isCompletedStep
+                  ? "bg-[#E9F8F1] text-[#22A06B] border border-[#22A06B]/30 hover:bg-[#DDF4EA]"
+                  : "bg-[#F7F8FA] text-[#80868B] border border-[#E8EAED] hover:text-[#111111] hover:bg-[#EEF0F2]"
+              }`}
+            >
+              <span
+                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                  isCurrent
+                    ? "bg-[#7C5CFF] text-white"
+                    : isCompletedStep
+                    ? "bg-[#22A06B] text-white"
+                    : "bg-[#E8EAED] text-[#5F6368]"
+                }`}
+              >
+                {isCompletedStep ? "✓" : num}
+              </span>
+              <span className="tracking-wider">{label}</span>
+            </button>
           );
         })}
       </div>
 
-      {/* Two-Column Form Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Column: Form Steps (7 cols) */}
+      {/* ========================================================================= */}
+      {/* DESKTOP TWO-COLUMN: LEFT FORM / RIGHT STICKY SUMMARY                      */}
+      {/* MOBILE: STACK THEM NATURALLY                                              */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+        {/* LEFT COLUMN: 3-Step Operational Form (lg:col-span-7) */}
         <div className="lg:col-span-7 space-y-6">
-          {/* STEP 1: DEPOSIT CAPITAL */}
-          <section className="rounded-2xl bg-[#12161F] border border-[#232838] p-6 shadow-lg space-y-4">
-            <div className="flex items-center justify-between border-b border-[#232838]/60 pb-3">
-              <h2 className="text-sm font-semibold text-[#E8ECF1]">1. Deposit Capital</h2>
-              <span className="text-xs font-mono text-[#8993A6] tracking-wider uppercase">
-                STEP 1 OF 3
-              </span>
-            </div>
+          {/* ===================================================================== */}
+          {/* STEP 1: DEPOSIT CAPITAL                                               */}
+          {/* ===================================================================== */}
+          {activeStep === 1 && (
+            <section className="bg-white border border-[#E8EAED] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between pb-4 border-b border-[#E8EAED]">
+                <div>
+                  <h2 className="text-xl font-bold text-[#111111]">
+                    01. Deposit Capital
+                  </h2>
+                  <p className="text-xs text-[#5F6368] mt-0.5">
+                    Select your asset and configure initial capital to be locked into the vault.
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-[#F7F8FA] text-[#5F6368] border border-[#E8EAED]">
+                  STEP 1 OF 3
+                </span>
+              </div>
 
-            <div>
-              <label className="block text-xs text-[#8993A6] mb-2 font-mono">
-                Initial Amount to Lock
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  value={depositAmount}
-                  onChange={(e) => setDepositAmount(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full font-mono text-base px-4 py-3 rounded-xl bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8] transition-colors"
-                />
-                <div className="absolute right-3 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#1A1F2B] border border-[#232838] text-xs font-mono text-[#E8ECF1]">
-                  <select
-                    value={selectedToken}
-                    onChange={(e) => setSelectedToken(e.target.value)}
-                    className="bg-transparent text-[#E8ECF1] cursor-pointer focus:outline-none"
-                    aria-label="Select asset token"
-                  >
-                    {SUPPORTED_TOKENS.map((tok) => (
-                      <option key={tok.symbol} value={tok.symbol} className="bg-[#12161F]">
-                        {tok.symbol}
-                      </option>
-                    ))}
-                  </select>
+              {/* Supported Tokens Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-mono font-semibold text-[#5F6368] uppercase tracking-wider">
+                  Supported Assets
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  {SUPPORTED_TOKENS.map((tok) => {
+                    const isSelected = selectedToken === tok.symbol;
+                    return (
+                      <button
+                        key={tok.symbol}
+                        type="button"
+                        onClick={() => setSelectedToken(tok.symbol)}
+                        className={`flex items-center gap-2.5 p-3 rounded-2xl border text-left transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#F0ECFF] border-[#7C5CFF] text-[#111111] shadow-sm ring-1 ring-[#7C5CFF]"
+                            : "bg-[#F7F8FA] border-[#E8EAED] text-[#5F6368] hover:border-[#111111] hover:text-[#111111]"
+                        }`}
+                      >
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${
+                            isSelected ? "bg-[#7C5CFF] text-white" : "bg-[#E8EAED] text-[#111111]"
+                          }`}
+                        >
+                          {tok.icon}
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold">{tok.symbol}</div>
+                          <div className="text-[10px] text-[#8A8F98] truncate">{tok.name}</div>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-            </div>
-          </section>
 
-          {/* STEP 2: BENEFICIARY ALLOCATION */}
-          <section className="rounded-2xl bg-[#12161F] border border-[#232838] p-6 shadow-lg space-y-4">
-            <div className="flex items-center justify-between border-b border-[#232838]/60 pb-3">
-              <h2 className="text-sm font-semibold text-[#E8ECF1]">2. Beneficiary Allocation</h2>
-              {isBeneficiaryValid ? (
-                <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded bg-[#2EE6A8]/15 text-[#2EE6A8] border border-[#2EE6A8]/30">
-                  SUMS TO 100%
+              {/* Deposit Amount Input */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-mono font-semibold text-[#5F6368] uppercase tracking-wider">
+                    Deposit Amount
+                  </label>
+                  <div className="flex items-center gap-2 text-xs font-mono text-[#5F6368]">
+                    <span>Wallet Balance:</span>
+                    <span className="font-bold text-[#111111]">
+                      {balanceData ? `${balanceNum.toFixed(4)} ${selectedToken}` : "0.0000 ETH"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleSetMaxDeposit}
+                      className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-[#111111] text-white hover:bg-black transition-colors cursor-pointer"
+                    >
+                      MAX
+                    </button>
+                  </div>
+                </div>
+
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={depositAmount}
+                    onChange={(e) => setDepositAmount(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full font-mono text-xl sm:text-2xl px-4 py-3.5 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] text-[#111111] focus:outline-none focus:bg-white focus:border-[#111111] transition-all font-semibold"
+                  />
+                  <div className="absolute right-3.5 flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white border border-[#E8EAED] text-xs font-mono font-bold text-[#111111] shadow-xs">
+                    <span>{selectedToken}</span>
+                  </div>
+                </div>
+
+                {/* Real-time Validation Warnings */}
+                {!isDepositValid && depositAmount !== "" && (
+                  <p className="text-xs font-mono text-[#D64545]">
+                    Please enter a deposit amount greater than 0.
+                  </p>
+                )}
+                {isDepositExceedingBalance && (
+                  <p className="text-xs font-mono text-[#D64545]">
+                    Deposit amount exceeds available wallet balance ({balanceNum.toFixed(4)} {selectedToken}).
+                  </p>
+                )}
+              </div>
+
+              {/* Estimated Transaction Information */}
+              <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
+                <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#5F6368]">
+                  Estimated Transaction Information
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono">
+                  <div>
+                    <div className="text-[#8A8F98]">Network</div>
+                    <div className="font-bold text-[#111111]">Sepolia (11155111)</div>
+                  </div>
+                  <div>
+                    <div className="text-[#8A8F98]">Gas Estimate</div>
+                    <div className="font-bold text-[#22A06B]">~0.0018 ETH (Standard)</div>
+                  </div>
+                  <div>
+                    <div className="text-[#8A8F98]">Architecture</div>
+                    <div className="font-bold text-[#111111]">1-Click Atomic Bundle</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 1 Footer Action */}
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  disabled={!isDepositValid || isDepositExceedingBalance}
+                  onClick={() => setActiveStep(2)}
+                  className="py-3.5 px-6 rounded-full font-bold text-xs bg-[#111111] text-white hover:bg-black transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                >
+                  <span>Continue to Allocation</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* ===================================================================== */}
+          {/* STEP 2: BENEFICIARY ALLOCATION                                        */}
+          {/* ===================================================================== */}
+          {activeStep === 2 && (
+            <section className="bg-white border border-[#E8EAED] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between pb-4 border-b border-[#E8EAED]">
+                <div>
+                  <h2 className="text-xl font-bold text-[#111111]">
+                    02. Beneficiary Allocation
+                  </h2>
+                  <p className="text-xs text-[#5F6368] mt-0.5">
+                    Define heirs and split shares in basis points (100 BPS = 1.00%).
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-[#F7F8FA] text-[#5F6368] border border-[#E8EAED]">
+                  STEP 2 OF 3
                 </span>
-              ) : (
-                <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded bg-[#F5B841]/15 text-[#F5B841] border border-[#F5B841]/30">
-                  {currentTotalBps} / 10,000 BPS
-                </span>
+              </div>
+
+              {validationError && (
+                <div className="p-3.5 rounded-2xl bg-[#FFF6D8] border border-[#D99A00]/40 text-xs font-mono text-[#996B00]">
+                  {validationError}
+                </div>
               )}
+
+              {/* Beneficiary Setup Form with Prominent Validator Banner */}
+              <BeneficiarySetupForm onChange={handleBeneficiaryChange} />
+
+              {/* Step 2 Navigation Footer */}
+              <div className="pt-4 border-t border-[#E8EAED] flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(1)}
+                  className="py-3 px-5 rounded-full font-semibold text-xs bg-[#F7F8FA] text-[#5F6368] hover:text-[#111111] hover:bg-[#E8EAED] border border-[#E8EAED] transition-colors cursor-pointer"
+                >
+                  ← Back to Deposit
+                </button>
+                <button
+                  type="button"
+                  disabled={!isBeneficiaryValid || currentTotalBps !== 10000}
+                  onClick={() => setActiveStep(3)}
+                  className="py-3.5 px-6 rounded-full font-bold text-xs bg-[#111111] text-white hover:bg-black transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                >
+                  <span>Continue to Heartbeat</span>
+                  <span>→</span>
+                </button>
+              </div>
+            </section>
+          )}
+
+          {/* ===================================================================== */}
+          {/* STEP 3: HEARTBEAT & GUARDIANS                                         */}
+          {/* ===================================================================== */}
+          {activeStep === 3 && (
+            <section className="bg-white border border-[#E8EAED] rounded-3xl p-6 sm:p-8 shadow-sm space-y-6 animate-in fade-in duration-200">
+              <div className="flex items-center justify-between pb-4 border-b border-[#E8EAED]">
+                <div>
+                  <h2 className="text-xl font-bold text-[#111111]">
+                    03. Heartbeat &amp; Guardians
+                  </h2>
+                  <p className="text-xs text-[#5F6368] mt-0.5">
+                    Configure your check-in interval, contest window grace period, and consensus nodes.
+                  </p>
+                </div>
+                <span className="text-[11px] font-mono font-bold px-2.5 py-1 rounded-full bg-[#F7F8FA] text-[#5F6368] border border-[#E8EAED]">
+                  STEP 3 OF 3
+                </span>
+              </div>
+
+              {/* Guardian Consensus Nodes */}
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <div>
+                    <label className="block text-xs font-mono font-bold text-[#111111] uppercase tracking-wider">
+                      Guardian Consensus Nodes (2-of-2 Required)
+                    </label>
+                    <p className="text-xs text-[#5F6368]">
+                      Guardians attest to owner inactivity without learning asset amounts or heir identities.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGuardian1("0x81C3D582F3473F71C4C8bF394E1d32BA218991a2");
+                      setGuardian2("0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0");
+                      if (!guardian1Email) setGuardian1Email("guardian1@cadence.xyz");
+                      if (!guardian2Email) setGuardian2Email("guardian2@cadence.xyz");
+                    }}
+                    className="text-xs font-mono text-[#7C5CFF] font-semibold hover:underline cursor-pointer whitespace-nowrap self-start sm:self-auto"
+                  >
+                    + Auto-fill Sepolia Guardians
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Guardian 1 */}
+                  <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-[#111111] flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
+                        Guardian Node 1
+                      </span>
+                      <span className="text-[10px] font-mono text-[#5F6368] bg-white px-2 py-0.5 rounded-full border border-[#E8EAED]">
+                        Node #1
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-mono text-[#5F6368]">
+                        Wallet Address <span className="text-[#D64545]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={guardian1}
+                        onChange={(e) => setGuardian1(e.target.value)}
+                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
+                        placeholder="0x81C3...91a2"
+                        aria-label="Guardian 1 Ethereum address"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-mono text-[#5F6368]">
+                        Alert Email <span className="text-[#8A8F98]">(Optional)</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={guardian1Email}
+                        onChange={(e) => setGuardian1Email(e.target.value)}
+                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
+                        placeholder="guardian1@cadence.xyz"
+                        aria-label="Guardian 1 Email address"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Guardian 2 */}
+                  <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-[#111111] flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
+                        Guardian Node 2
+                      </span>
+                      <span className="text-[10px] font-mono text-[#5F6368] bg-white px-2 py-0.5 rounded-full border border-[#E8EAED]">
+                        Node #2
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-mono text-[#5F6368]">
+                        Wallet Address <span className="text-[#D64545]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={guardian2}
+                        onChange={(e) => setGuardian2(e.target.value)}
+                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
+                        placeholder="0x34d7...A1F0"
+                        aria-label="Guardian 2 Ethereum address"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-mono text-[#5F6368]">
+                        Alert Email <span className="text-[#8A8F98]">(Optional)</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={guardian2Email}
+                        onChange={(e) => setGuardian2Email(e.target.value)}
+                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
+                        placeholder="guardian2@cadence.xyz"
+                        aria-label="Guardian 2 Email address"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Optional Owner Notification Email Binding */}
+              <div className="space-y-2 pt-2 border-t border-[#E8EAED]">
+                <label className="block text-xs font-mono font-semibold text-[#5F6368] uppercase tracking-wider">
+                  Owner Pre-Deadline Notifications (Optional)
+                </label>
+                <div className="flex items-center gap-2.5">
+                  <input
+                    type="email"
+                    value={ownerEmail}
+                    onChange={(e) => {
+                      setOwnerEmail(e.target.value);
+                      setIsOwnerEmailVerified(false);
+                    }}
+                    placeholder="owner@example.com"
+                    className="flex-1 font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#F7F8FA] border border-[#E8EAED] text-[#111111] focus:outline-none focus:bg-white focus:border-[#111111]"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleVerifyOwnerEmail}
+                    disabled={!ownerEmail || isSigningOwnerEmail || isOwnerEmailVerified}
+                    className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      isOwnerEmailVerified
+                        ? "bg-[#E9F8F1] text-[#22A06B] border border-[#22A06B]/40"
+                        : "bg-[#111111] text-white hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed"
+                    }`}
+                  >
+                    {isOwnerEmailVerified
+                      ? "✓ Verified"
+                      : isSigningOwnerEmail
+                      ? "Signing..."
+                      : "Verify & Bind"}
+                  </button>
+                </div>
+              </div>
+
+              {/* Heartbeat Interval Presets */}
+              <div className="space-y-2 pt-2 border-t border-[#E8EAED]">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-mono font-semibold text-[#5F6368] uppercase tracking-wider">
+                    Heartbeat Interval Presets
+                  </label>
+                  <span className="text-[11px] font-mono text-[#7C5CFF]">
+                    Proof-of-Life Check-In Frequency
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                  {CHECKIN_INTERVALS.map((intv) => {
+                    const isSelected = selectedInterval.label === intv.label;
+                    return (
+                      <button
+                        key={intv.label}
+                        type="button"
+                        onClick={() => setSelectedInterval(intv)}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-mono transition-all text-center cursor-pointer border ${
+                          isSelected
+                            ? "border-[#111111] bg-[#111111] text-white font-bold shadow-xs"
+                            : "border-[#E8EAED] bg-[#F7F8FA] text-[#5F6368] hover:text-[#111111] hover:border-[#111111]"
+                        }`}
+                      >
+                        {intv.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Contest Window Duration & Plain English Explanation */}
+              <div className="space-y-2 pt-2 border-t border-[#E8EAED]">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-mono font-semibold text-[#5F6368] uppercase tracking-wider">
+                    Contest Window Duration
+                  </label>
+                  <span className="text-[11px] font-mono text-[#996B00]">
+                    Default: 72 HOURS
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {GRACE_PERIOD_OPTIONS.map((period) => {
+                    const isSelected = selectedGracePeriod.label === period.label;
+                    return (
+                      <button
+                        key={period.label}
+                        type="button"
+                        onClick={() => setSelectedGracePeriod(period)}
+                        className={`py-2 px-2.5 rounded-xl text-xs font-mono transition-all text-center cursor-pointer border ${
+                          isSelected
+                            ? "border-[#D99A00] bg-[#FFF6D8] text-[#996B00] font-bold shadow-xs"
+                            : "border-[#E8EAED] bg-[#F7F8FA] text-[#5F6368] hover:text-[#111111] hover:border-[#111111]"
+                        }`}
+                      >
+                        {period.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Plain English Explanation */}
+                <div className="p-3.5 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] flex items-start gap-2.5 text-xs text-[#5F6368]">
+                  <span className="text-[#7C5CFF] text-sm">ℹ</span>
+                  <p className="leading-relaxed">
+                    <strong>What is the Contest Window?</strong> If a check-in interval lapses, the protocol enters a temporary grace window (default <strong>72 HOURS</strong>) before assets can be claimed. During this period, you can cancel any activation with a single heartbeat check-in if triggered mistakenly.
+                  </p>
+                </div>
+              </div>
+
+              {/* Cadence Streams Toggle */}
+              <div className="space-y-3 pt-3 border-t border-[#E8EAED]">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-xs font-bold text-[#111111] flex items-center gap-1.5">
+                      <span className="text-[#7C5CFF]">⚡</span>
+                      <span>Cadence Streams (Smart Trust &amp; Yield)</span>
+                    </div>
+                    <div className="text-xs text-[#5F6368]">
+                      Vests inheritance continuously per second rather than an instant lump-sum payout.
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsStreamingTrust(!isStreamingTrust)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-mono font-bold transition-all cursor-pointer border ${
+                      isStreamingTrust
+                        ? "bg-[#E9F8F1] border-[#22A06B] text-[#22A06B]"
+                        : "bg-[#F7F8FA] border-[#E8EAED] text-[#80868B]"
+                    }`}
+                  >
+                    {isStreamingTrust ? "ON" : "OFF"}
+                  </button>
+                </div>
+
+                {isStreamingTrust && (
+                  <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#7C5CFF]/30 space-y-3 animate-in fade-in">
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-mono font-semibold text-[#5F6368] uppercase">
+                        Streaming Duration Schedule
+                      </label>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        {STREAMING_DURATION_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.label}
+                            type="button"
+                            onClick={() => setSelectedStreamDuration(opt)}
+                            className={`py-1.5 px-2 rounded-xl text-xs font-mono transition-all border cursor-pointer ${
+                              selectedStreamDuration.label === opt.label
+                                ? "border-[#7C5CFF] bg-[#F0ECFF] text-[#7C5CFF] font-bold"
+                                : "border-[#E8EAED] bg-white text-[#5F6368] hover:text-[#111111]"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-[11px] font-mono font-semibold text-[#5F6368] uppercase">
+                        Immediate Emergency Buffer (Day 1 Unlock)
+                      </label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {INITIAL_RELEASE_OPTIONS.map((opt) => (
+                          <button
+                            key={opt.label}
+                            type="button"
+                            onClick={() => setSelectedInitialReleaseBps(opt.bps)}
+                            className={`py-1.5 px-2 rounded-xl text-xs font-mono transition-all border cursor-pointer ${
+                              selectedInitialReleaseBps === opt.bps
+                                ? "border-[#111111] bg-[#111111] text-white font-bold"
+                                : "border-[#E8EAED] bg-white text-[#5F6368] hover:text-[#111111]"
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs font-mono p-2.5 rounded-xl bg-white border border-[#E8EAED]">
+                      <span className="text-[#5F6368]">Simulated Aave v3 Yield:</span>
+                      <span className="text-[#22A06B] font-bold">+5.00% APY (Auto-Compounding)</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Step 3 Navigation Footer */}
+              <div className="pt-4 border-t border-[#E8EAED] flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(2)}
+                  className="py-3 px-5 rounded-full font-semibold text-xs bg-[#F7F8FA] text-[#5F6368] hover:text-[#111111] hover:bg-[#E8EAED] border border-[#E8EAED] transition-colors cursor-pointer"
+                >
+                  ← Back to Allocation
+                </button>
+                <button
+                  type="button"
+                  onClick={handleStartProvisioning}
+                  disabled={!isDeploymentReady}
+                  className="py-3.5 px-6 rounded-full font-bold text-xs bg-[#111111] text-white hover:bg-black transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm"
+                >
+                  <span>Authorize &amp; Deploy</span>
+                  <span>⚡</span>
+                </button>
+              </div>
+            </section>
+          )}
+        </div>
+
+        {/* ========================================================================= */}
+        {/* RIGHT COLUMN: STICKY LOCKER EXECUTION SUMMARY                            */}
+        {/* ========================================================================= */}
+        <div className="lg:col-span-5 sticky top-24 space-y-6">
+          <div className="bg-white border border-[#E8EAED] rounded-3xl p-6 sm:p-7 shadow-sm space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E8EAED]">
+              <h2 className="text-sm font-mono font-bold uppercase tracking-wider text-[#111111]">
+                LOCKER EXECUTION SUMMARY
+              </h2>
+              <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
             </div>
 
-            {validationError && (
-              <div className="p-3 rounded-xl bg-[#F5B841]/10 border border-[#F5B841]/40 text-xs font-mono text-[#F5B841]">
-                {validationError}
+            <div className="space-y-4 text-xs font-mono">
+              <div className="flex items-center justify-between py-1 border-b border-[#E8EAED]/60">
+                <span className="text-[#5F6368]">Asset</span>
+                <span className="font-bold text-[#111111]">{selectedToken}</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-[#E8EAED]/60">
+                <span className="text-[#5F6368]">Deposit</span>
+                <span className="font-bold text-[#111111]">
+                  {depositAmount ? parseFloat(depositAmount).toFixed(4) : "0.0000"} {selectedToken}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-[#E8EAED]/60">
+                <span className="text-[#5F6368]">Beneficiaries</span>
+                <span className="font-bold text-[#111111]">
+                  {beneficiaryItems.length || 2}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-[#E8EAED]/60">
+                <span className="text-[#5F6368]">Guardian Consensus</span>
+                <span className="font-bold text-[#111111]">2 / 2</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-[#E8EAED]/60">
+                <span className="text-[#5F6368]">Heartbeat</span>
+                <span className="font-bold text-[#111111]">{selectedInterval.label}</span>
+              </div>
+              <div className="flex items-center justify-between py-1 border-b border-[#E8EAED]/60">
+                <span className="text-[#5F6368]">Contest Window</span>
+                <span className="font-bold text-[#996B00]">{selectedGracePeriod.label}</span>
+              </div>
+              <div className="flex items-center justify-between py-1">
+                <span className="text-[#5F6368]">Cadence Streams</span>
+                <span className={`font-bold ${isStreamingTrust ? "text-[#22A06B]" : "text-[#80868B]"}`}>
+                  {isStreamingTrust ? "ON" : "OFF"}
+                </span>
+              </div>
+            </div>
+
+            {/* Allocation Status Indicator */}
+            {currentTotalBps !== 10000 && (
+              <div className="p-3.5 rounded-2xl bg-[#FFF6D8] border border-[#D99A00]/40 text-xs text-[#996B00] space-y-1">
+                <div className="font-bold flex items-center gap-1.5">
+                  <span>⚠️</span>
+                  <span>Allocation Check Required</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  Deployment is locked until total beneficiary allocation sums to exactly 10,000 BPS (currently {currentTotalBps.toLocaleString()} BPS).
+                </p>
               </div>
             )}
 
-            <BeneficiarySetupForm onChange={handleBeneficiaryChange} />
-          </section>
-
-          {/* STEP 3: HEARTBEAT & GUARDIANS */}
-          <section className="rounded-2xl bg-[#12161F] border border-[#232838] p-6 shadow-lg space-y-5">
-            <div className="border-b border-[#232838]/60 pb-3">
-              <h2 className="text-sm font-semibold text-[#E8ECF1]">3. Heartbeat &amp; Guardians</h2>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                <div>
-                  <label className="block text-xs font-semibold text-[#E8ECF1]">
-                    Guardian Consensus Nodes (2-of-2 Required)
-                  </label>
-                  <p className="text-[11px] text-[#8993A6]">
-                    Set guardian wallet addresses for on-chain attestation and optional email addresses for inactivity alerts.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGuardian1("0x81C3D582F3473F71C4C8bF394E1d32BA218991a2");
-                    setGuardian2("0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0");
-                    if (!guardian1Email) setGuardian1Email("guardian1@example.com");
-                    if (!guardian2Email) setGuardian2Email("guardian2@example.com");
-                  }}
-                  className="text-[11px] font-mono text-[#2EE6A8] hover:underline cursor-pointer whitespace-nowrap self-start sm:self-auto"
-                >
-                  + Use Sepolia Demo Guardians
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                {/* Guardian 1 */}
-                <div className="p-3.5 rounded-xl bg-[#0A0E14] border border-[#232838] space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-bold text-[#E8ECF1] flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-[#2EE6A8]"></span>
-                      Guardian Node 1
-                    </span>
-                    <span className="text-[10px] font-mono text-[#8993A6] bg-[#12161F] px-2 py-0.5 rounded border border-[#232838]">
-                      Node #1
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-mono text-[#8993A6]">
-                      Wallet Address <span className="text-[#F5484A]">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={guardian1}
-                      onChange={(e) => setGuardian1(e.target.value)}
-                      className="w-full font-mono text-xs px-3 py-2 rounded-lg bg-[#12161F] border border-[#232838] text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#2EE6A8]"
-                      placeholder="Paste guardian 1 address (0x...)"
-                      aria-label="Guardian 1 Ethereum address"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-mono text-[#8993A6]">
-                      Email Address <span className="text-[#5A6478]">(Optional)</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={guardian1Email}
-                      onChange={(e) => setGuardian1Email(e.target.value)}
-                      className="w-full font-mono text-xs px-3 py-2 rounded-lg bg-[#12161F] border border-[#232838] text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#2EE6A8]"
-                      placeholder="guardian1@example.com"
-                      aria-label="Guardian 1 Email address"
-                    />
-                  </div>
-                </div>
-
-                {/* Guardian 2 */}
-                <div className="p-3.5 rounded-xl bg-[#0A0E14] border border-[#232838] space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-mono font-bold text-[#E8ECF1] flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-[#2EE6A8]"></span>
-                      Guardian Node 2
-                    </span>
-                    <span className="text-[10px] font-mono text-[#8993A6] bg-[#12161F] px-2 py-0.5 rounded border border-[#232838]">
-                      Node #2
-                    </span>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-mono text-[#8993A6]">
-                      Wallet Address <span className="text-[#F5484A]">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={guardian2}
-                      onChange={(e) => setGuardian2(e.target.value)}
-                      className="w-full font-mono text-xs px-3 py-2 rounded-lg bg-[#12161F] border border-[#232838] text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#2EE6A8]"
-                      placeholder="Paste guardian 2 address (0x...)"
-                      aria-label="Guardian 2 Ethereum address"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="block text-[10px] font-mono text-[#8993A6]">
-                      Email Address <span className="text-[#5A6478]">(Optional)</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={guardian2Email}
-                      onChange={(e) => setGuardian2Email(e.target.value)}
-                      className="w-full font-mono text-xs px-3 py-2 rounded-lg bg-[#12161F] border border-[#232838] text-[#E8ECF1] placeholder-[#5A6478] focus:outline-none focus:border-[#2EE6A8]"
-                      placeholder="guardian2@example.com"
-                      aria-label="Guardian 2 Email address"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Email Binding */}
-            <div className="space-y-2 pt-1 border-t border-[#232838]/60">
-              <label className="block text-xs text-[#8993A6] font-mono">
-                Notify me before check-in deadline (optional)
-              </label>
-              <div className="flex items-center gap-2.5">
-                <input
-                  type="email"
-                  value={ownerEmail}
-                  onChange={(e) => {
-                    setOwnerEmail(e.target.value);
-                    setIsOwnerEmailVerified(false);
-                  }}
-                  placeholder="owner@example.com"
-                  className="flex-1 font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#0A0E14] border border-[#232838] text-[#E8ECF1] focus:outline-none focus:border-[#2EE6A8]"
-                />
-                <button
-                  type="button"
-                  onClick={handleVerifyOwnerEmail}
-                  disabled={!ownerEmail || isSigningOwnerEmail || isOwnerEmailVerified}
-                  className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                    isOwnerEmailVerified
-                      ? "bg-[#2EE6A8]/15 text-[#2EE6A8] border border-[#2EE6A8]/40"
-                      : "bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] disabled:opacity-50 disabled:cursor-not-allowed"
-                  }`}
-                >
-                  {isOwnerEmailVerified
-                    ? "✓ Verified"
-                    : isSigningOwnerEmail
-                    ? "Signing..."
-                    : "Verify"}
-                </button>
-              </div>
-            </div>
-
-            {/* Heartbeat Interval */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs text-[#8993A6] font-mono">
-                  Heartbeat Checking Interval
-                </label>
-                <span className="text-[11px] font-mono text-[#2EE6A8] bg-[#2EE6A8]/10 px-2 py-0.5 rounded border border-[#2EE6A8]/20">
-                  ⚡ 5m &amp; 10m Testing Presets
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-                {CHECKIN_INTERVALS.map((intv) => (
-                  <button
-                    key={intv.label}
-                    type="button"
-                    onClick={() => setSelectedInterval(intv)}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-medium transition-all text-center cursor-pointer border ${
-                      selectedInterval.label === intv.label
-                        ? "border-[#2EE6A8] bg-[#2EE6A8]/10 text-[#2EE6A8] font-bold shadow-[0_0_12px_rgba(46,230,168,0.2)]"
-                        : "border-[#232838] bg-[#0A0E14] text-[#8993A6] hover:text-[#E8ECF1] hover:border-[#3E4759]"
-                    }`}
-                  >
-                    {intv.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Grace Period (Contest Window) */}
-            <div className="space-y-2 pt-2 border-t border-[#232838]/60">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs text-[#8993A6] font-mono">
-                  Grace Period (Contest Window)
-                </label>
-                <span className="text-[11px] font-mono text-[#F5B841] bg-[#F5B841]/10 px-2 py-0.5 rounded border border-[#F5B841]/20">
-                  ⚡ 5m Testing Preset
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {GRACE_PERIOD_OPTIONS.map((period) => (
-                  <button
-                    key={period.label}
-                    type="button"
-                    onClick={() => setSelectedGracePeriod(period)}
-                    className={`py-2 px-2.5 rounded-xl text-xs font-medium transition-all text-center cursor-pointer border ${
-                      selectedGracePeriod.label === period.label
-                        ? "border-[#F5B841] bg-[#F5B841]/10 text-[#F5B841] font-bold shadow-[0_0_12px_rgba(245,184,65,0.2)]"
-                        : "border-[#232838] bg-[#0A0E14] text-[#8993A6] hover:text-[#E8ECF1] hover:border-[#3E4759]"
-                    }`}
-                  >
-                    {period.label}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[11px] text-[#8993A6]">
-                Window duration following an inactivity lapse during which you can cancel claims with a stealth signature before funds unlock.
-              </p>
-            </div>
-
-            {/* Cadence Streams — Autonomous Streaming Trust */}
-            <div className="space-y-3 pt-3 border-t border-[#232838]/60">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-xs font-bold text-[#E8ECF1] flex items-center gap-1.5">
-                    <span className="text-[#2EE6A8]">⚡</span>
-                    <span>Cadence Streams (Smart Trust &amp; Yield)</span>
-                  </div>
-                  <div className="text-[11px] text-[#8993A6]">
-                    Vests inheritance per second rather than a single lump-sum payout.
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setIsStreamingTrust(!isStreamingTrust)}
-                  className={`px-3 py-1 rounded-full text-xs font-mono font-bold transition-all cursor-pointer border ${
-                    isStreamingTrust
-                      ? "bg-[#2EE6A8]/20 border-[#2EE6A8] text-[#2EE6A8]"
-                      : "bg-[#1A1F2B] border-[#232838] text-[#8993A6]"
-                  }`}
-                >
-                  {isStreamingTrust ? "✓ Enabled" : "Disabled (Lump-Sum)"}
-                </button>
-              </div>
-
-              {isStreamingTrust && (
-                <div className="p-3.5 rounded-xl bg-[#0A0E14] border border-[#2EE6A8]/30 space-y-3 animate-in fade-in">
-                  {/* Streaming Duration */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-mono text-[#8993A6]">Streaming Duration Schedule</label>
-                      <span className="text-[10px] font-mono text-[#2EE6A8]">⚡ Fast Demo Preset</span>
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {STREAMING_DURATION_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.label}
-                          type="button"
-                          onClick={() => setSelectedStreamDuration(opt)}
-                          className={`py-1.5 px-2 rounded-lg text-xs font-mono transition-all border cursor-pointer ${
-                            selectedStreamDuration.label === opt.label
-                              ? "border-[#2EE6A8] bg-[#2EE6A8]/15 text-[#2EE6A8] font-bold"
-                              : "border-[#232838] bg-[#12161F] text-[#8993A6] hover:text-[#E8ECF1]"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Initial Emergency Release */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-mono text-[#8993A6]">Immediate Emergency Buffer (Day 1 Unlock)</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {INITIAL_RELEASE_OPTIONS.map((opt) => (
-                        <button
-                          key={opt.label}
-                          type="button"
-                          onClick={() => setSelectedInitialReleaseBps(opt.bps)}
-                          className={`py-1.5 px-2 rounded-lg text-xs font-mono transition-all border cursor-pointer ${
-                            selectedInitialReleaseBps === opt.bps
-                              ? "border-[#00E5FF] bg-[#00E5FF]/15 text-[#00E5FF] font-bold"
-                              : "border-[#232838] bg-[#12161F] text-[#8993A6] hover:text-[#E8ECF1]"
-                          }`}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Passive Yield Rate */}
-                  <div className="flex items-center justify-between text-[11px] font-mono p-2 rounded-lg bg-[#12161F] border border-[#232838]">
-                    <span className="text-[#8993A6]">Simulated Aave v3 Yield:</span>
-                    <span className="text-[#F5B841] font-bold">+5.00% APY (Auto-Compounding)</span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-
-        {/* Right Column: Execution Summary */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="rounded-2xl bg-[#12161F] border border-[#232838] p-6 shadow-lg space-y-6">
-            <h2 className="text-sm font-semibold text-[#E8ECF1] tracking-tight">
-              Locker Execution Summary
-            </h2>
-
-            <div className="space-y-3.5 text-xs font-mono">
-              <div className="flex items-center justify-between py-1 border-b border-[#232838]/60">
-                <span className="text-[#8993A6]">Deposit Amount</span>
-                <span className="font-bold text-[#E8ECF1]">{depositAmount} {selectedToken}</span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-[#232838]/60">
-                <span className="text-[#8993A6]">Beneficiary Count</span>
-                <span className="font-bold text-[#E8ECF1]">{beneficiaryItems.length || 2} Wallets</span>
-              </div>
-              <div className="flex items-center justify-between py-1 border-b border-[#232838]/60">
-                <span className="text-[#8993A6]">Check-In Frequency</span>
-                <span className="font-bold text-[#E8ECF1]">
-                  Every {selectedInterval.label}
-                </span>
-              </div>
-              <div className="flex items-center justify-between py-1">
-                <span className="text-[#8993A6]">Grace Period</span>
-                <span className="font-bold text-[#F5B841]">{selectedGracePeriod.display}</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 rounded-xl bg-[#0A0E14] border border-[#232838] flex items-start gap-3">
-              <span className="text-[#2EE6A8] text-sm mt-0.5">ℹ</span>
-              <p className="text-[11px] text-[#8993A6] leading-relaxed">
-                Guardian consensus is Merkle-committed — guardians can verify a lapse
-                but never see your funds or your allocation.
-              </p>
-            </div>
-
-            {/* Authorize & Deploy Vault Button */}
+            {/* Primary Action Button */}
             <button
               id="authorize-and-deploy-vault-button"
               type="button"
-              disabled={!isBeneficiaryValid || currentTotalBps !== 10000}
+              disabled={!isDeploymentReady}
               onClick={handleStartProvisioning}
-              className="w-full py-4 px-6 rounded-xl font-bold text-sm bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] active:scale-[0.98] transition-all shadow-[0_0_24px_rgba(46,230,168,0.35)] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full py-4 px-6 rounded-full font-bold text-sm bg-[#111111] text-white hover:bg-black active:scale-[0.98] transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              <span>⚡ Authorize &amp; Deploy (1-Click)</span>
+              <span>AUTHORIZE &amp; DEPLOY</span>
             </button>
+
+            <div className="text-center">
+              <p className="text-[11px] text-[#8A8F98]">
+                Single 1-click atomic transaction on Sepolia
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 1-CLICK ATOMIC PROVISIONING PROGRESS MODAL                                */}
+      {/* PAGE 4: ATOMIC DEPLOYMENT CONFIRMATION MODAL                              */}
       {/* ========================================================================= */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="atomic-deployment-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/40 backdrop-blur-md animate-in fade-in duration-200"
+        >
           <div
-            className="relative w-full max-w-xl bg-[#12161F] border border-[#232838] rounded-2xl p-6 sm:p-8 shadow-2xl text-[#E8ECF1] overflow-hidden"
+            className="relative w-full max-w-xl bg-white border border-[#E8EAED] rounded-3xl p-6 sm:p-8 shadow-2xl text-[#111111] overflow-hidden space-y-6"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between pb-4 border-b border-[#232838]">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 flex items-center justify-center text-[#2EE6A8]">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
+            <div className="flex items-start justify-between pb-4 border-b border-[#E8EAED]">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
+                      modalState === "confirmed"
+                        ? "bg-[#E9F8F1] text-[#22A06B] border border-[#22A06B]/30"
+                        : modalState === "rejected"
+                        ? "bg-[#FFF6D8] text-[#996B00] border border-[#D99A00]/30"
+                        : modalState === "failed"
+                        ? "bg-[#FDECEC] text-[#D64545] border border-[#D64545]/30"
+                        : modalState === "transaction_pending"
+                        ? "bg-[#E8F5FE] text-[#0284C7] border border-[#0284C7]/30 animate-pulse"
+                        : modalState === "signature_requested"
+                        ? "bg-[#F0ECFF] text-[#7C5CFF] border border-[#7C5CFF]/30 animate-pulse"
+                        : "bg-[#F7F8FA] text-[#5F6368] border border-[#E8EAED]"
+                    }`}
+                  >
+                    {modalState === "awaiting_wallet" && "Awaiting Authorization"}
+                    {modalState === "signature_requested" && "Signature Requested"}
+                    {modalState === "transaction_pending" && "Transaction Pending"}
+                    {modalState === "confirmed" && "Confirmed"}
+                    {modalState === "rejected" && "Rejected"}
+                    {modalState === "failed" && "Failed"}
+                  </span>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg text-[#E8ECF1]">
-                    {isCompleted ? "Vault Setup Complete!" : "1-Click Vault Setup"}
-                  </h3>
-                  <p className="text-xs text-[#8993A6]">
-                    Deploy, fund &amp; configure in a single Ethereum transaction
-                  </p>
-                </div>
+                <h3 id="atomic-deployment-title" className="font-bold text-xl text-[#111111] tracking-tight">
+                  AUTHORIZE &amp; DEPLOY LOCKER
+                </h3>
+                <p className="text-xs text-[#5F6368]">
+                  The goal is certainty, not fear.
+                </p>
               </div>
 
-              {!stepStatus.includes("in_progress") && (
+              {modalState !== "signature_requested" && modalState !== "transaction_pending" && (
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="text-[#8993A6] hover:text-[#E8ECF1] p-1.5 rounded-lg hover:bg-[#1A1F2B] transition-colors cursor-pointer"
+                  className="text-[#5F6368] hover:text-[#111111] p-1.5 rounded-full hover:bg-[#F7F8FA] transition-colors cursor-pointer"
+                  aria-label="Close modal"
                 >
                   ✕
                 </button>
               )}
             </div>
 
-            {/* 1-Click Operations Checklist */}
-            <div className="py-6 space-y-3">
-              <div className="p-4 rounded-xl bg-[#0A0E14] border border-[#232838] space-y-2.5 text-xs font-mono">
-                <div className="text-[11px] uppercase tracking-wider text-[#8993A6] font-bold pb-1 border-b border-[#232838]/60">
-                  Bundled Operations in 1 Transaction:
-                </div>
-                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
-                  <span className="text-[#2EE6A8]">✓</span>
-                  <span>Deploy InheritanceVault Smart Contract</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
-                  <span className="text-[#2EE6A8]">✓</span>
-                  <span>Fund Initial Deposit ({depositAmount} {selectedToken})</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
-                  <span className="text-[#2EE6A8]">✓</span>
-                  <span>Commit Beneficiary Allocation Merkle Tree ({beneficiaryItems.length || 2} Wallets)</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
-                  <span className="text-[#2EE6A8]">✓</span>
-                  <span>Commit 2-of-2 Guardian Consensus Merkle Root</span>
-                </div>
-                <div className="flex items-center gap-2.5 text-[#E8ECF1]">
-                  <span className="text-[#2EE6A8]">✓</span>
-                  <span>Configure Heartbeat ({selectedInterval.label}) &amp; Grace Period ({selectedGracePeriod.label})</span>
-                </div>
+            {/* Explanation Box */}
+            <div className="p-4 sm:p-5 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3 text-xs">
+              <div className="font-mono font-semibold text-[#111111] tracking-wider uppercase text-[11px]">
+                This signature will:
               </div>
-
-              {provisionedVaultAddress && (
-                <div className="p-3.5 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 flex items-center justify-between text-xs font-mono">
-                  <span className="text-[#8993A6]">Deployed Vault:</span>
-                  <span className="text-[#2EE6A8] font-bold">
-                    {provisionedVaultAddress.slice(0, 10)}...{provisionedVaultAddress.slice(-8)}
+              <ol className="space-y-2 text-[#333333] font-mono text-xs pl-1">
+                <li className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
+                    1
                   </span>
-                </div>
-              )}
-
-              {txHashes.deploy && (
-                <div className="p-3 rounded-xl bg-[#0A0E14] border border-[#232838] flex items-center justify-between text-xs font-mono">
-                  <span className="text-[#8993A6]">Transaction Hash:</span>
-                  <a
-                    href={`https://sepolia.etherscan.io/tx/${txHashes.deploy}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#2EE6A8] hover:underline flex items-center gap-1 font-bold"
-                  >
-                    <span>{txHashes.deploy.slice(0, 10)}...{txHashes.deploy.slice(-6)}</span>
-                    <span>↗</span>
-                  </a>
-                </div>
-              )}
+                  <span>Deploy the Locker</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
+                    2
+                  </span>
+                  <span>Deposit the selected assets ({depositAmount || "0"} {selectedToken})</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
+                    3
+                  </span>
+                  <span>Commit beneficiary allocation roots</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
+                    4
+                  </span>
+                  <span>Register guardian consensus</span>
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
+                    5
+                  </span>
+                  <span>Start the Heartbeat timer</span>
+                </li>
+              </ol>
             </div>
 
-            {/* Active Step Real-time Feedback */}
-            {stepStatus === "in_progress" && (
-              <div className="p-3.5 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/30 text-xs font-mono text-[#2EE6A8] flex items-center gap-2.5 animate-pulse">
-                <svg className="animate-spin h-4 w-4 text-[#2EE6A8] shrink-0" fill="none" viewBox="0 0 24 24">
+            {/* Show: Telemetry Table */}
+            <div className="space-y-2">
+              <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#5F6368]">
+                Configuration Telemetry
+              </div>
+              <div className="p-4 rounded-2xl bg-white border border-[#E8EAED] grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs font-mono">
+                <div>
+                  <div className="text-[#8A8F98]">Network</div>
+                  <div className="font-bold text-[#111111]">Sepolia (11155111)</div>
+                </div>
+                <div>
+                  <div className="text-[#8A8F98]">Contract</div>
+                  <div className="font-bold text-[#111111]">OneClickVault</div>
+                </div>
+                <div>
+                  <div className="text-[#8A8F98]">Deposit</div>
+                  <div className="font-bold text-[#111111]">{depositAmount} {selectedToken}</div>
+                </div>
+                <div>
+                  <div className="text-[#8A8F98]">Beneficiary Count</div>
+                  <div className="font-bold text-[#111111]">{beneficiaryItems.length || 2} Wallets</div>
+                </div>
+                <div>
+                  <div className="text-[#8A8F98]">Guardian Count</div>
+                  <div className="font-bold text-[#111111]">2 Guardians</div>
+                </div>
+                <div>
+                  <div className="text-[#8A8F98]">Heartbeat</div>
+                  <div className="font-bold text-[#111111]">{selectedInterval.label}</div>
+                </div>
+                <div className="col-span-2 sm:col-span-3 pt-2 border-t border-[#E8EAED]/60 flex items-center justify-between">
+                  <span className="text-[#8A8F98]">Contest Window</span>
+                  <span className="font-bold text-[#996B00]">{selectedGracePeriod.label}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* State Feedback Card */}
+            {modalState === "signature_requested" && (
+              <div className="p-4 rounded-2xl bg-[#F0ECFF] border border-[#7C5CFF]/30 text-xs font-mono text-[#7C5CFF] flex items-center gap-3 animate-pulse">
+                <svg className="animate-spin h-5 w-5 text-[#7C5CFF] shrink-0" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                <span>{activeStepDescription}</span>
-              </div>
-            )}
-
-            {/* Error Message */}
-            {stepError && (
-              <div className="p-4 rounded-xl bg-[#F5484A]/10 border border-[#F5484A]/40 text-xs font-mono text-[#F5484A] space-y-2">
-                <div className="font-bold">Transaction Failed / Cancelled:</div>
-                <div className="break-words">{stepError}</div>
-                <div className="text-[11px] text-[#8993A6]">
-                  Click below to try again whenever you are ready.
+                <div className="space-y-0.5">
+                  <div className="font-bold">Signature requested</div>
+                  <div className="text-[11px] text-[#5F6368]">
+                    {activeStepDescription || "Please confirm the transaction in your connected wallet."}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Completion View */}
-            {isCompleted && (
-              <div className="p-4 rounded-xl bg-[#2EE6A8]/10 border border-[#2EE6A8]/40 text-xs font-mono text-[#2EE6A8] space-y-2 text-center">
-                <div className="font-bold text-sm">✓ 1-Click Vault Setup Successfully Completed!</div>
-                <p className="text-[11px] text-[#8993A6]">
-                  Your vault is funded, active on Sepolia, and guarded by Proof-of-Life consensus.
+            {modalState === "transaction_pending" && (
+              <div className="p-4 rounded-2xl bg-[#E8F5FE] border border-[#0284C7]/30 text-xs font-mono text-[#0284C7] space-y-2">
+                <div className="flex items-center gap-3 animate-pulse">
+                  <svg className="animate-spin h-5 w-5 text-[#0284C7] shrink-0" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <div>
+                    <div className="font-bold">Transaction pending</div>
+                    <div className="text-[11px] text-[#5F6368]">
+                      {activeStepDescription || "Mining on Sepolia blockchain (~12 seconds)..."}
+                    </div>
+                  </div>
+                </div>
+                {txHashes.deploy && (
+                  <div className="pt-2 border-t border-[#0284C7]/20 flex items-center justify-between text-[11px]">
+                    <span className="text-[#5F6368]">Tx Hash:</span>
+                    <a
+                      href={`https://sepolia.etherscan.io/tx/${txHashes.deploy}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#0284C7] font-bold hover:underline flex items-center gap-1"
+                    >
+                      <span>{txHashes.deploy.slice(0, 10)}...{txHashes.deploy.slice(-6)}</span>
+                      <span>↗</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {modalState === "confirmed" && (
+              <div className="p-4 rounded-2xl bg-[#E9F8F1] border border-[#22A06B]/40 text-xs font-mono text-[#22A06B] space-y-2">
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  <span>✓</span>
+                  <span>Confirmed</span>
+                </div>
+                <p className="text-[11px] text-[#5F6368]">
+                  Your Locker has been deployed and funded on Sepolia. Heartbeat telemetry is live.
+                </p>
+                {provisionedVaultAddress && (
+                  <div className="pt-2 border-t border-[#22A06B]/20 flex items-center justify-between text-[11px]">
+                    <span className="text-[#5F6368]">Contract:</span>
+                    <span className="font-bold text-[#111111]">
+                      {provisionedVaultAddress.slice(0, 10)}...{provisionedVaultAddress.slice(-8)}
+                    </span>
+                  </div>
+                )}
+                {txHashes.deploy && (
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-[#5F6368]">Receipt:</span>
+                    <a
+                      href={`https://sepolia.etherscan.io/tx/${txHashes.deploy}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[#22A06B] font-bold hover:underline flex items-center gap-1"
+                    >
+                      <span>{txHashes.deploy.slice(0, 10)}...{txHashes.deploy.slice(-6)}</span>
+                      <span>↗</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {modalState === "rejected" && (
+              <div className="p-4 rounded-2xl bg-[#FFF6D8] border border-[#D99A00]/40 text-xs font-mono text-[#996B00] space-y-2">
+                <div className="font-bold text-sm flex items-center gap-2">
+                  <span>⚠️</span>
+                  <span>Rejected</span>
+                </div>
+                <p className="text-[11px] text-[#5F6368]">
+                  The signature was declined in your wallet. No gas was consumed, and no assets were moved.
                 </p>
               </div>
             )}
 
-            {/* Modal Actions */}
-            <div className="flex items-center gap-3 pt-4 border-t border-[#232838]">
-              {isCompleted ? (
-                <Link
-                  href="/dashboard"
-                  className="flex-1 py-3 px-4 rounded-xl font-bold text-xs bg-[#2EE6A8] text-[#0A0E14] hover:bg-[#3bf5b6] transition-all text-center cursor-pointer shadow-[0_0_20px_rgba(46,230,168,0.3)]"
-                >
-                  Go to Vault Pulse Dashboard →
-                </Link>
-              ) : stepError ? (
+            {modalState === "failed" && (
+              <div className="p-4 rounded-2xl bg-[#FDECEC] border border-[#D64545]/40 text-xs font-mono text-[#D64545] space-y-2">
+                <div className="font-bold text-sm flex items-center gap-2">
+                  <span>✕</span>
+                  <span>Failed</span>
+                </div>
+                <div className="text-[11px] text-[#5F6368] break-words">
+                  {stepError || "An unexpected error occurred during contract execution."}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center gap-3 pt-2 border-t border-[#E8EAED]">
+              {modalState === "confirmed" ? (
                 <>
                   <button
                     type="button"
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2.5 rounded-xl text-xs font-medium bg-[#1A1F2B] hover:bg-[#232838] text-[#8993A6] hover:text-[#E8ECF1] cursor-pointer"
+                    className="px-5 py-3 rounded-full text-xs font-semibold bg-[#F7F8FA] hover:bg-[#E8EAED] text-[#5F6368] hover:text-[#111111] border border-[#E8EAED] transition-colors cursor-pointer"
                   >
-                    Close
+                    CANCEL
+                  </button>
+                  <Link
+                    href="/dashboard"
+                    className="flex-1 py-3 px-6 rounded-full font-bold text-xs bg-[#111111] hover:bg-black text-white transition-all text-center cursor-pointer shadow-md"
+                  >
+                    GO TO VAULT PULSE DASHBOARD →
+                  </Link>
+                </>
+              ) : modalState === "signature_requested" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalState("awaiting_wallet");
+                      setIsModalOpen(false);
+                    }}
+                    className="px-5 py-3 rounded-full text-xs font-semibold bg-[#F7F8FA] hover:bg-[#E8EAED] text-[#5F6368] hover:text-[#111111] border border-[#E8EAED] transition-colors cursor-pointer"
+                  >
+                    CANCEL
                   </button>
                   <button
                     type="button"
-                    onClick={() => executeStep()}
-                    className="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs bg-[#F5B841] hover:bg-[#e5aa33] text-[#0A0E14] transition-all cursor-pointer"
+                    disabled
+                    className="flex-1 py-3 px-6 rounded-full font-bold text-xs bg-[#F0ECFF] text-[#7C5CFF] border border-[#7C5CFF]/30 opacity-80 cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    Retry Setup
+                    <span>SIGNATURE REQUESTED...</span>
+                  </button>
+                </>
+              ) : modalState === "transaction_pending" ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-5 py-3 rounded-full text-xs font-semibold bg-[#F7F8FA] hover:bg-[#E8EAED] text-[#5F6368] hover:text-[#111111] border border-[#E8EAED] transition-colors cursor-pointer"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="button"
+                    disabled
+                    className="flex-1 py-3 px-6 rounded-full font-bold text-xs bg-[#E8F5FE] text-[#0284C7] border border-[#0284C7]/30 opacity-80 cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    <span>TRANSACTION PENDING...</span>
                   </button>
                 </>
               ) : (
-                <button
-                  type="button"
-                  disabled={stepStatus === "in_progress"}
-                  onClick={() => setIsModalOpen(false)}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs font-medium bg-[#1A1F2B] hover:bg-[#232838] text-[#8993A6] hover:text-[#E8ECF1] transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  Running in background...
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setModalState("awaiting_wallet");
+                      setIsModalOpen(false);
+                    }}
+                    className="px-5 py-3 rounded-full text-xs font-semibold bg-[#F7F8FA] hover:bg-[#E8EAED] text-[#5F6368] hover:text-[#111111] border border-[#E8EAED] transition-colors cursor-pointer"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={executeDeployment}
+                    className="flex-1 py-3 px-6 rounded-full font-bold text-xs bg-[#111111] hover:bg-black text-white transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
+                  >
+                    <span>AUTHORIZE &amp; DEPLOY</span>
+                  </button>
+                </>
               )}
             </div>
           </div>

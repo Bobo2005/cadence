@@ -7,7 +7,7 @@ import ContestWindowPanel from "../../components/ContestWindowPanel";
 
 export default function ContestPage() {
   return (
-    <AppShell activeTab="Contest">
+    <AppShell activeTab="Contest Window">
       <AuthGuard>
         <ContestWindowPanel />
       </AuthGuard>

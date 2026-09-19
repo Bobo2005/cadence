@@ -113,7 +113,7 @@ function ToastItem({
   return (
     <div
       className={`
-        flex items-start gap-3 w-full max-w-sm px-4 py-3 rounded-xl border shadow-2xl
+        flex items-start gap-3 w-full max-w-sm px-4 py-3 rounded-none border shadow-2xl
         backdrop-blur-sm font-sans transition-all duration-300
         ${s.border} ${s.bg}
         ${visible && !exiting
@@ -130,7 +130,7 @@ function ToastItem({
         type="button"
         onClick={handleDismiss}
         aria-label="Dismiss notification"
-        className="shrink-0 ml-1 text-[#8993A6] hover:text-[#E8ECF1] transition-colors p-0.5 rounded"
+        className="shrink-0 ml-1 text-[#8993A6] hover:text-[#E8ECF1] transition-colors p-0.5 rounded-none"
       >
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />

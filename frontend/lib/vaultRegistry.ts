@@ -50,21 +50,21 @@ export const DEMO_BENEFICIARIES: DemoBeneficiary[] = [
     name: "Alice (Primary Heir)",
     address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
     publicKey: "ba5734d8f7091719471e7f7ed6b9df170dc70cc661ca05e688601ad984f068b0d67351e5f06073092499336ab0839ef8a521afd334e53807205fa2f08eec74f4",
-    description: "40.00% allocation on Accelerated Demo Locker",
+    description: "40.00% allocation on Accelerated Protocol Locker",
   },
   {
     id: "bob",
     name: "Bob (Secondary Heir)",
     address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
     publicKey: "9d9031e97dd78ff8c15aa86939de9b1e791066a0224e331bc962a2099a7b1f0464b8bbafe1535f2301c72c2cb3535b172da30b02686ab0393d348614f157fbdb",
-    description: "60.00% allocation on Accelerated Demo Locker",
+    description: "60.00% allocation on Accelerated Protocol Locker",
   },
 ];
 
 export const SEED_VAULTS: RegisteredVault[] = [
   {
     id: "vault-demo-sepolia",
-    name: "Accelerated Demo Locker (Sepolia)",
+    name: "Accelerated Protocol Locker (Sepolia)",
     vaultAddress: "0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1",
     consensusAddress: "0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf",
     owner: "0xC09C394336D4Ed967B70a4C1C1110493673f77e4",

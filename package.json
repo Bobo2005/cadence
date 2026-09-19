@@ -1,0 +1,25 @@
+{
+  "name": "cadence-protocol",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Cadence — Non-Custodial Dead Man's Switch & Inheritance Protocol",
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "dev:notifications": "npm --prefix notifications run dev",
+    "build": "npm --prefix frontend run build",
+    "lint": "npm --prefix frontend run lint",
+    "test": "npm --prefix notifications test",
+    "test:security": "npm --prefix notifications run test:security"
+  },
+  "keywords": [
+    "cadence",
+    "ethereum",
+    "inheritance",
+    "dead-mans-switch",
+    "erc4337",
+    "eip712",
+    "smart-contracts"
+  ],
+  "author": "Cadence Protocol",
+  "license": "MIT"
+}

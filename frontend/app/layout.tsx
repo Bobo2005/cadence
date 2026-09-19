@@ -23,6 +23,11 @@ export const metadata: Metadata = {
   title: "Cadence — Crypto Inheritance Protocol",
   description:
     "Privacy-preserving multi-signal crypto inheritance. Proof-of-Life Consensus: your assets reach your heirs, even if you can't.",
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
 };
 
 import { Providers } from "./providers";

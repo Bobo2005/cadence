@@ -1,82 +1,78 @@
 /**
- * Cadence Design System — "Pulse" Visual Identity
- * All design tokens as CSS custom properties.
- * Source of truth: docs/DESIGN-SYSTEM.md
- *
- * Usage in Tailwind: reference via var(--token-name) in arbitrary values,
- * or extend tailwind.config.ts to map these to Tailwind utilities.
+ * Cadence Design System — Light Editorial Direction (Sequence-inspired)
+ * Source of truth: docs/Cadence_Design_System (1).md
  */
 
 :root {
-  /* ─── Color ─────────────────────────────────────────────────────── */
+  /* ─── Base Surfaces ──────────────────────────────────────────────── */
+  --background-primary: #FFFFFF;
+  --background-secondary: #F7F8FA;
+  --background-tertiary: #F1F3F5;
 
-  /** Near-black primary background */
-  --bg-primary: #0a0e14;
+  /* ─── Typography & Text ─────────────────────────────────────────── */
+  --foreground-primary: #111111;
+  --foreground-secondary: #5F6368;
+  --foreground-muted: #8A8F98;
 
-  /** Card / panel surface — one step up from bg-primary */
-  --bg-surface: #12161f;
+  /* ─── Borders ───────────────────────────────────────────────────── */
+  --border-primary: #D9DCE1;
+  --border-secondary: #E8EAED;
+  --border-hover: #AEB3BB;
 
-  /** Hover / active surface state */
-  --bg-surface-alt: #1a1f2b;
+  /* ─── Brand Atmosphere & Accents ────────────────────────────────── */
+  --cyan-50: #CFFBF7;
+  --cyan-100: #B8F5F0;
+  --lavender-50: #D8DEFF;
+  --lavender-100: #C5CEFF;
+  --blue-muted: #9BAEFF;
 
-  /**
-   * Electric teal / clinical green — the "life signal" color.
-   * Use ONLY for: the pulse line, primary CTAs.
-   * Do not use decoratively.
-   */
-  --accent-pulse: #2ee6a8;
+  --purple: #7C5CFF;
+  --purple-soft: #F0ECFF;
 
-  /** Amber — contest window / approaching deadline state */
-  --accent-warning: #f5b841;
+  /* ─── Semantic Indicators ───────────────────────────────────────── */
+  --success: #22A06B;
+  --success-background: #E9F8F1;
+  --warning: #D99A00;
+  --warning-background: #FFF6D8;
+  --error: #D64545;
+  --error-background: #FDECEC;
+  --info: #4C72FF;
+  --info-background: #EEF2FF;
 
-  /**
-   * Used sparingly — irreversible / finalized state only.
-   * Never decorative.
-   */
-  --accent-danger: #f5484a;
+  /* ─── Atmospheric Coral ─────────────────────────────────────────── */
+  --coral: #F58A78;
+  --coral-soft: #FFF0EC;
 
-  /** Primary body text */
-  --text-primary: #e8ecf1;
+  /* ─── Soft Atmospheric Gradients ────────────────────────────────── */
+  --gradient-hero: linear-gradient(180deg, #D9FFFA 0%, #F7F8FC 50%, #C9D4FF 100%);
+  --gradient-brand: linear-gradient(135deg, #CFFBF7 0%, #D8DEFF 100%);
+  --gradient-soft: linear-gradient(135deg, #F7F8FA 0%, #FFFFFF 55%, #F1EFFF 100%);
 
-  /** Secondary / muted text */
-  --text-secondary: #8993a6;
+  /* ─── Shadows ───────────────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.08);
 
-  /** Subtle borders and dividers */
-  --border-subtle: #232838;
+  /* ─── Radius ────────────────────────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
 
-  /** State-driven hero card borders (confirmed in DESIGN-SYSTEM.md) */
-  --border-active: #2ee6a8;
-  --border-warning: #f5b841;
-  --border-danger: #f5484a;
-
-  /* ─── Typography ────────────────────────────────────────────────── */
-
-  /**
-   * Monospace — numbers, countdowns, addresses, amounts.
-   * Reinforces precision and technical trustworthiness.
-   * Loaded via Google Fonts: JetBrains Mono
-   */
+  /* ─── Fonts ─────────────────────────────────────────────────────── */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
 
-  /**
-   * Sans-serif — labels, body copy, buttons, everything else.
-   * Two fonts total — do not add a third.
-   * Loaded via Google Fonts: Inter
-   */
-  --font-sans: "Inter", "Manrope", ui-sans-serif, system-ui, sans-serif;
-
-  /* ─── Spacing / Radius ──────────────────────────────────────────── */
-  /* Defined here as a single source of truth; extend as needed once
-     the UI reference mockup arrives (see docs/DESIGN-SYSTEM.md). */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-
-  /* ─── Motion ────────────────────────────────────────────────────── */
-  /**
-   * Motion budget goes entirely to the pulse line and countdown.
-   * Avoid decorative motion elsewhere (no bouncing buttons, no parallax).
-   */
-  --transition-fast: 150ms ease;
-  --transition-base: 250ms ease;
+  /* Backwards-compatibility aliases for existing components */
+  --bg-primary: #FFFFFF;
+  --bg-surface: #FFFFFF;
+  --bg-surface-alt: #F7F8FA;
+  --text-primary: #111111;
+  --text-secondary: #5F6368;
+  --border-subtle: #E8EAED;
+  --accent-pulse: #22A06B;
+  --accent-warning: #D99A00;
+  --accent-danger: #D64545;
 }

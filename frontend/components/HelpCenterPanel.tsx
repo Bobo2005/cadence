@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo } from "react";
 import Link from "next/link";
-import { CONTRACT_ADDRESSES } from "../lib/contracts";
 
 export type HelpCategory =
   | "ALL"
@@ -21,14 +20,6 @@ interface FAQItem {
   category: Exclude<HelpCategory, "ALL">;
   question: string;
   answer: string;
-  technicalDetails?: {
-    functionSignature?: string;
-    cryptography?: string;
-    events?: string;
-    contractFile?: string;
-    gasProfile?: string;
-    explanation: string;
-  };
 }
 
 const FAQ_ITEMS: FAQItem[] = [
@@ -39,12 +30,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "What is Cadence and how does it protect my assets?",
     answer:
       "Cadence is a non-custodial crypto inheritance protocol. You deposit assets into an autonomous on-chain Locker controlled solely by your private key. As long as you maintain a periodic Heartbeat, your funds remain untouched and private. If inactivity is detected and confirmed by decentralized guardians, an emergency Contest Window opens. If you do not reset it, your designated beneficiaries can decrypt and claim their individual allocations.",
-    technicalDetails: {
-      functionSignature: "InheritanceVault.sol / ProofOfLifeConsensus.sol",
-      cryptography: "AES-GCM-256 client-side payload, EIP-712 typed reset signatures",
-      explanation:
-        "Cadence is split into separate smart contracts: ProofOfLifeConsensus coordinates heartbeat signals and guardians; GuardianRegistry records sentinel membership; and individual InheritanceVault instances store assets with Merkle-committed root allocations.",
-    },
   },
   {
     id: "gs-02",
@@ -52,12 +37,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "What do I need to get started?",
     answer:
       "You only need an Ethereum-compatible wallet (such as MetaMask, Coinbase Wallet, or Rabby) connected to Ethereum Sepolia. To configure a Locker, you will specify your heartbeat check-in interval (e.g. 90 days), designate one or more beneficiary addresses with their respective percentage allocations, and deposit ETH or ERC-20 tokens.",
-    technicalDetails: {
-      functionSignature: "createVault(bytes32 merkleRoot, uint256 checkInInterval, uint256 contestWindow)",
-      contractFile: "VaultFactory.sol (0x043d02c39B86CAd83E1Bf05728D32d24f6289e74)",
-      explanation:
-        "Vault deployment generates an immutable minimal proxy pointing to the audited InheritanceVault implementation. The contract stores only the 32-byte Merkle root on-chain.",
-    },
   },
   {
     id: "gs-03",
@@ -65,10 +44,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Can Cadence team or admins access my funds?",
     answer:
       "No. Cadence is strictly non-custodial. There are no admin keys, no backdoors, and no team multisig controls over your Locker funds. Only your private key can withdraw funds while active, and only valid cryptographic proofs from designated heirs can release funds after inactivity and contest expiration.",
-    technicalDetails: {
-      explanation:
-        "The smart contracts lack upgradeability proxy admin hooks or emergency drain functions. Funds can only leave via owner withdrawal or verified Merkle leaf execution in claimInheritance().",
-    },
   },
 
   // 2. VAULTS
@@ -78,11 +53,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "What assets can I store in a Cadence Locker?",
     answer:
       "Currently on Ethereum Sepolia, Cadence Lockers natively support native ETH and standard ERC-20 tokens (e.g., USDC, DAI, WBTC). When creating a Locker or making subsequent deposits, balances are tracked directly within your vault contract.",
-    technicalDetails: {
-      functionSignature: "deposit() payable / depositToken(address token, uint256 amount)",
-      explanation:
-        "Assets reside in the deployed InheritanceVault contract balance. Native ETH is accepted via receive() external payable, updating internal accounting.",
-    },
   },
   {
     id: "v-02",
@@ -90,12 +60,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Can I withdraw my assets or cancel a Locker at any time?",
     answer:
       "Yes. As long as your Locker is in the ACTIVE state, you retain sovereign ownership. You can withdraw all or part of your funds, update beneficiary allocations by publishing a new Merkle root, or close the Locker altogether.",
-    technicalDetails: {
-      functionSignature: "ownerWithdraw(address token, uint256 amount) external onlyOwner",
-      events: "event OwnerWithdrew(address indexed token, uint256 amount, uint256 timestamp)",
-      explanation:
-        "The onlyOwner modifier checks msg.sender == owner. Withdrawal is instant and requires standard EVM execution gas.",
-    },
   },
   {
     id: "v-03",
@@ -103,11 +67,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How are multiple Lockers managed?",
     answer:
       "You can create distinct Lockers for different portfolios or beneficiary tiers (e.g. immediate family vs. organizational continuity). Each Locker has its own autonomous address, heartbeat frequency, and Merkle root.",
-    technicalDetails: {
-      contractFile: "VaultFactory.sol",
-      explanation:
-        "VaultFactory maintains an indexed array of vaults deployed per owner address: mapping(address => address[]) public userVaults.",
-    },
   },
 
   // 3. HEARTBEATS
@@ -117,13 +76,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How do I check in to prove I am active?",
     answer:
       "You can check in at any time with a single click from the Vault Pulse dashboard. Checking in resets the timer countdown back to its full configured duration (e.g. 90 days). You can also configure email reminders to notify you well before a check-in expires.",
-    technicalDetails: {
-      functionSignature: "checkIn() external onlyOwner",
-      events: "event HeartbeatRecorded(address indexed vault, uint256 timestamp, uint256 nextDue)",
-      gasProfile: "~28,500 gas on Sepolia",
-      explanation:
-        "Updates lastCheckInTimestamp = block.timestamp on-chain. Resets inactivity counter and clears any transient guardian warnings.",
-    },
   },
   {
     id: "hb-02",
@@ -131,11 +83,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "What happens if I forget to check in?",
     answer:
       "If your configured interval elapses without a check-in, the Locker does NOT immediately distribute funds. Instead, decentralized guardian nodes verify inactivity and initiate the Contest Window. You receive urgent alerts and have the entire duration of the Contest Window (e.g., 72 hours) to reset the Locker.",
-    technicalDetails: {
-      functionSignature: "initiateContestWindow() external",
-      explanation:
-        "Callable only when block.timestamp > lastCheckInTimestamp + checkInInterval AND guardian threshold attestations have been committed.",
-    },
   },
   {
     id: "hb-03",
@@ -143,12 +90,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Is there a gasless way to check in?",
     answer:
       "Yes. Cadence supports gasless EIP-712 check-in signatures. You sign a typed message with your wallet off-chain, and an automated relayer submits the checkInWithSignature() transaction on your behalf.",
-    technicalDetails: {
-      cryptography: "EIP-712 domain separator: name='Cadence Protocol', version='1', chainId=11155111",
-      functionSignature: "checkInWithSig(address vault, uint256 nonce, uint256 deadline, bytes sig)",
-      explanation:
-        "Relayer submits the owner's ECDSA signature. The contract derives signer via ecrecover and verifies against vault owner.",
-    },
   },
 
   // 4. GUARDIANS
@@ -158,11 +99,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Who are the Guardians and what authority do they hold?",
     answer:
       "Guardians are independent verification nodes (e.g. community sentinels, automated oracles, or trusted entities) that attest to inactivity. Guardians have ZERO access to your funds, ZERO knowledge of your beneficiaries, and CANNOT initiate distribution without consensus.",
-    technicalDetails: {
-      contractFile: "GuardianRegistry.sol / ProofOfLifeConsensus.sol",
-      explanation:
-        "Guardians only vote on binary liveness state transitions. They never hold custody or private keys to any assets.",
-    },
   },
   {
     id: "g-02",
@@ -170,12 +106,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How does Guardian consensus work?",
     answer:
       "Cadence enforces an m-of-n threshold rule. For example, in a 2-of-3 guardian setup, at least 2 distinct guardian nodes must independently inspect the on-chain heartbeat and submit signed attestations before a Contest Window can open.",
-    technicalDetails: {
-      functionSignature: "submitAttestation(address vault, bytes signature)",
-      events: "event GuardianAttestationSubmitted(address indexed guardian, address indexed vault, uint256 count)",
-      explanation:
-        "Requires attestationCount[vault] >= threshold. Prevents a single rogue or offline node from triggering false alarms.",
-    },
   },
   {
     id: "g-03",
@@ -183,11 +113,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Can I choose my own personal guardians?",
     answer:
       "Yes. In addition to public protocol sentinels, you can register custom trusted addresses (e.g. family attorneys, institutional custodians, or cold wallets) as your personal guardian quorum during vault setup.",
-    technicalDetails: {
-      functionSignature: "setCustomGuardians(address[] calldata guardians, uint256 threshold)",
-      explanation:
-        "Stored in the vault's local guardian configuration mapping. Overrides default sentinel registry when active.",
-    },
   },
 
   // 5. BENEFICIARIES
@@ -197,11 +122,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How do I add beneficiaries to my Locker?",
     answer:
       "During vault creation or update, you enter each beneficiary's Ethereum address and allocation percentage (e.g. 60% / 40%). The Cadence interface combines these into a cryptographic Merkle tree and generates client-side encrypted allocation vouchers for each heir.",
-    technicalDetails: {
-      cryptography: "Keccak256(abi.encodePacked(beneficiary, shareBps, salt))",
-      explanation:
-        "Each beneficiary is a leaf node in the Merkle tree. Only the resulting 32-byte Merkle root is written to the blockchain.",
-    },
   },
   {
     id: "b-02",
@@ -209,11 +129,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Can beneficiaries see each other's addresses or share percentages?",
     answer:
       "No. Beneficiary privacy is absolute. Sibling allocations are blinded with individual cryptographic salts. An heir can only decrypt and prove their own allocation; they cannot inspect who else is in the vault or how much others receive.",
-    technicalDetails: {
-      cryptography: "AES-GCM-256 with beneficiary-specific PBKDF2 salt derivation",
-      explanation:
-        "Because leaf nodes include a 32-byte random salt, an observer cannot perform dictionary attacks or reverse-engineer leaf contents from the Merkle root.",
-    },
   },
   {
     id: "b-03",
@@ -221,10 +136,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Do beneficiaries need a crypto wallet before the claim?",
     answer:
       "Beneficiaries only need an EVM wallet address to be designated as an heir. They do not need to interact with the protocol, install extensions, or hold gas tokens until they claim their inheritance upon vault finalization.",
-    technicalDetails: {
-      explanation:
-        "The claim portal supports both direct self-claim and gas-sponsored relay claims so non-crypto-native beneficiaries can claim without prior ETH balance.",
-    },
   },
 
   // 6. CONTEST WINDOW
@@ -234,12 +145,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "What is the Contest Window?",
     answer:
       "The Contest Window is Cadence's sovereign emergency safety valve. When guardian consensus detects a missed heartbeat, the Locker enters a temporary challenge state (typically 72 hours). Absolutely NO funds can be distributed during this window.",
-    technicalDetails: {
-      contractFile: "ProofOfLifeConsensus.sol",
-      events: "event ContestWindowOpened(address indexed vault, uint256 expiresAt)",
-      explanation:
-        "State moves from Active (0) to ClaimPending (1). The lock is mathematically enforced by the smart contract until block.timestamp >= contestExpiresAt.",
-    },
   },
   {
     id: "cw-02",
@@ -247,11 +152,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How long does the Contest Window last?",
     answer:
       "The default recommended duration is 72 hours (48 hours on testnet setups), but you can customize it during Locker creation from 24 hours up to 30 days depending on your travel habits and operational profile.",
-    technicalDetails: {
-      functionSignature: "setContestWindow(uint256 durationSec)",
-      explanation:
-        "Duration is validated with min/max bounds: 86400 <= duration <= 2592000 (1 day to 30 days).",
-    },
   },
   {
     id: "cw-03",
@@ -259,10 +159,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Can anyone trigger the Contest Window maliciously?",
     answer:
       "No. The smart contract strictly prohibits opening a Contest Window unless the owner's check-in interval has genuinely elapsed on-chain AND the required quorum of guardians have cryptographically signed inactivity attestations.",
-    technicalDetails: {
-      explanation:
-        "Reverts with InactivityPeriodNotElapsed() if block.timestamp <= lastCheckInTimestamp + checkInInterval.",
-    },
   },
 
   // 7. CLAIMS
@@ -272,12 +168,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How does an heir claim their inheritance?",
     answer:
       "Once both the Heartbeat interval and Contest Window have fully elapsed, the Locker state transitions to FINALIZED. The heir navigates to the Claim Portal (/claim), connects their wallet, signs once to decrypt their allocation locally, and executes the claim transaction.",
-    technicalDetails: {
-      functionSignature: "claimInheritance(bytes32[] calldata merkleProof, uint256 shareBps, bytes32 salt)",
-      events: "event InheritanceClaimed(address indexed beneficiary, uint256 amount, uint256 timestamp)",
-      explanation:
-        "The contract verifies MerkleProof.verify(merkleProof, merkleRoot, leaf) where leaf = keccak256(abi.encodePacked(msg.sender, shareBps, salt)).",
-    },
   },
   {
     id: "c-02",
@@ -285,11 +175,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "What is Cadence Streaming vs. Lump-Sum claim?",
     answer:
       "Heirs can choose to receive their payout either as an instant lump-sum transfer or streamed continuously second-by-second (Cadence Stream). Streaming protects beneficiaries from sudden tax hits, flash liquidations, or theft while providing steady continuous cashflow.",
-    technicalDetails: {
-      functionSignature: "claimWithStream(uint256 durationSeconds, bytes32[] merkleProof, ...)",
-      explanation:
-        "Allocates linear vesting stream using timestamp differentials: claimable = totalAllocation * (block.timestamp - startTime) / duration.",
-    },
   },
   {
     id: "c-03",
@@ -297,11 +182,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Does an heir ever need to share their private key?",
     answer:
       "Never. Decryption of the allocation voucher happens entirely in-memory inside the browser using standard Web Crypto API. Your private keys never touch Cadence servers or any external API.",
-    technicalDetails: {
-      cryptography: "SubtleCrypto.importKey + SubtleCrypto.decrypt using AES-GCM-256",
-      explanation:
-        "Decryption derivation is isolated in the client browser session. Zero raw key leakage.",
-    },
   },
 
   // 8. SECURITY
@@ -311,11 +191,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "What cryptographic standards does Cadence use?",
     answer:
       "Cadence implements peer-reviewed industry-standard cryptography: AES-GCM-256 with authenticated additional data for symmetric encryption, PBKDF2 with 600,000 rounds for key derivation, Keccak256 Merkle trees for state commitments, and EIP-712 structured typed data for gasless signatures.",
-    technicalDetails: {
-      cryptography: "AES-GCM-256, PBKDF2-SHA256, Keccak256, EIP-712, secp256k1",
-      explanation:
-        "All algorithms follow NIST and Ethereum Improvement Proposal standards with zero proprietary cipher rollouts.",
-    },
   },
   {
     id: "s-02",
@@ -323,10 +198,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How does the protocol defend against front-running and MEV?",
     answer:
       "Reset signatures use private EIP-712 stealth payloads transmitted via private RPC relays directly to block builders. Merkle claim leaves include random blinding salts, preventing mempool searchers from identifying beneficiaries or stealing payouts.",
-    technicalDetails: {
-      explanation:
-        "Leaf verification enforces msg.sender == beneficiary; an MEV bot intercepting the transaction cannot redirect execution because msg.sender is cryptographically tied to the verified leaf.",
-    },
   },
   {
     id: "s-03",
@@ -334,11 +205,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Are the smart contracts verified on Etherscan?",
     answer:
       "Yes. All contracts deployed on Ethereum Sepolia are open-source and verified on Etherscan with publicly accessible source code, ABI definitions, and compiler metadata.",
-    technicalDetails: {
-      contractFile: "0x043d02c39B86CAd83E1Bf05728D32d24f6289e74",
-      explanation:
-        "Compiled with Solidity 0.8.28, via-ir optimizer enabled (200 runs). Bytecode matches repository source identically.",
-    },
   },
 
   // 9. NETWORK
@@ -348,11 +214,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Which networks are supported today?",
     answer:
       "Cadence is live on Ethereum Sepolia testnet (Chain ID 11155111). Mainnet deployment to Ethereum L1 and leading Layer-2s (Arbitrum, Base, Optimism) is scheduled following final external audits.",
-    technicalDetails: {
-      contractFile: "Sepolia Testnet (Chain ID: 11155111)",
-      explanation:
-        "RPC transports configured with fallbacks: Sepolia Infura, Alchemy, and public rpc.sepolia.org endpoints.",
-    },
   },
   {
     id: "n-02",
@@ -360,10 +221,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How do I monitor network status and RPC health?",
     answer:
       "You can visit the dedicated Network Status screen (/network) to inspect live block height, Sepolia RPC round-trip latency, Guardian consensus uptime, Indexer sync latency, and verified contract addresses.",
-    technicalDetails: {
-      explanation:
-        "Monitored via WebSocket & HTTPS probes every 12 seconds corresponding to the standard Ethereum slot time.",
-    },
   },
   {
     id: "n-03",
@@ -371,11 +228,6 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Where can I view the deployed contract addresses?",
     answer:
       "All canonical contract addresses are listed on the Network Status page (/network) and on GitHub. You can verify them directly on Sepolia Etherscan at any time.",
-    technicalDetails: {
-      contractFile: CONTRACT_ADDRESSES.vault,
-      explanation:
-        "Vault: 0x043d...9e74 | Consensus: 0x22... | Registry: 0x33...",
-    },
   },
 ];
 

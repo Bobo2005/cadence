@@ -894,27 +894,13 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
 
               {/* Guardian Consensus Nodes */}
               <div className="space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                  <div>
-                    <label className="block text-xs font-mono font-bold text-[#111111] uppercase tracking-wider">
-                      Guardian Consensus Nodes (2-of-2 Required)
-                    </label>
-                    <p className="text-xs text-[#5F6368]">
-                      Guardians attest to owner inactivity without learning asset amounts or heir identities.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGuardian1("0x81C3D582F3473F71C4C8bF394E1d32BA218991a2");
-                      setGuardian2("0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0");
-                      if (!guardian1Email) setGuardian1Email("guardian1@cadence.xyz");
-                      if (!guardian2Email) setGuardian2Email("guardian2@cadence.xyz");
-                    }}
-                    className="text-xs font-mono text-[#7C5CFF] font-semibold hover:underline cursor-pointer whitespace-nowrap self-start sm:self-auto"
-                  >
-                    + Auto-fill Sepolia Guardians
-                  </button>
+                <div>
+                  <label className="block text-xs font-mono font-bold text-[#111111] uppercase tracking-wider">
+                    Guardian Consensus Nodes (2-of-2 Required)
+                  </label>
+                  <p className="text-xs text-[#5F6368]">
+                    Guardians attest to owner inactivity without learning asset amounts or heir identities.
+                  </p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1308,30 +1294,6 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
             {/* Modal Header */}
             <div className="flex items-start justify-between pb-4 border-b border-[#E8EAED]">
               <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold uppercase tracking-wider ${
-                      modalState === "confirmed"
-                        ? "bg-[#E9F8F1] text-[#22A06B] border border-[#22A06B]/30"
-                        : modalState === "rejected"
-                        ? "bg-[#FFF6D8] text-[#996B00] border border-[#D99A00]/30"
-                        : modalState === "failed"
-                        ? "bg-[#FDECEC] text-[#D64545] border border-[#D64545]/30"
-                        : modalState === "transaction_pending"
-                        ? "bg-[#E8F5FE] text-[#0284C7] border border-[#0284C7]/30 animate-pulse"
-                        : modalState === "signature_requested"
-                        ? "bg-[#F0ECFF] text-[#7C5CFF] border border-[#7C5CFF]/30 animate-pulse"
-                        : "bg-[#F7F8FA] text-[#5F6368] border border-[#E8EAED]"
-                    }`}
-                  >
-                    {modalState === "awaiting_wallet" && "Awaiting Authorization"}
-                    {modalState === "signature_requested" && "Signature Requested"}
-                    {modalState === "transaction_pending" && "Transaction Pending"}
-                    {modalState === "confirmed" && "Confirmed"}
-                    {modalState === "rejected" && "Rejected"}
-                    {modalState === "failed" && "Failed"}
-                  </span>
-                </div>
                 <h3 id="atomic-deployment-title" className="font-bold text-xl text-[#111111] tracking-tight">
                   AUTHORIZE &amp; DEPLOY LOCKER
                 </h3>

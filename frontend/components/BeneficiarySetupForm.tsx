@@ -216,30 +216,6 @@ export default function BeneficiarySetupForm({
 
           <button
             type="button"
-            onClick={() => {
-              setBeneficiaries([
-                {
-                  id: "ben-1",
-                  name: "Alice",
-                  address: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-                  shareBps: 6000,
-                },
-                {
-                  id: "ben-2",
-                  name: "Bob",
-                  address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-                  shareBps: 4000,
-                },
-              ]);
-            }}
-            className="px-3.5 py-1.5 text-xs font-semibold rounded-full bg-[#F0ECFF] hover:bg-[#E5DFFF] text-[#7C5CFF] transition-colors border border-[#7C5CFF]/30 flex items-center gap-1.5 cursor-pointer"
-            title="Prefill with Alice and Bob example addresses for testing"
-          >
-            + Example Heirs
-          </button>
-
-          <button
-            type="button"
             onClick={() => setShowExplainer(!showExplainer)}
             className="w-7 h-7 flex items-center justify-center text-xs rounded-full bg-[#F7F8FA] text-[#5F6368] hover:text-[#111111] border border-[#E8EAED] cursor-pointer"
             aria-label="Explain allocation privacy"
@@ -265,72 +241,6 @@ export default function BeneficiarySetupForm({
           </p>
         </div>
       )}
-
-      {/* ========================================================================= */}
-      {/* PROMINENT ALLOCATION VALIDATOR BANNER                                     */}
-      {/* ========================================================================= */}
-      <div
-        className={`p-5 rounded-2xl border transition-all ${
-          isExact10000
-            ? "bg-[#E9F8F1] border-[#22A06B]/40 text-[#22A06B]"
-            : isOverAllocated
-            ? "bg-[#FDECEC] border-[#D64545]/40 text-[#D64545]"
-            : "bg-[#FFF6D8] border-[#D99A00]/40 text-[#996B00]"
-        }`}
-      >
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="space-y-0.5">
-            <div className="text-[11px] font-mono font-bold tracking-wider uppercase">
-              TOTAL ALLOCATION
-            </div>
-            <div className="text-2xl sm:text-3xl font-bold font-mono tracking-tight">
-              {totalBps.toLocaleString()} / 10,000 BPS
-            </div>
-          </div>
-
-          <div className="sm:text-right space-y-0.5">
-            <div className="text-2xl sm:text-3xl font-bold font-mono">
-              {totalPercent}%
-            </div>
-            <div className="text-xs font-mono font-semibold">
-              {isExact10000 ? (
-                <span>✓ EXACT 100.00% VERIFIED</span>
-              ) : isOverAllocated ? (
-                <span>OVERALLOCATED BY {((totalBps - 10000) / 100).toFixed(2)}%</span>
-              ) : (
-                <span>UNDERALLOCATED BY {((10000 - totalBps) / 100).toFixed(2)}%</span>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Visual Progress Track */}
-        <div className="mt-3.5 h-2 w-full rounded-full bg-black/10 overflow-hidden flex relative">
-          {beneficiaries.map((b, idx) => {
-            const share = Number(b.shareBps) || 0;
-            const widthPct = Math.min(100, Math.max(0, (share / 10000) * 100));
-            if (widthPct <= 0) return null;
-            return (
-              <div
-                key={b.id}
-                style={{
-                  width: `${widthPct}%`,
-                  backgroundColor: SEGMENT_COLORS[idx % SEGMENT_COLORS.length],
-                }}
-                className="h-full transition-all duration-300 relative group"
-                title={`${b.name || `Beneficiary ${idx + 1}`}: ${share} BPS (${(share / 100).toFixed(2)}%)`}
-              />
-            );
-          })}
-          {isOverAllocated && (
-            <div
-              className="h-full bg-[#D64545] animate-pulse"
-              style={{ width: `${Math.min(100, ((totalBps - 10000) / 10000) * 100)}%` }}
-              title={`Over-allocated by ${totalBps - 10000} BPS`}
-            />
-          )}
-        </div>
-      </div>
 
       {/* Repeatable Beneficiary Rows */}
       <div className="space-y-4">

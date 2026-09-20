@@ -53,19 +53,6 @@ export default function EditorialFinalCTA() {
                 VIEW ARCHITECTURE SPEC
               </Link>
             </div>
-
-            {/* Invariant Trust Badges */}
-            <div className="pt-6 flex flex-wrap justify-center gap-2 text-[11px] font-mono text-[#5F6368]">
-              <span className="px-2.5 py-1 rounded-full bg-white border border-[#E8EAED]">
-                NON-CUSTODIAL ERC-4337
-              </span>
-              <span className="px-2.5 py-1 rounded-full bg-white border border-[#E8EAED]">
-                AES-GCM-256 CLIENT-SIDE
-              </span>
-              <span className="px-2.5 py-1 rounded-full bg-white border border-[#E8EAED]">
-                72H REVERSIBLE CONTEST
-              </span>
-            </div>
           </div>
         </div>
 

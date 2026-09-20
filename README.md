@@ -132,7 +132,59 @@ All contracts are compiled with Solidity 0.8.28 (Via-IR enabled) and verified wi
 
 ---
 
-## 3. 3-Minute Walkthrough Guide
+## 3. Competitive Landscape: How Cadence Stands Out
+
+Existing Web3 inheritance solutions either **(1) only pass decrypted secret text/seed phrases** (e.g. Sarcophagus, Inheriti) without managing on-chain liquid assets, or **(2) dump 100% of the funds in one fragile transaction** (e.g. HeirSafe, naive dead man switches). 
+
+Cadence introduces the first autonomous, privacy-preserving streaming family trust on Ethereum with on-chain guardian consensus and anti-drainer circuit breakers.
+
+### Detailed Competitor Comparison
+
+| Capability / Metric | Sarcophagus (`sarcophagus.io`) | Inheriti (`inheriti.com`) | Safe (`HeirSafe` / `Zodiac`) | Casa / Unchained Custody | **Cadence Protocol** |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Execution Layer** | Decrypts seed phrase / outer file | Reconstructs secret shards | Transfers Safe ownership | Legal / Multi-sig concierge | **Direct On-Chain Vault Settlement** |
+| **Payout Mechanics** | Lump sum (manual) | Lump sum (manual) | Lump sum (100% takeover) | Fiat/Custodial transfer | **Per-Second Linear Streaming (Cadence Streams)** |
+| **Idle Capital Yield** | 0% (Idle payload) | 0% (Idle payload) | 0% (Unmanaged) | Variable custodial lending | **Simulated / Organic Compounding Yield** |
+| **Anti-Drainer Defense** | ❌ None (lost if heir is phished) | ❌ None | ❌ None | ⚠️ Customer support delay | **✅ Instant Guardian Pause & Cold Wallet Redirection** |
+| **Estate Privacy** | ⚠️ Public on-chain | ⚠️ Hardware-dependent | ❌ Public wallet mappings | ❌ Exhaustive KYC / Identity doxxing | **✅ ECIES-secp256k1 + Blinded Merkle Trees** |
+| **False-Alarm Cancel** | Periodic re-wrap | Manual app login | Direct owner tx | Legal affidavit | **✅ EIP-712 Relayed Stealth Cancel (0 Gas Linkage)** |
+| **Consensus Security** | Archaeologist node staking | SSDP validator shards | Single timeout timer | Centralized company signers | **✅ Decoupled M-of-N Guardian Quorum + 72h Window** |
+| **Heir Onboarding** | High (CLI / Sarco token) | High (Requires SafeKey hardware) | Moderate (Requires Web3 wallet) | Low (Web2 portal) | **✅ ERC-4337 Smart Accounts (Gasless Claims)** |
+| **Pricing Model** | SARCO token fees + gas | Proprietary token + hardware | Free module + L1 gas | $250 – $1,800+/year subscription | **Zero Subscriptions (Self-Custodial)** |
+
+### Cadence's 4 Core Competitive Moats
+
+1. **Autonomous Streaming Trust vs The Fragile "Inheritance Dump"**:
+   Every other on-chain solution dumps 100% of the estate into the heir's wallet in a single transaction. If an inexperienced heir is phished, approves a malicious permit, or leaks their private key, the multi-generational family fortune vanishes in seconds. Cadence Streams introduces **continuous per-second linear vesting** with an immediate emergency liquidity tranche (e.g. 10% Day 1 buffer), keeping the remaining 90% protected on-chain.
+
+2. **On-Chain Anti-Drainer Circuit Breakers (`pauseStream` & `redirectStream`)**:
+   If an heir notices suspicious activity or their wallet is compromised during the inheritance stream, designated guardians (verified via cryptographic Merkle proof) or pre-registered backup addresses can instantly pause the stream and permanently redirect all unvested capital to a safe cold hardware wallet. No other protocol offers emergency circuit breakers for crypto heirs.
+
+3. **Zero Plaintext Privacy on a Public Ledger**:
+   Naive contracts store allocations in public state (`mapping(address => uint256)`), turning an inheritance plan into a public target for hackers and scammers. Cadence uses **client-side ECIES-secp256k1 encryption** and double-hashed blinded Merkle trees. Observers on Etherscan see only an opaque 32-byte hash (`allocationRoot`).
+
+4. **Zero Gas-Linkage Stealth Cancellation**:
+   If an owner is hospitalized or their primary wallet is drained by an attacker seeking to force an inactivity timeout, the owner can cancel false alarms by signing an off-chain **EIP-712 typed digest**. Any third-party relayer broadcasts the reset with **zero ETH gas paid by the owner**, preventing surveillance bots from tracking or front-running the recovery.
+
+### Product-Market Fit: Programmatic Retention & Multi-Player Acquisition Flywheel
+
+Unlike speculative DeFi or NFT applications that face rapid "one-and-done" user churn, Cadence has **structural retention** and viral acquisition hardcoded into its protocol architecture:
+
+1. **Forced Programmatic Retention (The Heartbeat Loop)**:
+   - Vault owners must return to verify proof-of-life on periodic intervals (30 to 180 days).
+   - Automated Sentinel daemon alerts ensure recurring re-engagement without relying on speculative market hype.
+2. **Negative Churn & Sticky Long-Term Capital**:
+   - Estate assets have multi-year time horizons. Capital locked in `InheritanceVault` remains compounding on-chain, creating sticky, long-term protocol TVL that does not rotate with market cycles.
+3. **Continuous Streaming Engagement for Beneficiaries**:
+   - Under **Cadence Streams**, beneficiaries engage with the protocol continuously over months or years to monitor linear per-second vesting and claim accrued allowances.
+4. **Viral Multi-Player Acquisition (1 Vault = 5 Users)**:
+   - Every single vault creator onboards **2 Guardians** and **2+ Beneficiaries**, introducing 3 to 5 new Web3 participants per vault and driving organic user acquisition with near-zero CAC.
+5. **Urgent Market Demand**:
+   - Directly tackles the permanent loss of over $100B in crypto assets with **1-Click atomic vault provisioning** (`OneClickInheritanceVault.sol`), replacing costly ($2,000–$10,000+) legal trusts with trustless self-custody.
+
+---
+
+## 4. 3-Minute Walkthrough Guide
 
 The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby, Coinbase Wallet, etc.) and pre-deployed Sepolia test lockers for rapid evaluation. Follow this sequential guide:
 
@@ -180,7 +232,7 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
 
 ---
 
-## 4. Architecture & Security Invariant Matrix
+## 5. Architecture & Security Invariant Matrix
 
 Cadence enforces 10 strict cryptographic and architectural invariants across all layers of the stack:
 
@@ -199,7 +251,7 @@ Cadence enforces 10 strict cryptographic and architectural invariants across all
 
 ---
 
-## 5. Complete 12-Page Frontend Architecture & Design System
+## 6. Complete 12-Page Frontend Architecture & Design System
 
 The Cadence frontend is built with **Next.js 15 (App Router)**, **Viem**, **Wagmi v2**, and custom CSS implementing the clinical **Light Editorial** aesthetic:
 
@@ -252,7 +304,7 @@ flowchart TD
 
 ---
 
-## 6. Smart Contract Architecture
+## 7. Smart Contract Architecture
 
 The core protocol contracts reside in `/contracts/src`:
 
@@ -269,7 +321,7 @@ The core protocol contracts reside in `/contracts/src`:
 
 ---
 
-## 6. Setup & Installation
+## 8. Setup & Installation
 
 ### Prerequisites
 - **Node.js** $\ge 18.0.0$ and `npm`
@@ -285,7 +337,7 @@ cd Cadence
 
 ---
 
-## 7. Smart Contract Deployment (Sepolia Testnet)
+## 9. Smart Contract Deployment (Sepolia Testnet)
 
 All smart contracts deploy deterministically using Foundry.
 
@@ -371,7 +423,7 @@ NEXT_PUBLIC_VAULT_ADDRESS="<deployed_demo_vault_address>"
 
 ---
 
-## 8. Live Testing Presets & Rapid Heartbeat Adjustment
+## 10. Live Testing Presets & Rapid Heartbeat Adjustment
 
 Testing inactivity lapses on testnets should not require waiting months or hours. Cadence provides native fast-testing configurations:
 
@@ -386,7 +438,7 @@ Testing inactivity lapses on testnets should not require waiting months or hours
 
 ---
 
-## 9. Production Deployment Guide (Vercel & Render)
+## 11. Production Deployment Guide (Vercel & Render)
 
 Cadence is built as a decoupled, production-grade architecture ready for instant cloud deployment:
 
@@ -417,7 +469,7 @@ The frontend is optimized for Next.js 16 on Vercel with automated security heade
 
 ---
 
-## 10. Frontend Setup & Configuration (Local Development)
+## 12. Frontend Setup & Configuration (Local Development)
 
 The user interface is built with **Next.js 16 (Turbopack)**, **Viem**, **Permissionless.js**, and custom Vanilla CSS following [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md).
 
@@ -456,7 +508,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
-## 11. Testing & Quality Assurance
+## 13. Testing & Quality Assurance
 
 Cadence features automated testing across smart contracts, cryptographic routines, ERC-4337 sponsorship, and full-lifecycle simulations.
 
@@ -519,7 +571,7 @@ npm run test:e2e    # Runs end-to-end HTTP integration tests (10/10 passed)
 
 ---
 
-## 12. Security Audit & Analysis Summary
+## 14. Security Audit & Analysis Summary
 
 ### Comprehensive 4-Phase Security Hardening & 11-Point Monorepo Framework
 
@@ -595,7 +647,7 @@ Slither static analysis was executed across all smart contracts in `contracts/sr
 
 ---
 
-## 13. Documentation Index
+## 15. Documentation Index
 
 | Document | Description |
 |---|---|
@@ -610,7 +662,7 @@ Slither static analysis was executed across all smart contracts in `contracts/sr
 
 ---
 
-## 14. License
+## 16. License
 
 MIT License. Developed for open-source evaluation and hackathon judging.
 

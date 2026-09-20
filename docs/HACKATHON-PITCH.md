@@ -80,6 +80,24 @@ Existing approaches suffer from critical flaws:
 - Idle principal accrues compounding yield (Aave v3 model).
 - Anti-Drainer Circuit Breaker: If an heir's wallet is compromised or drained, designated guardians (via Merkle proof) or backup addresses can trigger `pauseStream` and `redirectStream` to freeze outflows and redirect unvested streams to a safe cold hardware wallet.
 
+### Competitive Matrix: How Cadence Stands Out
+
+| Capability | Sarcophagus | Inheriti | Safe (HeirSafe / Zodiac) | Casa / Unchained | **Cadence Protocol** |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **Asset Execution** | Seed phrase / file decryption | Secret shard reconstruction | Full Safe ownership transfer | Legal / Multi-sig concierge | **Direct On-Chain Settlement** |
+| **Payout Structure** | Lump sum (manual) | Lump sum (manual) | 100% lump sum takeover | Fiat/Custodial transfer | **Per-Second Streaming Trust (Cadence Streams)** |
+| **Anti-Drainer Defense** | ❌ None (heir drainer loss) | ❌ None | ❌ None | ⚠️ Customer support delay | **✅ Instant Guardian Pause & Cold Wallet Redirection** |
+| **Privacy Model** | ⚠️ Public on-chain | ⚠️ Hardware-dependent | ❌ Public mappings | ❌ Exhaustive KYC / identity doxxing | **✅ ECIES-secp256k1 + Blinded Merkle Trees** |
+| **False-Positive Cancel**| Re-wrap tx | Manual login | Direct owner tx | Legal affidavit | **✅ EIP-712 Relayed Stealth Cancel (0 Gas Linkage)** |
+| **Heir UX** | CLI / SARCO token | SafeKey hardware token | Web3 wallet required | Web2 portal | **✅ ERC-4337 Smart Accounts (Gasless Claims)** |
+
+### Product-Market Fit & User Retention Flywheel
+
+- **Built-In Heartbeat Retention**: Protocol architecture requires recurring check-ins (30–180 days). Sentinel email daemons trigger consistent, high-intent user re-engagement without relying on speculative trading cycles.
+- **Multi-Player Viral Onboarding (1 Creator = 5 Users)**: 1 vault naturally brings in 2 guardians and multiple beneficiaries. Each vault creator virally seeds new prospective vault creators with near-zero CAC.
+- **Sticky, Generational Capital**: Inheritance funds have 5-to-20 year time horizons; locked TVL remains sticky and compounding, unaffected by market cycle volatility.
+- **Urgent Market Need**: Directly protects the $100B+ in lost crypto via 1-Click self-custodial provisioning, eliminating $2,000–$10,000+ legal fees.
+
 ---
 
 ## 4. Live Verified Contracts on Ethereum Sepolia

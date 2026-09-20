@@ -1321,33 +1321,23 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               </div>
               <ol className="space-y-2 text-[#333333] font-mono text-xs pl-1">
                 <li className="flex items-center gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
-                    1
-                  </span>
+                  <span className="text-[11px] font-mono font-semibold text-[#8A8F98] w-5 shrink-0">01</span>
                   <span>Deploy the Locker</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
-                    2
-                  </span>
+                  <span className="text-[11px] font-mono font-semibold text-[#8A8F98] w-5 shrink-0">02</span>
                   <span>Deposit the selected assets ({depositAmount || "0"} {selectedToken})</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
-                    3
-                  </span>
+                  <span className="text-[11px] font-mono font-semibold text-[#8A8F98] w-5 shrink-0">03</span>
                   <span>Commit beneficiary allocation roots</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
-                    4
-                  </span>
+                  <span className="text-[11px] font-mono font-semibold text-[#8A8F98] w-5 shrink-0">04</span>
                   <span>Register guardian consensus</span>
                 </li>
                 <li className="flex items-center gap-2.5">
-                  <span className="w-5 h-5 rounded-full bg-white border border-[#E8EAED] flex items-center justify-center font-bold text-[10px] text-[#7C5CFF] shrink-0">
-                    5
-                  </span>
+                  <span className="text-[11px] font-mono font-semibold text-[#8A8F98] w-5 shrink-0">05</span>
                   <span>Start the Heartbeat timer</span>
                 </li>
               </ol>
@@ -1392,7 +1382,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
 
             {/* State Feedback Card */}
             {modalState === "signature_requested" && (
-              <div className="p-4 rounded-2xl bg-[#F0ECFF] border border-[#7C5CFF]/30 text-xs font-mono text-[#7C5CFF] flex items-center gap-3 animate-pulse">
+              <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] text-xs font-mono text-[#5F6368] flex items-center gap-3">
                 <svg className="animate-spin h-5 w-5 text-[#7C5CFF] shrink-0" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
@@ -1407,7 +1397,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
             )}
 
             {modalState === "transaction_pending" && (
-              <div className="p-4 rounded-2xl bg-[#E8F5FE] border border-[#0284C7]/30 text-xs font-mono text-[#0284C7] space-y-2">
+              <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] text-xs font-mono text-[#5F6368] space-y-2">
                 <div className="flex items-center gap-3 animate-pulse">
                   <svg className="animate-spin h-5 w-5 text-[#0284C7] shrink-0" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />

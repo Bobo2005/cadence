@@ -52,7 +52,7 @@ export default function WalletButton({ className = "", onClick }: WalletButtonPr
       <span className="w-2 h-2 rounded-full bg-[#22A06B]" />
       <span className="font-semibold">{formattedAddress}</span>
       {roleBadge && (
-        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#F0ECFF] text-[#7C5CFF] font-semibold">
+        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#F7F8FA] border border-[#E8EAED] text-[#5F6368] font-semibold">
           {roleBadge}
         </span>
       )}

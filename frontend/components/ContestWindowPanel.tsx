@@ -827,16 +827,13 @@ export default function ContestWindowPanel({
       <div
         className={`rounded-3xl p-6 sm:p-8 relative overflow-hidden transition-all duration-300 shadow-sm border ${
           consensusState === ConsensusState.ClaimPending
-            ? "bg-gradient-to-b from-[#FFFDF5] via-[#FFFBF0] to-[#FFF9EB] border-[#F5B841]/40"
+            ? "bg-[#FFFBEF] border-[#E8EAED]"
             : consensusState === ConsensusState.Active
             ? "bg-white border-[#E8EAED]"
-            : "bg-[#FFF5F5] border-[#F5484A]/40"
+            : "bg-[#FEF2F2] border-[#E8EAED]"
         }`}
       >
-        {/* Soft atmospheric amber ambient warmth */}
-        {consensusState === ConsensusState.ClaimPending && (
-          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#F5B841]/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2" />
-        )}
+
 
         {/* Top Header of Hero Card */}
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
@@ -894,7 +891,7 @@ export default function ContestWindowPanel({
         </div>
 
         {/* Irregular Amber ECG Waveform */}
-        <div className="relative bg-white/80 backdrop-blur-xs rounded-2xl p-4 sm:p-5 border border-[#F5B841]/30 shadow-xs my-2">
+        <div className="relative bg-white rounded-2xl p-4 sm:p-5 border border-[#E8EAED] shadow-xs my-2">
           <div className="flex items-center justify-between text-xs font-mono text-[#5F6368] mb-1 px-1">
             <span>SIGNAL DEFLECTION: IRREGULAR R-SPIKES</span>
             <span className="text-[#D97706] font-semibold">

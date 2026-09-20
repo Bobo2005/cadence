@@ -26,10 +26,10 @@ export function LoadingSkeleton({
       aria-label={label}
     >
       <div className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-[#F1F3F5] via-[#E8EAED] to-[#F1F3F5] animate-pulse" />
+        <div className="w-8 h-8 rounded-xl bg-[#F1F3F5] animate-pulse" />
         <div className="space-y-1.5 flex-1">
-          <div className="w-32 h-3.5 rounded-full bg-gradient-to-r from-[#F1F3F5] via-[#E8EAED] to-[#F1F3F5] animate-pulse" />
-          <div className="w-48 h-2.5 rounded-full bg-gradient-to-r from-[#F1F3F5] via-[#E8EAED] to-[#F1F3F5] animate-pulse" />
+          <div className="w-32 h-3.5 rounded-full bg-[#F1F3F5] animate-pulse" />
+          <div className="w-48 h-2.5 rounded-full bg-[#EAECEF] animate-pulse" />
         </div>
       </div>
 
@@ -37,7 +37,7 @@ export function LoadingSkeleton({
         {Array.from({ length: rows }).map((_, i) => (
           <div
             key={i}
-            className="w-full h-8 rounded-xl bg-gradient-to-r from-[#F7F8FA] via-[#EAECEF] to-[#F7F8FA] animate-pulse"
+            className="w-full h-8 rounded-xl bg-[#F1F3F5] animate-pulse"
             style={{ width: `${100 - i * 12}%`, animationDelay: `${i * 150}ms` }}
           />
         ))}
@@ -170,7 +170,7 @@ export function TransactionPendingState({
 }: TransactionPendingStateProps) {
   return (
     <div className="w-full max-w-lg mx-auto my-8 p-8 sm:p-10 rounded-3xl bg-white border border-[#E8EAED] text-center space-y-6 shadow-sm animate-in fade-in duration-150">
-      <div className="inline-flex p-4 rounded-full bg-[#F0ECFF] text-[#7C5CFF]">
+      <div className="inline-flex p-4 rounded-full bg-[#F7F8FA] border border-[#E8EAED] text-[#5F6368]">
         <svg className="animate-spin w-8 h-8" fill="none" viewBox="0 0 24 24">
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
@@ -181,7 +181,7 @@ export function TransactionPendingState({
         <h2 className="text-xl sm:text-2xl font-bold font-mono tracking-tight text-[#111111] uppercase">
           TRANSACTION PENDING
         </h2>
-        <div className="text-xs font-mono font-bold text-[#7C5CFF] tracking-wider uppercase">
+        <div className="text-xs font-mono font-bold text-[#5F6368] tracking-wider uppercase">
           AWAITING NETWORK CONFIRMATION
         </div>
         <p className="text-xs text-[#5F6368] max-w-sm mx-auto leading-relaxed pt-1">
@@ -196,7 +196,7 @@ export function TransactionPendingState({
             href={`https://sepolia.etherscan.io/tx/${txHash}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[#7C5CFF] hover:underline font-bold break-all block"
+            className="text-[#111111] hover:underline font-bold break-all block"
           >
             {txHash} ↗
           </a>

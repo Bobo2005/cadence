@@ -52,13 +52,13 @@ export default function Sidebar({
                   href={item.href}
                   className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm transition-colors ${
                     isActive
-                      ? "bg-[#F0ECFF] text-[#111111] font-semibold"
+                      ? "bg-[#F1F3F5] text-[#111111] font-semibold"
                       : "text-[#5F6368] hover:text-[#111111] hover:bg-[#F7F8FA] font-medium"
                   }`}
                 >
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
-                      isActive ? "bg-[#7C5CFF]" : "bg-transparent"
+                      isActive ? "bg-[#111111]" : "bg-transparent"
                     }`}
                   />
                   <span>{item.label}</span>
@@ -84,13 +84,13 @@ export default function Sidebar({
                   rel={item.external ? "noopener noreferrer" : undefined}
                   className={`flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-sm transition-colors ${
                     isActive
-                      ? "bg-[#F0ECFF] text-[#111111] font-semibold"
+                      ? "bg-[#F1F3F5] text-[#111111] font-semibold"
                       : "text-[#5F6368] hover:text-[#111111] hover:bg-[#F7F8FA] font-medium"
                   }`}
                 >
                   <span
                     className={`w-1.5 h-1.5 rounded-full ${
-                      isActive ? "bg-[#7C5CFF]" : "bg-transparent"
+                      isActive ? "bg-[#111111]" : "bg-transparent"
                     }`}
                   />
                   <span>{item.label}</span>

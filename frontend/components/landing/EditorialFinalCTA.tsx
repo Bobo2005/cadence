@@ -10,20 +10,16 @@ export default function EditorialFinalCTA() {
   const { openWalletModal } = useWalletModal();
 
   return (
-    <section className="py-20 bg-white border-t border-[#E8EAED]">
+    <section className="py-24 bg-white border-t border-[#E8EAED]">
       <div className="max-w-[1200px] mx-auto px-6">
-        {/* Main CTA Panel */}
-        <div className="relative rounded-3xl bg-gradient-to-br from-[#F7F8FA] via-white to-[#D8DEFF]/25 border border-[#E8EAED] p-8 md:p-16 shadow-md overflow-hidden text-center space-y-6">
-          {/* Subtle background glow */}
-          <div className="pointer-events-none absolute -top-24 right-1/4 w-96 h-96 bg-[#CFFBF7]/40 rounded-full blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 left-1/4 w-96 h-96 bg-[#D8DEFF]/30 rounded-full blur-3xl" />
-
+        {/* Main CTA Panel — inverted dark, no gradients */}
+        <div className="relative rounded-3xl bg-[#111111] border border-[#222222] p-8 md:p-16 overflow-hidden text-center space-y-6">
           <div className="relative max-w-2xl mx-auto space-y-4">
-            <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-[#111111]">
+            <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-white">
               Keep the signal alive.
             </h2>
 
-            <p className="text-base text-[#5F6368] leading-relaxed max-w-lg mx-auto">
+            <p className="text-base text-[#8A8F98] leading-relaxed max-w-lg mx-auto">
               Deploy your self-custodial inheritance locker on Ethereum Sepolia in under 3 minutes.
               No third-party custodian, zero plaintext stored on-chain, and guaranteed contest windows.
             </p>
@@ -32,7 +28,7 @@ export default function EditorialFinalCTA() {
               {isConnected ? (
                 <Link
                   href="/dashboard"
-                  className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-[#111111] text-white text-sm font-semibold hover:bg-black transition-all shadow-sm"
+                  className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-white text-[#111111] text-sm font-semibold hover:bg-[#F7F8FA] transition-colors shadow-sm"
                 >
                   Enter Protocol Dashboard
                 </Link>
@@ -40,7 +36,7 @@ export default function EditorialFinalCTA() {
                 <button
                   type="button"
                   onClick={openWalletModal}
-                  className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-[#111111] text-white text-sm font-semibold hover:bg-black transition-all shadow-sm cursor-pointer"
+                  className="inline-flex items-center justify-center px-8 py-4 rounded-full bg-white text-[#111111] text-sm font-semibold hover:bg-[#F7F8FA] transition-colors shadow-sm cursor-pointer"
                 >
                   CONNECT WALLET TO BEGIN
                 </button>
@@ -48,7 +44,7 @@ export default function EditorialFinalCTA() {
 
               <Link
                 href="/docs"
-                className="inline-flex items-center justify-center px-7 py-4 rounded-full bg-white border border-[#D9DCE1] text-[#111111] text-sm font-medium hover:border-[#AEB3BB] hover:bg-[#F7F8FA] transition-all"
+                className="inline-flex items-center justify-center px-7 py-4 rounded-full bg-transparent border border-[#333333] text-[#8A8F98] text-sm font-medium hover:border-[#555555] hover:text-white transition-colors"
               >
                 VIEW ARCHITECTURE SPEC
               </Link>

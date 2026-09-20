@@ -292,7 +292,7 @@ export default function HelpCenterPanel() {
         id="emergency-reset-guide"
         className="rounded-3xl bg-[#FFFBF0] border-2 border-[#F5B841] p-6 sm:p-8 shadow-sm space-y-6 relative overflow-hidden"
       >
-        <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-[#F5B841]/20 via-transparent to-transparent pointer-events-none" />
+
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#F5B841]/30 pb-4">
           <div className="space-y-1">

@@ -30,7 +30,7 @@ export default function ECGChart({
 
   return (
     <div
-      className={`relative bg-white/90 backdrop-blur-xs rounded-2xl p-4 sm:p-5 border border-[#E8EAED] shadow-2xs ${className}`}
+      className={`relative bg-white rounded-2xl p-4 sm:p-5 border border-[#E8EAED] shadow-2xs ${className}`}
     >
       <div className="flex items-center justify-between text-xs font-mono text-[#5F6368] mb-1.5 px-1">
         <span>{label || "CARDIAC MONITORING SIGNAL"}</span>

@@ -43,10 +43,9 @@
   --coral: #F58A78;
   --coral-soft: #FFF0EC;
 
-  /* ─── Soft Atmospheric Gradients ────────────────────────────────── */
-  --gradient-hero: linear-gradient(180deg, #D9FFFA 0%, #F7F8FC 50%, #C9D4FF 100%);
-  --gradient-brand: linear-gradient(135deg, #CFFBF7 0%, #D8DEFF 100%);
-  --gradient-soft: linear-gradient(135deg, #F7F8FA 0%, #FFFFFF 55%, #F1EFFF 100%);
+  /* ─── Section Spacing ───────────────────────────────────────────── */
+  /* Single source of truth — use py-[var(--section-padding-y)] or equivalent */
+  --section-padding-y: 6rem;
 
   /* ─── Shadows ───────────────────────────────────────────────────── */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);

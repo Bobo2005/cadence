@@ -28,8 +28,7 @@ export default function DashboardEmptyState({
 
       {/* Hero Welcome Card */}
       <div className="rounded-3xl bg-white border border-[#E8EAED] p-8 md:p-12 relative overflow-hidden shadow-sm">
-        {/* Soft atmospheric gradient */}
-        <div className="pointer-events-none absolute -top-32 -right-32 w-96 h-96 bg-gradient-to-br from-[#CFFBF7]/40 via-[#D8DEFF]/30 to-transparent rounded-full blur-3xl" />
+
 
         <div className="max-w-2xl space-y-6 relative z-10">
           <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-[#111111] leading-snug">

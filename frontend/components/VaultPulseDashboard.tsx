@@ -368,8 +368,7 @@ export default function VaultPulseDashboard({
       {/* 2. PRIMARY HEARTBEAT CARD                                                 */}
       {/* ========================================================================= */}
       <div className="relative rounded-3xl bg-white border border-[#E8EAED] p-6 sm:p-10 shadow-sm overflow-hidden space-y-8">
-        {/* Subtle Cyan / Lavender Atmosphere Region */}
-        <div className="pointer-events-none absolute -top-32 -right-32 w-96 h-96 bg-gradient-to-br from-[#CFFBF7]/40 via-[#D8DEFF]/30 to-transparent rounded-full blur-3xl" />
+
 
         {/* Top Status & Gas Mode Row */}
         <div className="relative z-10 flex flex-wrap items-center justify-between gap-4 border-b border-[#E8EAED] pb-6">

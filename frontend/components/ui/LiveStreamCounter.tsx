@@ -45,17 +45,17 @@ export default function LiveStreamCounter({
 
   return (
     <div
-      className={`p-5 rounded-2xl bg-[#FFFDF5] border border-[#F5B841]/40 space-y-3 font-mono shadow-xs ${className}`}
+      className={`p-5 rounded-2xl bg-white border border-[#E8EAED] space-y-3 font-mono shadow-xs ${className}`}
     >
       <div className="flex items-center justify-between text-xs">
-        <span className="text-[#8B5CF6] font-bold uppercase tracking-wider flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#8B5CF6] animate-pulse" />
+        <span className="text-[#22A06B] font-bold uppercase tracking-wider flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#22A06B] animate-pulse" />
           STREAMING
         </span>
         <span className="text-[#111111] font-semibold">{ratePerSecText}</span>
       </div>
 
-      <div className="flex items-baseline justify-between pt-2 border-t border-[#F5B841]/20">
+      <div className="flex items-baseline justify-between pt-2 border-t border-[#E8EAED]">
         <span className="text-xs text-[#5F6368] font-bold uppercase tracking-wider">
           RECEIVED
         </span>

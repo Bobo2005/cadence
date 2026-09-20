@@ -558,9 +558,7 @@ export default function ClaimPortal() {
       {/* ========================================================================= */}
       {/* 1. HERO: PALE CRIMSON ATMOSPHERIC SECTION                                 */}
       {/* ========================================================================= */}
-      <div className="rounded-3xl p-6 sm:p-8 relative overflow-hidden transition-all duration-300 shadow-sm border bg-gradient-to-b from-[#FFF5F5] via-[#FFF0F0] to-[#FFF8F8] border-[#F5484A]/30">
-        {/* Soft atmospheric ambient glow */}
-        <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#F5484A]/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2" />
+      <div className="rounded-3xl p-6 sm:p-8 relative overflow-hidden transition-all duration-300 shadow-sm border bg-[#FEF2F2] border-[#E8EAED]">
 
         {/* Top Header of Hero Card */}
         <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
@@ -581,7 +579,7 @@ export default function ClaimPortal() {
         </div>
 
         {/* Minimal Crimson Flatline ECG */}
-        <div className="relative bg-white/85 backdrop-blur-xs rounded-2xl p-4 sm:p-5 border border-[#F5484A]/25 shadow-xs my-3">
+        <div className="relative bg-white rounded-2xl p-4 sm:p-5 border border-[#E8EAED] shadow-xs my-3">
           <div className="flex items-center justify-between text-xs font-mono text-[#5F6368] mb-1 px-1">
             <span>SIGNAL DEFLECTION: ASYSTOLE (FLATLINE)</span>
             <span className="text-[#C5221F] font-semibold">0 BPM · DISCHARGED</span>

@@ -55,9 +55,9 @@ export default function EditorialProductPreview() {
               key={step.number}
               className="bg-white rounded-2xl border border-[#E8EAED] p-6 sm:p-7 shadow-sm hover:border-[#AEB3BB] hover:shadow-md transition-all flex flex-col justify-start"
             >
-              {/* Number Circle Badge */}
-              <div className="w-7 h-7 rounded-full border border-[#7C5CFF] text-[#7C5CFF] flex items-center justify-center text-xs font-semibold mb-5 shrink-0">
-                {step.number}
+              {/* Step number — mono, no accent ring */}
+              <div className="text-[11px] font-mono font-semibold text-[#8A8F98] uppercase tracking-wider mb-5">
+                0{step.number}
               </div>
 
               {/* Title */}

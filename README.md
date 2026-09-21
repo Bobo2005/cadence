@@ -2,7 +2,7 @@
 
 **Privacy-Preserving Multi-Signal Crypto Inheritance & Proof-of-Life Consensus Primitive**
 
-Built for the **3rd-Web-Hack** hackathon on Ethereum Sepolia.
+
 
 > *"We didn't just build an inheritance app. We built a reusable on-chain primitive — Proof-of-Life Consensus — that any protocol can plug into."*
 

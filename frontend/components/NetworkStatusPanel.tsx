@@ -155,8 +155,10 @@ export default function NetworkStatusPanel() {
         </div>
 
         <div className="flex items-center gap-3 self-start sm:self-center">
-          <span className="text-xs font-mono text-[#5F6368]">
-            Updated {telemetry.lastChecked.toLocaleTimeString()}
+          <span className="text-xs font-mono text-[#5F6368]" suppressHydrationWarning>
+            {mounted && telemetry.lastChecked
+              ? `Updated ${telemetry.lastChecked.toLocaleTimeString()}`
+              : "Syncing..."}
           </span>
           <button
             type="button"
@@ -492,8 +494,8 @@ export default function NetworkStatusPanel() {
             <span className="text-[11px] uppercase tracking-wider text-[#5F6368] block">
               LATEST BLOCK
             </span>
-            <div className="text-xl font-bold text-[#111111]">
-              {isLoading ? (
+            <div className="text-xl font-bold text-[#111111]" suppressHydrationWarning>
+              {isLoading || !mounted ? (
                 <span className="animate-pulse">Loading...</span>
               ) : telemetry.latestBlock !== null ? (
                 telemetry.latestBlock.toLocaleString()
@@ -508,8 +510,8 @@ export default function NetworkStatusPanel() {
             <span className="text-[11px] uppercase tracking-wider text-[#5F6368] block">
               BLOCK TIMESTAMP
             </span>
-            <div className="text-xs font-bold text-[#111111] truncate" title={telemetry.blockTimestamp || ""}>
-              {isLoading ? (
+            <div className="text-xs font-bold text-[#111111] truncate" title={telemetry.blockTimestamp || ""} suppressHydrationWarning>
+              {isLoading || !mounted ? (
                 <span className="animate-pulse">Syncing...</span>
               ) : (
                 telemetry.blockTimestamp || "---"

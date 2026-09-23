@@ -23,10 +23,11 @@ interface NetworkTelemetry {
   blockHash: string | null;
   rpcLatencyMs: number | null;
   indexerSyncAgeSec: number;
-  lastChecked: Date;
+  lastChecked: Date | null;
 }
 
 export default function NetworkStatusPanel() {
+  const [mounted, setMounted] = useState(false);
   const [selectedNetwork, setSelectedNetwork] = useState<SupportedNetworkKey>("arbitrumSepolia");
   const [telemetry, setTelemetry] = useState<NetworkTelemetry>({
     latestBlock: null,
@@ -34,8 +35,12 @@ export default function NetworkStatusPanel() {
     blockHash: null,
     rpcLatencyMs: null,
     indexerSyncAgeSec: 0.4,
-    lastChecked: new Date(),
+    lastChecked: null,
   });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);

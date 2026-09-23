@@ -2,7 +2,11 @@
 
 **Privacy-Preserving Multi-Signal Crypto Inheritance & Proof-of-Life Consensus Primitive**
 
+<<<<<<< HEAD
 Built for the **Arbitrum Open House Singapore Buildathon** (Arbitrum Sepolia & Robinhood Chain Testnet).
+=======
+
+>>>>>>> 7af45211f13ffdf10799d1988c3e7bbce75a8b4e
 
 > *"Cadence secures regulated, yield-bearing family wealth for the next generation of retail investors — not speculative crypto for DeFi natives."*
 

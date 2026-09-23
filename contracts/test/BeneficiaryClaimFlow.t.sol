@@ -22,6 +22,7 @@ contract BeneficiaryClaimFlowTest is Test {
     ProofOfLifeConsensus internal consensus;
     GuardianRegistry internal guardianRegistry;
     MockERC20 internal usdc;
+    MockERC20 internal usdg;
 
     address internal owner = address(0xAA11);
     // Demo Alice & Bob matching frontend/lib/vaultRegistry.ts DEMO_BENEFICIARIES
@@ -54,6 +55,7 @@ contract BeneficiaryClaimFlowTest is Test {
 
     uint256 internal constant DEPOSIT_ETH = 5 ether;
     uint256 internal constant DEPOSIT_USDC = 10_000 * 1e6; // 10,000 USDC
+    uint256 internal constant DEPOSIT_USDG = 8_000 * 1e6;  // 8,000 USDG (Paxos Global Dollar)
 
     event ClaimExecuted(address indexed beneficiary, uint256 shareBps, uint256 ethAmount);
 
@@ -64,6 +66,7 @@ contract BeneficiaryClaimFlowTest is Test {
         guardianRegistry = new GuardianRegistry();
         consensus = new ProofOfLifeConsensus(address(guardianRegistry));
         usdc = new MockERC20("USD Coin", "USDC", 6);
+        usdg = new MockERC20("Paxos Global Dollar", "USDG", 6);
 
         // 2. Build allocationRoot Merkle tree
         leafAlice = MerkleProofLib.computeAllocationLeaf(alice, ALICE_SHARE_BPS, SALT_ALICE);
@@ -87,12 +90,13 @@ contract BeneficiaryClaimFlowTest is Test {
         guardianProof2 = new bytes32[](1);
         guardianProof2[0] = gLeaf1;
 
-        // 4. Deploy InheritanceVault
-        address[] memory initialTokens = new address[](1);
+        // 4. Deploy InheritanceVault with USDC and USDG whitelisted
+        address[] memory initialTokens = new address[](2);
         initialTokens[0] = address(usdc);
+        initialTokens[1] = address(usdg);
         vault = new InheritanceVault(owner, CHECK_IN_INTERVAL, initialTokens, address(consensus));
 
-        // 5. Commit Guardian Root as owner (threshold 2-of-2)
+        // 5. Commit Guardian Root as owner (threshold 2-of-3)
         vm.prank(owner);
         guardianRegistry.commitGuardianRoot(address(vault), guardianRoot, 2, 2);
         vm.prank(owner);
@@ -103,12 +107,13 @@ contract BeneficiaryClaimFlowTest is Test {
         vault.setAllocationRoot(allocationRoot);
         vm.stopPrank();
 
-        // 7. Fund vault with ETH and USDC
+        // 7. Fund vault with ETH, USDC, and USDG
         vm.deal(address(this), DEPOSIT_ETH);
         (bool success, ) = address(vault).call{value: DEPOSIT_ETH}("");
         require(success, "ETH transfer failed");
 
         usdc.mint(address(vault), DEPOSIT_USDC);
+        usdg.mint(address(vault), DEPOSIT_USDG);
     }
 
     /// @notice Confirms claim reverts during Active state
@@ -147,6 +152,7 @@ contract BeneficiaryClaimFlowTest is Test {
 
         uint256 aliceEthPre = alice.balance;
         uint256 aliceUsdcPre = usdc.balanceOf(alice);
+        uint256 aliceUsdgPre = usdg.balanceOf(alice);
 
         // --- Alice Claims 40% ---
         vm.expectEmit(true, false, false, true, address(vault));
@@ -158,10 +164,12 @@ contract BeneficiaryClaimFlowTest is Test {
         assertEq(vault.hasClaimed(alice), true);
         assertEq(alice.balance - aliceEthPre, 2 ether, "Alice received exact 40% ETH (2.0 ETH)");
         assertEq(usdc.balanceOf(alice) - aliceUsdcPre, 4_000 * 1e6, "Alice received exact 40% USDC (4,000 USDC)");
+        assertEq(usdg.balanceOf(alice) - aliceUsdgPre, 3_200 * 1e6, "Alice received exact 40% USDG (3,200 USDG)");
 
         // --- Bob Claims 60% ---
         uint256 bobEthPre = bob.balance;
         uint256 bobUsdcPre = usdc.balanceOf(bob);
+        uint256 bobUsdgPre = usdg.balanceOf(bob);
 
         vm.expectEmit(true, false, false, true, address(vault));
         emit ClaimExecuted(bob, BOB_SHARE_BPS, 3 ether);
@@ -172,10 +180,12 @@ contract BeneficiaryClaimFlowTest is Test {
         assertEq(vault.hasClaimed(bob), true);
         assertEq(bob.balance - bobEthPre, 3 ether, "Bob received exact 60% ETH (3.0 ETH)");
         assertEq(usdc.balanceOf(bob) - bobUsdcPre, 6_000 * 1e6, "Bob received exact 60% USDC (6,000 USDC)");
+        assertEq(usdg.balanceOf(bob) - bobUsdgPre, 4_800 * 1e6, "Bob received exact 60% USDG (4,800 USDG)");
 
         // --- Residual Vault Balances are Exactly Zero ---
         assertEq(address(vault).balance, 0, "Vault ETH balance is 0 after 100% claims");
         assertEq(usdc.balanceOf(address(vault)), 0, "Vault USDC balance is 0 after 100% claims");
+        assertEq(usdg.balanceOf(address(vault)), 0, "Vault USDG balance is 0 after 100% claims");
     }
 
     /// @notice Confirms double-claiming is rejected

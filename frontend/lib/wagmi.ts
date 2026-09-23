@@ -1,5 +1,6 @@
 import { http, fallback, createConfig } from "wagmi";
-import { sepolia } from "wagmi/chains";
+import { sepolia, arbitrumSepolia } from "wagmi/chains";
+import { defineChain } from "viem";
 import { injected, walletConnect } from "wagmi/connectors";
 
 export const rpcUrl =
@@ -39,8 +40,29 @@ export const cadenceSepolia = {
   },
 };
 
+/**
+ * Robinhood Chain Testnet definition (Chain ID 46630, Arbitrum Orbit L2 with Stylus).
+ */
+export const robinhoodTestnet = defineChain({
+  id: 46630,
+  name: "Robinhood Chain Testnet",
+  nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+  rpcUrls: {
+    default: {
+      http: ["https://rpc.testnet.chain.robinhood.com"],
+    },
+  },
+  blockExplorers: {
+    default: {
+      name: "Robinhood Chain Explorer",
+      url: "https://explorer.testnet.chain.robinhood.com",
+    },
+  },
+  testnet: true,
+});
+
 export const config = createConfig({
-  chains: [cadenceSepolia],
+  chains: [cadenceSepolia, arbitrumSepolia, robinhoodTestnet],
   connectors: [
     injected(),
     ...(walletConnectProjectId && walletConnectProjectId.trim() !== ""
@@ -49,6 +71,11 @@ export const config = createConfig({
   ],
   transports: {
     [cadenceSepolia.id]: sepoliaTransports,
+    [arbitrumSepolia.id]: fallback([
+      http(process.env.NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL || "https://sepolia-rollup.arbitrum.io/rpc"),
+      http("https://arbitrum-sepolia-rpc.publicnode.com"),
+    ]),
+    [robinhoodTestnet.id]: http("https://rpc.testnet.chain.robinhood.com"),
   },
   ssr: true,
 });

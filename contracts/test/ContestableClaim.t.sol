@@ -93,7 +93,7 @@ contract ContestableClaimTest is Test {
             address(consensus)
         );
 
-        // Setup 2-of-2 guardian Merkle tree
+        // Setup guardian Merkle tree (using 2-of-2 for this specific test scenario)
         bytes32 leafA = MerkleProofLib.computeGuardianLeaf(guardianA);
         bytes32 leafB = MerkleProofLib.computeGuardianLeaf(guardianB);
         guardianRoot = Hashes.commutativeKeccak256(leafA, leafB);
@@ -209,7 +209,7 @@ contract ContestableClaimTest is Test {
         // Attest second guardian (threshold now met)
         vm.prank(guardianB);
         guardianRegistry.attest(address(vault), proofB);
-        assertTrue(guardianRegistry.isThresholdMet(address(vault)), "Guardians 2-of-2 met");
+        assertTrue(guardianRegistry.isThresholdMet(address(vault)), "Guardian threshold met");
 
         // Attempting trigger must revert because timeout has not expired (collusion guard)
         vm.expectRevert();

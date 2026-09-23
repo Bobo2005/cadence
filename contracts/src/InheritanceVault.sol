@@ -9,6 +9,9 @@ import {IProofOfLifeConsensus} from "./interfaces/IProofOfLifeConsensus.sol";
 import {IGuardianRegistry} from "./interfaces/IGuardianRegistry.sol";
 import {IChainlinkAutomation} from "./interfaces/IChainlinkAutomation.sol";
 import {MerkleProofLib} from "./libraries/MerkleProofLib.sol";
+import {IAavePool} from "./interfaces/IAavePool.sol";
+import {IAToken} from "./interfaces/IAToken.sol";
+import {IMerkleVerifier} from "./interfaces/IMerkleVerifier.sol";
 
 /// @title InheritanceVault
 /// @notice Main vault contract for Cadence: deposits, check-in entrypoint, and asset custody.
@@ -58,6 +61,7 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     event TokenWhitelistUpdated(address indexed token, bool status);
     event TokenTransferFailed(address indexed token, address indexed beneficiary, uint256 amount);
     event AllocationRootCommitted(bytes32 indexed root, uint256 timestamp);
+    event MerkleVerifierUpdated(address indexed verifier);
     event ClaimExecuted(address indexed beneficiary, uint256 shareBps, uint256 ethAmount);
     event UpkeepPerformed(uint256 timestamp, bytes performData);
     event BackupAddressRegistered(address indexed beneficiary, address indexed backupAddress, uint256 vetoWindow);
@@ -76,6 +80,8 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     event StreamPaused(address indexed beneficiary, address indexed pausedBy);
     event StreamResumed(address indexed beneficiary, address indexed resumedBy);
     event StreamRedirected(address indexed beneficiary, address indexed oldRecipient, address indexed newRecipient);
+    event AavePoolUpdated(address indexed pool);
+    event ATokenConfigured(address indexed asset, address indexed aToken);
 
     // --- Constants ---
     uint256 public constant MAX_WHITELISTED_TOKENS = 20;
@@ -102,6 +108,9 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         uint256 duration;
         bool isPaused;
         address streamRecipient;
+        address streamingAsset;
+        uint256 streamingPrincipal;
+        uint256 streamingClaimed;
     }
 
     /// @notice Duration in seconds over which remaining inheritance is streamed (0 = instant lump-sum).
@@ -116,6 +125,15 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     /// @notice Beneficiary stream records.
     mapping(address => BeneficiaryStream) public beneficiaryStreams;
 
+    /// @notice Aave v3 Pool integration for streaming unvested capital yield.
+    IAavePool public aavePool;
+
+    /// @notice Mapping from underlying asset to corresponding overlying aToken.
+    mapping(address => address) public aTokens;
+
+    /// @notice Secondary mapping for token-specific stream records.
+    mapping(address => mapping(address => BeneficiaryStream)) public beneficiaryTokenStreams;
+
     /// @notice Pre-registered backup claim address and veto window per beneficiary.
     /// @dev Strictly beneficiary-controlled: only the beneficiary can register or revoke their backup address.
     mapping(address => BackupClaimConfig) public beneficiaryBackups;
@@ -128,7 +146,7 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     /// @dev All heartbeat recording, inactivity checking, and consensus state queries are delegated here.
     IProofOfLifeConsensus public immutable consensus;
 
-    /// @notice Whitelisted ERC-20 tokens accepted for deposits (e.g. USDC, USDT, WBTC).
+    /// @notice Whitelisted ERC-20 tokens accepted for deposits (e.g. USDC, USDT, WBTC, USDG).
     mapping(address => bool) public isWhitelistedToken;
 
     /// @notice List of all registered whitelisted tokens for snapshot distribution.
@@ -140,6 +158,11 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     /// @notice Merkle commitment over all beneficiary allocations (Constraint #3).
     /// @dev Stores ONLY the root — no plaintext percentages or recipient balances in storage.
     bytes32 public allocationRoot;
+
+    /// @notice External Merkle Verifier primitive (Arbitrum Stylus WASM contract on Arbitrum Sepolia / Robinhood Chain).
+    /// @dev If configured, verification calls are delegated via standard ABI to the Stylus WASM contract,
+    ///      mirroring the composable ProofOfLifeConsensus architecture.
+    IMerkleVerifier public merkleVerifier;
 
     /// @notice Tracks whether a beneficiary has already claimed their allocation share.
     mapping(address => bool) public hasClaimed;
@@ -277,16 +300,16 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
 
     /// @notice Simulated by Chainlink Automation Keepers off-chain to detect whether upkeep is needed.
     /// @dev Delegated directly to ProofOfLifeConsensus.
-    /// @param checkData Optional calldata passed from registration (unused).
-    function checkUpkeep(bytes calldata checkData)
+    function checkUpkeep(bytes calldata)
         external
         view
         override
         returns (bool upkeepNeeded, bytes memory performData)
     {
-        checkData; // silence unused parameter warning
         return consensus.checkVaultUpkeep(address(this));
     }
+
+
 
     /// @notice Executed on-chain by Chainlink Automation when checkUpkeep returns true.
     /// @dev Delegated directly to ProofOfLifeConsensus.
@@ -344,10 +367,21 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         emit AllocationRootCommitted(_allocationRoot, block.timestamp);
     }
 
+    /// @notice Sets or updates the external Merkle verification primitive (Arbitrum Stylus WASM contract).
+    /// @dev Allows swapping in a Stylus WASM contract on Arbitrum Sepolia / Robinhood Chain via standard ABI.
+    /// @param _merkleVerifier Address of the deployed IMerkleVerifier contract.
+    function setMerkleVerifier(address _merkleVerifier) external onlyOwner {
+        merkleVerifier = IMerkleVerifier(_merkleVerifier);
+        emit MerkleVerifierUpdated(_merkleVerifier);
+    }
+
     /// @notice Configures Cadence Streams streaming trust parameters before finalization.
+    /// @dev For Aave-supported assets, unvested funds are deposited to Aave v3 earning live Arbitrum Sepolia interest.
+    ///      For USDG specifically (not on Aave), yield is calculated via this modeled formula pegged to
+    ///      USDG's real published Robinhood Earn APY (currently cited publicly around 7.00% / 700 bps).
     /// @param duration Duration in seconds over which remaining inheritance is streamed (0 = immediate lump-sum).
     /// @param initialBps Portion of share unlocked immediately (e.g. 1000 = 10%).
-    /// @param yieldBps Annualized yield rate in basis points (e.g. 420 = 4.2%).
+    /// @param yieldBps Annualized yield rate in basis points for modeled streams (e.g. 700 = 7.00% APY).
     function setStreamingConfig(
         uint256 duration,
         uint256 initialBps,
@@ -369,6 +403,144 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         emit StreamingConfigUpdated(duration, initialBps, yieldBps);
     }
 
+    /// @notice Configures the Aave v3 Pool contract address for yield generation on unvested streaming capital.
+    /// @param _pool The address of the Aave v3 Pool.
+    function setAavePool(address _pool) external onlyOwner {
+        aavePool = IAavePool(_pool);
+        emit AavePoolUpdated(_pool);
+    }
+
+    /// @notice Configures the aToken address corresponding to an underlying asset.
+    /// @param asset The address of the underlying asset.
+    /// @param aToken The address of the corresponding aToken.
+    function setAToken(address asset, address aToken) external onlyOwner {
+        aTokens[asset] = aToken;
+        emit ATokenConfigured(asset, aToken);
+    }
+
+    /// @dev Internal helper taking distribution snapshot of vault assets on first claim.
+    function _takeDistributionSnapshot() internal {
+        isDistributionSnapshotTaken = true;
+        distributionSnapshot[address(0)] = address(this).balance;
+        uint256 tokensCount = whitelistedTokens.length;
+        for (uint256 i = 0; i < tokensCount; i++) {
+            address token = whitelistedTokens[i];
+            if (isWhitelistedToken[token]) {
+                distributionSnapshot[token] = IERC20(token).balanceOf(address(this));
+            }
+        }
+    }
+
+    /// @dev Internal helper distributing proportional whitelisted tokens and depositing unvested amounts into Aave.
+    function _distributeTokensAndStream(
+        address beneficiary,
+        address recipient,
+        uint256 shareBps
+    ) internal returns (address primaryAsset, uint256 primaryPrincipal) {
+        uint256 tokensCount = whitelistedTokens.length;
+        for (uint256 i = 0; i < tokensCount; i++) {
+            address token = whitelistedTokens[i];
+            uint256 totalToken = distributionSnapshot[token];
+            if (totalToken == 0) continue;
+
+            uint256 fullTokenShare = (totalToken * shareBps) / 10000;
+            if (fullTokenShare == 0) continue;
+
+            if (streamingDuration == 0) {
+                _safeTransferCatching(token, recipient, fullTokenShare);
+            } else {
+                uint256 initialTokenPayout = (fullTokenShare * initialReleaseBps) / 10000;
+                uint256 unvestedToken = fullTokenShare > initialTokenPayout
+                    ? fullTokenShare - initialTokenPayout
+                    : 0;
+
+                if (unvestedToken > 0) {
+                    beneficiaryTokenStreams[beneficiary][token] = BeneficiaryStream({
+                        totalShareEth: fullTokenShare,
+                        claimedEth: initialTokenPayout,
+                        initialPayoutEth: initialTokenPayout,
+                        startTime: block.timestamp,
+                        duration: streamingDuration,
+                        isPaused: false,
+                        streamRecipient: recipient,
+                        streamingAsset: token,
+                        streamingPrincipal: unvestedToken,
+                        streamingClaimed: 0
+                    });
+
+                    if (primaryAsset == address(0)) {
+                        primaryAsset = token;
+                        primaryPrincipal = unvestedToken;
+                    }
+
+                    address aTokenAddr = aTokens[token];
+                    if (aTokenAddr == address(0) && address(aavePool) != address(0)) {
+                        try aavePool.getReserveAToken(token) returns (address reserveAToken) {
+                            aTokenAddr = reserveAToken;
+                        } catch {}
+                    }
+
+                    if (address(aavePool) != address(0) && aTokenAddr != address(0)) {
+                        IERC20(token).forceApprove(address(aavePool), unvestedToken);
+                        aavePool.supply(token, unvestedToken, address(this), 0);
+                    }
+                }
+
+                if (initialTokenPayout > 0) {
+                    _safeTransferCatching(token, recipient, initialTokenPayout);
+                }
+            }
+        }
+    }
+
+    /// @dev Internal helper executing distribution and stream setup for a claimant.
+    function _executeDistribution(
+        address beneficiary,
+        address recipient,
+        uint256 shareBps
+    ) internal returns (uint256 payoutEth) {
+        uint256 totalEth = distributionSnapshot[address(0)];
+        uint256 fullEthShare = (totalEth * shareBps) / 10000;
+
+        if (streamingDuration == 0) {
+            payoutEth = fullEthShare;
+            _distributeTokensAndStream(beneficiary, recipient, shareBps);
+            if (fullEthShare > 0) {
+                (bool success, ) = recipient.call{value: fullEthShare}("");
+                if (!success) revert TransferFailed();
+            }
+        } else {
+            payoutEth = (fullEthShare * initialReleaseBps) / 10000;
+
+            (address primaryAsset, uint256 primaryPrincipal) = _distributeTokensAndStream(
+                beneficiary,
+                recipient,
+                shareBps
+            );
+
+            beneficiaryStreams[beneficiary] = BeneficiaryStream({
+                totalShareEth: fullEthShare,
+                claimedEth: payoutEth,
+                initialPayoutEth: payoutEth,
+                startTime: block.timestamp,
+                duration: streamingDuration,
+                isPaused: false,
+                streamRecipient: recipient,
+                streamingAsset: primaryAsset,
+                streamingPrincipal: primaryPrincipal,
+                streamingClaimed: 0
+            });
+
+            emit StreamStarted(beneficiary, fullEthShare, payoutEth, streamingDuration);
+
+            if (payoutEth > 0) {
+                (bool success, ) = recipient.call{value: payoutEth}("");
+                if (!success) revert TransferFailed();
+            }
+        }
+    }
+
+
     /// @notice Claims a beneficiary's inheritance allocation once the vault is Finalized.
     /// @dev Verifies a cryptographic Merkle proof against allocationRoot.
     ///      At first claim, snapshots distributable vault assets to ensure exact pro-rata payouts.
@@ -389,9 +561,8 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
 
         if (hasClaimed[msg.sender]) revert AlreadyClaimed(msg.sender);
 
-        // Compute leaf and verify membership in allocationRoot
-        bytes32 leaf = MerkleProofLib.computeAllocationLeaf(msg.sender, shareBps, salt);
-        if (!MerkleProofLib.verify(proof, allocationRoot, leaf)) {
+        // Compute leaf and verify membership in allocationRoot (via external Stylus verifier if set, or MerkleProofLib)
+        if (!_verifyAllocationProof(msg.sender, shareBps, salt, proof)) {
             revert InvalidProof();
         }
 
@@ -399,7 +570,8 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         if (!isDistributionSnapshotTaken) {
             isDistributionSnapshotTaken = true;
             distributionSnapshot[address(0)] = address(this).balance;
-            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
+            uint256 tokensCount = whitelistedTokens.length;
+            for (uint256 i = 0; i < tokensCount; i++) {
                 address token = whitelistedTokens[i];
                 if (isWhitelistedToken[token]) {
                     distributionSnapshot[token] = IERC20(token).balanceOf(address(this));
@@ -407,66 +579,11 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
             }
         }
 
+
         hasClaimed[msg.sender] = true;
 
-        // Total calculated ETH share for this beneficiary
-        uint256 totalEth = distributionSnapshot[address(0)];
-        uint256 fullEthShare = (totalEth * shareBps) / 10000;
-
-        if (streamingDuration == 0) {
-            // Legacy / Standard Mode: 100% immediate lump-sum distribution
-            if (fullEthShare > 0) {
-                (bool success, ) = msg.sender.call{value: fullEthShare}("");
-                if (!success) revert TransferFailed();
-            }
-
-            // Distribute proportional whitelisted ERC-20 tokens
-            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
-                address token = whitelistedTokens[i];
-                uint256 totalToken = distributionSnapshot[token];
-                if (totalToken > 0) {
-                    uint256 tokenPayout = (totalToken * shareBps) / 10000;
-                    if (tokenPayout > 0) {
-                        _safeTransferCatching(token, msg.sender, tokenPayout);
-                    }
-                }
-            }
-
-            emit ClaimExecuted(msg.sender, shareBps, fullEthShare);
-        } else {
-            // Cadence Streams Mode: Immediate emergency release + initialize real-time stream
-            uint256 initialEthPayout = (fullEthShare * initialReleaseBps) / 10000;
-            if (initialEthPayout > 0) {
-                (bool success, ) = msg.sender.call{value: initialEthPayout}("");
-                if (!success) revert TransferFailed();
-            }
-
-            // Distribute initial release of whitelisted tokens
-            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
-                address token = whitelistedTokens[i];
-                uint256 totalToken = distributionSnapshot[token];
-                if (totalToken > 0) {
-                    uint256 fullTokenShare = (totalToken * shareBps) / 10000;
-                    uint256 initialTokenPayout = (fullTokenShare * initialReleaseBps) / 10000;
-                    if (initialTokenPayout > 0) {
-                        _safeTransferCatching(token, msg.sender, initialTokenPayout);
-                    }
-                }
-            }
-
-            beneficiaryStreams[msg.sender] = BeneficiaryStream({
-                totalShareEth: fullEthShare,
-                claimedEth: initialEthPayout,
-                initialPayoutEth: initialEthPayout,
-                startTime: block.timestamp,
-                duration: streamingDuration,
-                isPaused: false,
-                streamRecipient: msg.sender
-            });
-
-            emit StreamStarted(msg.sender, fullEthShare, initialEthPayout, streamingDuration);
-            emit ClaimExecuted(msg.sender, shareBps, initialEthPayout);
-        }
+        uint256 payoutEth = _executeDistribution(msg.sender, msg.sender, shareBps);
+        emit ClaimExecuted(msg.sender, shareBps, payoutEth);
     }
 
     // --- Beneficiary Backup-Claim Address Feature (Delay / Veto Window) ---
@@ -569,87 +686,25 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         if (hasClaimed[beneficiary]) revert AlreadyClaimed(beneficiary);
 
         // Verify cryptographic Merkle proof against allocationRoot for the primary beneficiary
-        bytes32 leaf = MerkleProofLib.computeAllocationLeaf(beneficiary, shareBps, salt);
-        if (!MerkleProofLib.verify(proof, allocationRoot, leaf)) {
+        if (!_verifyAllocationProof(beneficiary, shareBps, salt, proof)) {
             revert InvalidProof();
         }
 
         // Snapshot total vault assets on first claim
         if (!isDistributionSnapshotTaken) {
-            isDistributionSnapshotTaken = true;
-            distributionSnapshot[address(0)] = address(this).balance;
-            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
-                address token = whitelistedTokens[i];
-                if (isWhitelistedToken[token]) {
-                    distributionSnapshot[token] = IERC20(token).balanceOf(address(this));
-                }
-            }
+            _takeDistributionSnapshot();
         }
 
         hasClaimed[beneficiary] = true;
         backupClaimRequests[beneficiary].active = false;
 
-        // Distribute proportional native ETH directly to the backup address (msg.sender)
-        uint256 totalEth = distributionSnapshot[address(0)];
-        uint256 fullEthShare = (totalEth * shareBps) / 10000;
-
-        if (streamingDuration == 0) {
-            if (fullEthShare > 0) {
-                (bool success, ) = msg.sender.call{value: fullEthShare}("");
-                if (!success) revert TransferFailed();
-            }
-
-            // Distribute proportional whitelisted ERC-20 tokens directly to the backup address
-            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
-                address token = whitelistedTokens[i];
-                uint256 totalToken = distributionSnapshot[token];
-                if (totalToken > 0) {
-                    uint256 tokenPayout = (totalToken * shareBps) / 10000;
-                    if (tokenPayout > 0) {
-                        _safeTransferCatching(token, msg.sender, tokenPayout);
-                    }
-                }
-            }
-
-            emit BackupClaimExecuted(beneficiary, msg.sender, shareBps, fullEthShare);
-        } else {
-            uint256 initialEthPayout = (fullEthShare * initialReleaseBps) / 10000;
-            if (initialEthPayout > 0) {
-                (bool success, ) = msg.sender.call{value: initialEthPayout}("");
-                if (!success) revert TransferFailed();
-            }
-
-            // Distribute initial release of whitelisted tokens
-            for (uint256 i = 0; i < whitelistedTokens.length; i++) {
-                address token = whitelistedTokens[i];
-                uint256 totalToken = distributionSnapshot[token];
-                if (totalToken > 0) {
-                    uint256 fullTokenShare = (totalToken * shareBps) / 10000;
-                    uint256 initialTokenPayout = (fullTokenShare * initialReleaseBps) / 10000;
-                    if (initialTokenPayout > 0) {
-                        _safeTransferCatching(token, msg.sender, initialTokenPayout);
-                    }
-                }
-            }
-
-            beneficiaryStreams[beneficiary] = BeneficiaryStream({
-                totalShareEth: fullEthShare,
-                claimedEth: initialEthPayout,
-                initialPayoutEth: initialEthPayout,
-                startTime: block.timestamp,
-                duration: streamingDuration,
-                isPaused: false,
-                streamRecipient: msg.sender
-            });
-
-            emit StreamStarted(beneficiary, fullEthShare, initialEthPayout, streamingDuration);
-            emit BackupClaimExecuted(beneficiary, msg.sender, shareBps, initialEthPayout);
-        }
+        uint256 payoutEth = _executeDistribution(beneficiary, msg.sender, shareBps);
+        emit BackupClaimExecuted(beneficiary, msg.sender, shareBps, payoutEth);
     }
 
     // --- Cadence Streams — Autonomous Streaming Trust & Circuit Breakers ---
 
-    /// @notice Returns current claimable amount, remaining locked, and accrued yield for a beneficiary's stream.
+    /// @notice Returns current claimable amount, remaining locked, and accrued yield for a beneficiary's primary stream.
     /// @param beneficiary The primary beneficiary address.
     function claimableStreamAmount(address beneficiary)
         public
@@ -662,38 +717,123 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         )
     {
         BeneficiaryStream memory stream = beneficiaryStreams[beneficiary];
-        if (stream.totalShareEth == 0 || stream.isPaused) {
+        if (stream.totalShareEth > 0) {
+            return claimableStreamAmount(beneficiary, address(0));
+        } else if (stream.streamingAsset != address(0)) {
+            return claimableStreamAmount(beneficiary, stream.streamingAsset);
+        } else {
+            return (0, 0, 0, 0);
+        }
+    }
+
+    /// @notice Returns current claimable amount, remaining locked, and accrued yield for a beneficiary's specific asset stream.
+    /// @param beneficiary The primary beneficiary address.
+    /// @param asset The asset address (address(0) for native ETH, or ERC20 token address).
+    function claimableStreamAmount(address beneficiary, address asset)
+        public
+        view
+        returns (
+            uint256 claimableAmount,
+            uint256 totalVestedAmount,
+            uint256 remainingLockedAmount,
+            uint256 accruedYieldAmount
+        )
+    {
+        BeneficiaryStream memory stream = (asset == address(0))
+            ? beneficiaryStreams[beneficiary]
+            : beneficiaryTokenStreams[beneficiary][asset];
+
+        if (stream.isPaused) {
             return (0, 0, 0, 0);
         }
 
-        uint256 elapsed = block.timestamp > stream.startTime ? block.timestamp - stream.startTime : 0;
-        uint256 effectiveElapsed = elapsed > stream.duration ? stream.duration : elapsed;
+        if (asset != address(0) && address(aavePool) != address(0) && aTokens[asset] != address(0)) {
+            // Aave v3 dynamic yield accounting path:
+            // Read aToken.balanceOf(address(this)) to determine current principal-plus-interest total for vesting math
+            if (stream.streamingPrincipal == 0) return (0, 0, 0, 0);
 
-        uint256 streamablePrincipal = stream.totalShareEth > stream.initialPayoutEth
-            ? stream.totalShareEth - stream.initialPayoutEth
-            : 0;
+            uint256 elapsed = block.timestamp > stream.startTime ? block.timestamp - stream.startTime : 0;
+            uint256 effectiveElapsed = elapsed > stream.duration ? stream.duration : elapsed;
 
-        uint256 vestedStream = stream.duration > 0
-            ? (streamablePrincipal * effectiveElapsed) / stream.duration
-            : streamablePrincipal;
+            address aToken = aTokens[asset];
+            uint256 aTokenBal = IAToken(aToken).balanceOf(address(this));
+            uint256 totalValue = aTokenBal + stream.streamingClaimed;
 
-        totalVestedEth = stream.initialPayoutEth + vestedStream;
-        uint256 baseClaimable = totalVestedEth > stream.claimedEth ? totalVestedEth - stream.claimedEth : 0;
+            totalVestedAmount = stream.duration > 0
+                ? (totalValue * effectiveElapsed) / stream.duration
+                : totalValue;
 
-        remainingLockedEth = stream.totalShareEth > totalVestedEth ? stream.totalShareEth - totalVestedEth : 0;
+            claimableAmount = totalVestedAmount > stream.streamingClaimed
+                ? totalVestedAmount - stream.streamingClaimed
+                : 0;
 
-        if (streamingYieldBps > 0 && remainingLockedEth > 0 && elapsed > 0) {
-            accruedYieldEth = (remainingLockedEth * streamingYieldBps * effectiveElapsed) / (10000 * 365 days);
+            if (claimableAmount > aTokenBal) {
+                claimableAmount = aTokenBal;
+            }
+
+            remainingLockedAmount = totalValue > totalVestedAmount ? totalValue - totalVestedAmount : 0;
+            accruedYieldAmount = totalValue > stream.streamingPrincipal ? totalValue - stream.streamingPrincipal : 0;
+        } else {
+            // Standard / Modeled yield calculation (native ETH or USDG / non-Aave assets).
+            // Per Day 11 outcome, USDG-denominated vaults use this modeled rate pegged to USDG's
+            // real published Robinhood Earn APY (currently cited publicly around 7.00% / 700 bps).
+            if (stream.totalShareEth == 0) return (0, 0, 0, 0);
+
+            uint256 elapsed = block.timestamp > stream.startTime ? block.timestamp - stream.startTime : 0;
+            uint256 effectiveElapsed = elapsed > stream.duration ? stream.duration : elapsed;
+
+            uint256 streamablePrincipal = stream.totalShareEth > stream.initialPayoutEth
+                ? stream.totalShareEth - stream.initialPayoutEth
+                : 0;
+
+            uint256 vestedStream = stream.duration > 0
+                ? (streamablePrincipal * effectiveElapsed) / stream.duration
+                : streamablePrincipal;
+
+            totalVestedAmount = stream.initialPayoutEth + vestedStream;
+            uint256 baseClaimable = totalVestedAmount > stream.claimedEth ? totalVestedAmount - stream.claimedEth : 0;
+
+            remainingLockedAmount = stream.totalShareEth > totalVestedAmount ? stream.totalShareEth - totalVestedAmount : 0;
+
+            if (streamingYieldBps > 0 && remainingLockedAmount > 0 && elapsed > 0) {
+                accruedYieldAmount = (remainingLockedAmount * streamingYieldBps * effectiveElapsed) / (10000 * 365 days);
+            }
+
+            claimableAmount = baseClaimable + accruedYieldAmount;
         }
-
-        claimableEth = baseClaimable + accruedYieldEth;
     }
 
-    /// @notice Claims accrued per-second streaming allowance for a beneficiary.
+    /// @notice Claims accrued per-second streaming allowance for a beneficiary's primary stream.
     /// @param beneficiary The beneficiary whose stream is being claimed.
     function claimStream(address beneficiary) external nonReentrant {
         BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
-        if (stream.totalShareEth == 0) revert StreamNotActive();
+        if (stream.totalShareEth > 0) {
+            _claimStreamForAsset(beneficiary, address(0));
+        } else if (stream.streamingAsset != address(0)) {
+            _claimStreamForAsset(beneficiary, stream.streamingAsset);
+        } else {
+            revert StreamNotActive();
+        }
+    }
+
+    /// @notice Claims accrued per-second streaming allowance for a beneficiary's specific asset stream.
+    /// @param beneficiary The beneficiary whose stream is being claimed.
+    /// @param asset The asset address being claimed.
+    function claimStream(address beneficiary, address asset) external nonReentrant {
+        _claimStreamForAsset(beneficiary, asset);
+    }
+
+    function _claimStreamForAsset(address beneficiary, address asset) internal {
+        BeneficiaryStream storage stream = (asset == address(0))
+            ? beneficiaryStreams[beneficiary]
+            : beneficiaryTokenStreams[beneficiary][asset];
+
+        if (asset != address(0) && address(aavePool) != address(0) && aTokens[asset] != address(0)) {
+            if (stream.streamingPrincipal == 0) revert StreamNotActive();
+        } else {
+            if (stream.totalShareEth == 0) revert StreamNotActive();
+        }
+
         if (stream.isPaused) revert StreamIsPaused();
 
         address recipient = stream.streamRecipient;
@@ -702,35 +842,51 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         }
 
         (
-            uint256 claimableEth,
-            uint256 totalVestedEth,
+            uint256 claimableAmount,
+            uint256 totalVestedAmount,
             ,
-            uint256 accruedYieldEth
-        ) = claimableStreamAmount(beneficiary);
+            uint256 accruedYieldAmount
+        ) = claimableStreamAmount(beneficiary, asset);
 
-        if (claimableEth == 0) revert NothingToClaim();
+        if (claimableAmount == 0) revert NothingToClaim();
 
-        // Update claimed base amount (capped at totalShareEth)
-        stream.claimedEth = totalVestedEth > stream.totalShareEth ? stream.totalShareEth : totalVestedEth;
+        if (asset != address(0) && address(aavePool) != address(0) && aTokens[asset] != address(0)) {
+            // Aave v3 streaming withdrawal path:
+            stream.streamingClaimed += claimableAmount;
 
-        // Transfer funds to recipient
-        uint256 payout = claimableEth > address(this).balance ? address(this).balance : claimableEth;
-        if (payout > 0) {
-            (bool success, ) = recipient.call{value: payout}("");
-            if (!success) revert TransferFailed();
+            // Call pool.withdraw(asset, claimableAmount, recipient) to send directly from Aave
+            uint256 withdrawn = aavePool.withdraw(asset, claimableAmount, recipient);
+
+            emit StreamClaimed(beneficiary, recipient, withdrawn, accruedYieldAmount);
+        } else {
+            // Modeled / standard streaming path
+            stream.claimedEth = totalVestedAmount > stream.totalShareEth ? stream.totalShareEth : totalVestedAmount;
+
+            if (asset == address(0)) {
+                uint256 payout = claimableAmount > address(this).balance ? address(this).balance : claimableAmount;
+                if (payout > 0) {
+                    (bool success, ) = recipient.call{value: payout}("");
+                    if (!success) revert TransferFailed();
+                }
+                emit StreamClaimed(beneficiary, recipient, payout, accruedYieldAmount);
+            } else {
+                _safeTransferCatching(asset, recipient, claimableAmount);
+                emit StreamClaimed(beneficiary, recipient, claimableAmount, accruedYieldAmount);
+            }
         }
-
-        emit StreamClaimed(beneficiary, recipient, payout, accruedYieldEth);
     }
 
     /// @notice Emergency pauses an active stream. Callable by beneficiary or current recipient.
     function pauseStream(address beneficiary) external {
         BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
-        if (stream.totalShareEth == 0) revert StreamNotActive();
+        if (stream.totalShareEth == 0 && stream.streamingPrincipal == 0) revert StreamNotActive();
         if (msg.sender != beneficiary && msg.sender != stream.streamRecipient) {
             revert OnlyBeneficiaryOrRecipient();
         }
         stream.isPaused = true;
+        if (stream.streamingAsset != address(0)) {
+            beneficiaryTokenStreams[beneficiary][stream.streamingAsset].isPaused = true;
+        }
         emit StreamPaused(beneficiary, msg.sender);
     }
 
@@ -738,25 +894,58 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     /// @param beneficiary The beneficiary stream to pause.
     /// @param guardianProof Merkle proof verifying caller is a consensus guardian for this vault.
     function pauseStreamWithGuardian(address beneficiary, bytes32[] calldata guardianProof) external {
+        _pauseStreamWithGuardian(beneficiary, msg.sender, guardianProof);
+    }
+
+    /// @notice Guardian emergency circuit breaker: pauses a stream via registered backup guardian.
+    /// @dev Allows a registered backup to act if the original guardian is unreachable, subject to waiting-period rules.
+    /// @param beneficiary The beneficiary stream to pause.
+    /// @param originalGuardian The guardian slot the caller is backing up.
+    /// @param guardianProof Merkle proof verifying the original guardian is in the guardian tree.
+    function pauseStreamWithGuardian(
+        address beneficiary,
+        address originalGuardian,
+        bytes32[] calldata guardianProof
+    ) external {
+        _pauseStreamWithGuardian(beneficiary, originalGuardian, guardianProof);
+    }
+
+    /// @dev Internal stream pausing reusing GuardianRegistry's verifyGuardianOrBackup eligibility check.
+    function _pauseStreamWithGuardian(
+        address beneficiary,
+        address originalGuardian,
+        bytes32[] calldata guardianProof
+    ) internal {
         BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
-        if (stream.totalShareEth == 0) revert StreamNotActive();
+        if (stream.totalShareEth == 0 && stream.streamingPrincipal == 0) revert StreamNotActive();
 
         IGuardianRegistry guardianReg = consensus.guardianRegistry();
-        bool isGuardian = guardianReg.verifyGuardian(address(this), msg.sender, guardianProof);
-        if (!isGuardian) revert UnauthorizedGuardian();
+        bool isEligible = guardianReg.verifyGuardianOrBackup(
+            address(this),
+            msg.sender,
+            originalGuardian,
+            guardianProof
+        );
+        if (!isEligible) revert UnauthorizedGuardian();
 
         stream.isPaused = true;
+        if (stream.streamingAsset != address(0)) {
+            beneficiaryTokenStreams[beneficiary][stream.streamingAsset].isPaused = true;
+        }
         emit StreamPaused(beneficiary, msg.sender);
     }
 
     /// @notice Resumes a paused stream. Callable by beneficiary or recipient.
     function resumeStream(address beneficiary) external {
         BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
-        if (stream.totalShareEth == 0) revert StreamNotActive();
+        if (stream.totalShareEth == 0 && stream.streamingPrincipal == 0) revert StreamNotActive();
         if (msg.sender != beneficiary && msg.sender != stream.streamRecipient) {
             revert OnlyBeneficiaryOrRecipient();
         }
         stream.isPaused = false;
+        if (stream.streamingAsset != address(0)) {
+            beneficiaryTokenStreams[beneficiary][stream.streamingAsset].isPaused = false;
+        }
         emit StreamResumed(beneficiary, msg.sender);
     }
 
@@ -765,7 +954,7 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     function redirectStream(address beneficiary, address newRecipient) external {
         if (newRecipient == address(0)) revert ZeroAddress();
         BeneficiaryStream storage stream = beneficiaryStreams[beneficiary];
-        if (stream.totalShareEth == 0) revert StreamNotActive();
+        if (stream.totalShareEth == 0 && stream.streamingPrincipal == 0) revert StreamNotActive();
 
         address backup = beneficiaryBackups[beneficiary].backupAddress;
         if (msg.sender != beneficiary && msg.sender != backup && msg.sender != stream.streamRecipient) {
@@ -774,6 +963,9 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
 
         address oldRecipient = stream.streamRecipient;
         stream.streamRecipient = newRecipient;
+        if (stream.streamingAsset != address(0)) {
+            beneficiaryTokenStreams[beneficiary][stream.streamingAsset].streamRecipient = newRecipient;
+        }
         emit StreamRedirected(beneficiary, oldRecipient, newRecipient);
     }
 
@@ -831,5 +1023,25 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
             return address(this).balance;
         }
         return IERC20(token).balanceOf(address(this));
+    }
+
+    /// @notice Verifies beneficiary allocation proof using either external Stylus verifier or MerkleProofLib.
+    /// @param beneficiary Beneficiary address to verify.
+    /// @param shareBps Basis points share.
+    /// @param salt Secret blinding salt.
+    /// @param proof Merkle proof siblings.
+    function _verifyAllocationProof(
+        address beneficiary,
+        uint256 shareBps,
+        bytes32 salt,
+        bytes32[] calldata proof
+    ) internal view returns (bool) {
+        if (address(merkleVerifier) != address(0)) {
+            bytes32 leaf = merkleVerifier.computeAllocationLeaf(beneficiary, shareBps, salt);
+            return merkleVerifier.verify(proof, allocationRoot, leaf);
+        } else {
+            bytes32 leaf = MerkleProofLib.computeAllocationLeaf(beneficiary, shareBps, salt);
+            return MerkleProofLib.verify(proof, allocationRoot, leaf);
+        }
     }
 }

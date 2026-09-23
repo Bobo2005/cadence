@@ -397,4 +397,61 @@ contract CadenceStreamsTest is Test {
 
         assertEq(recipientBalAfter - recipientBalBefore, 2.25 ether, "Safe new recipient receives streamed funds");
     }
+
+    /// @notice Consistency Fix (Prompt 8): Backup guardian can pause stream under identical waiting-period rules.
+    function test_streamCircuitBreaker_backupGuardianPause_lifecycle() public {
+        vm.prank(owner);
+        vault.setStreamingConfig(STREAM_DURATION, INITIAL_RELEASE_BPS, 0);
+
+        address backupGuardianA = address(0xBA11);
+
+        // Guardian A registers backupGuardianA
+        vm.prank(guardianA);
+        guardianRegistry.registerGuardianBackup(backupGuardianA);
+        assertEq(guardianRegistry.guardianBackupOf(guardianA), backupGuardianA);
+
+        _advanceVaultToFinalized();
+
+        vm.prank(beneficiaryA);
+        vault.claim(SHARE_A_BPS, saltA, proofA);
+
+        // Immediately after finalization (only 3 days have elapsed since attestation opened),
+        // backup attempt to pause fails because 7-day waiting period has NOT elapsed
+        vm.prank(backupGuardianA);
+        vm.expectRevert(InheritanceVault.UnauthorizedGuardian.selector);
+        vault.pauseStreamWithGuardian(beneficiaryA, guardianA, guardianProofA);
+
+        // Warp 5 more days (total 8 days > 7-day BACKUP_WAITING_PERIOD)
+        vm.warp(block.timestamp + 5 days);
+
+        // Stranger still fails
+        vm.prank(stranger);
+        vm.expectRevert(InheritanceVault.UnauthorizedGuardian.selector);
+        vault.pauseStreamWithGuardian(beneficiaryA, guardianA, guardianProofA);
+
+        // Backup guardian successfully pauses stream
+        vm.prank(backupGuardianA);
+        vm.expectEmit(true, true, false, false);
+        emit StreamPaused(beneficiaryA, backupGuardianA);
+        vault.pauseStreamWithGuardian(beneficiaryA, guardianA, guardianProofA);
+
+        InheritanceVault.BeneficiaryStream memory stream = vault.getBeneficiaryStream(beneficiaryA);
+        assertTrue(stream.isPaused);
+
+        // Drainer attempting to claim is blocked while paused
+        vm.prank(beneficiaryA);
+        vm.expectRevert(InheritanceVault.StreamIsPaused.selector);
+        vault.claimStream(beneficiaryA);
+
+        // Beneficiary resumes stream
+        vm.prank(beneficiaryA);
+        vault.resumeStream(beneficiaryA);
+        assertFalse(vault.getBeneficiaryStream(beneficiaryA).isPaused);
+    }
+
+    /// @notice Required Test (4): Confirming the same backup-eligibility logic works correctly
+    ///         when called via pauseStreamWithGuardian, not just the main consensus attestation flow.
+    function test_resilience_4_pauseStreamWithGuardianBackupEligibility() public {
+        test_streamCircuitBreaker_backupGuardianPause_lifecycle();
+    }
 }

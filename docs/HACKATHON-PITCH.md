@@ -7,16 +7,28 @@
 
 ## 1. Executive Summary & 1-Line Hook
 
-### The Hook
-> *"Billions in crypto are lost forever when holders pass away or lose access. Existing solutions force an impossible choice: surrender your private keys to a custodial trust, or use a naive on-chain dead man switch that leaks your family's allocations and gets griefed by frontrunners. Cadence solves this with zero custody, zero balance leakage, and zero gas-linkage."*
+### The Reframed Hook (Product-Market Fit & Retail Wealth Preservation)
+> *"Cadence secures regulated, yield-bearing family wealth for the next generation of retail investors — not speculative crypto for DeFi natives."*
+
+### The Real-World Problem
+Retail investors are precisely the demographic most vulnerable to losing cryptocurrency and tokenized real-world assets upon sudden death, incapacitation, or forgotten credentials—and least equipped or willing to operate complex, DeFi-native "dead man's switches" built for protocol power users. Traditional estate options present a lose-lose: pay exorbitant legal retainers ($2,000–$10,000+) to surrender private keys to centralized custodians, or use naive smart contracts that expose family allocations on public block explorers and dump lump-sums into vulnerable heir wallets.
+
+Cadence solves this with zero custodial trust, zero public ledger leaks, zero gas-linkage attack surfaces, and automated streaming family trusts.
 
 ### Key Metrics & Highlights
-- **100% Self-Custodial**: Assets remain strictly under owner control until cryptographic inactivity consensus concludes.
-- **Client-Side Privacy**: Beneficiary allocations and share percentages are encrypted off-chain via **ECIES-secp256k1**; only a 32-byte Merkle Root is stored on-chain. Zero public ledger leaks.
-- **Gasless Stealth Recovery**: Compelled or compromised owners can halt liquidation via an off-chain **EIP-712 typed signature** broadcast by any relayer with zero gas-linkage to the owner's address.
-- **Account Abstraction (ERC-4337)**: Native Pimlico Paymaster sponsorship for check-ins and gasless claims.
-- **Cadence Streams (Grand Prize Feature)**: Autonomous multi-generational streaming trust with linear per-second vesting, compounding idle yield, and guardian emergency circuit breakers (`pauseStream`, `redirectStream`).
-- **Fully Deployed & Verified**: Live on **Sepolia Ethereum Testnet** with **208 / 208 Foundry tests** across 15 suites, **18 / 18 Sentinel tests**, and **11 / 11 security audit suites** passing.
+- **Regulated & Retail-First**: First-class support for regulated, yield-bearing dollar assets like Paxos USDG alongside ETH, USDC, USDT, and WBTC.
+- **100% Self-Custodial**: Assets remain strictly under owner control until cryptographic proof-of-life consensus concludes.
+- **Client-Side Privacy**: Beneficiary allocations and percentage shares are encrypted off-chain via **ECIES-secp256k1**; only a 32-byte Merkle Root is stored on-chain. Zero public ledger leaks.
+- **Resilient 2-of-3 Guardian Consensus**: Upgraded default **2-of-3 guardian consensus quorum** with zero-custodial guardian backup nomination (`registerGuardianBackup`), eliminating the single-point-of-failure of unreachable guardians.
+- **Gasless Stealth Recovery**: Compelled or compromised owners can halt liquidation via an off-chain **EIP-712 typed signature** (`cancelClaimWithSig`) broadcast by any relayer with zero gas-linkage to the owner's address.
+- **Cadence Streams (Asset-Scoped Yield Engine)**: Autonomous multi-generational streaming trust with linear per-second vesting, immediate emergency liquidity tranches, and guardian emergency circuit breakers (`pauseStream`, `redirectStream`).
+  - **Live Aave v3 Market Interest**: Unvested inheritance in supported assets is deposited directly into Aave v3's Arbitrum Sepolia pool on claim.
+  - **Paxos USDG Modeled APY**: USDG-denominated vaults earn a modeled 7.00% APY pegged directly to USDG's published Robinhood Earn yields.
+  - **Deployment Compliance Fact**: The yield engine has **no cross-chain dependency**, since both Cadence's contracts and Aave's Pool contract are on **Arbitrum Sepolia**. This is a compliance fact ensuring atomic local settlement.
+  - **Lending, Not Staking**: Cadence Streams supplies locked principal to Aave's shared lending pool to earn borrower-paid interest; assets are never bonded or locked into network staking.
+- **Smart Contract Quality & Integrity**:
+  - **Testnet-Only Scope**: Explicitly deployed and verified on **Arbitrum Sepolia** (Chain ID: `421614`) and **Robinhood Chain Testnet** (Arbitrum Orbit L2, Chain ID: `46630`), alongside Ethereum Sepolia (`11155111`). Zero mainnet deployment, zero real funds at risk.
+  - **Comprehensive Verification**: Backed by **208 / 208 Foundry tests** (and an expanded total of **240 / 240 tests across 17 suites**), **11 / 11 automated security regression suites**, and clean **Slither (0 Critical / 0 High)** and **Mythril** automated static analysis reports.
 
 ---
 
@@ -32,7 +44,7 @@ Existing approaches suffer from critical flaws:
    - **The "Gas Linkage" Surveillance Trap**: If an attacker drains an owner's ETH to trigger inactivity, the owner cannot cancel the switch without funding the account — alerting the attacker and getting front-run.
 3. **The Lump-Sum "Inheritance Dump" & Drainer Phishing Trap**:
    - Dumping 100% of an estate into an heir's wallet in a single transaction exposes the family fortune to instant liquidation if the heir's seed phrase is compromised or drained by phishing bots.
-   - Conventional lockers sit completely unvested and generate 0% yield.
+   - Conventional lockers sit completely idle and generate 0% yield.
 
 ---
 
@@ -47,8 +59,8 @@ Existing approaches suffer from critical flaws:
 |   +---------------------+    +--------------------+  +--------------------+  +------------------------+ |
 |   | • 32-byte Root      |    | • Configurable     |  | • 72-Hour Safe     |  | • Linear Per-Sec Vest  | |
 |   | • ECIES-secp256k1   | -> |   Heartbeat (90d)  |->|   Contest Window   |->| • 10% Emergency Buffer | |
-|   | • Zero Public Leaks |    | • M-of-N Guardians |  | • EIP-712 Gasless  |  | • Compounding Yield    | |
-|   | • Offline Proof Gen |    | • No Single Trigger|  |   Stealth Cancel   |  | • Circuit Breakers     | |
+|   | • Zero Public Leaks |    | • 2-of-3 Guardians |  | • EIP-712 Gasless  |  | • Live Aave / 7% USDG  | |
+|   | • Offline Proof Gen |    | • Backup Nomination|  |   Stealth Cancel   |  | • Circuit Breakers     | |
 |   +---------------------+    +--------------------+  +--------------------+  +------------------------+ |
 |                                                                                                         |
 +---------------------------------------------------------------------------------------------------------+
@@ -60,10 +72,11 @@ Existing approaches suffer from critical flaws:
 - Allocation amounts and Merkle sibling proofs are encrypted using each beneficiary's secp256k1 public key and dispatched via private notification channels.
 - **Result**: Block explorers show only arbitrary 32-byte hashes. Zero observer knows who inherits what.
 
-### Pillar 2: Proof-of-Life Consensus Primitive
+### Pillar 2: Proof-of-Life Consensus Primitive (Resilient 2-of-3 Guardians)
 - Owners configure a pulse cadence (e.g. 90 days for standard lockers; 5 minutes for rapid testing).
 - Any on-chain heartbeat resets the timestamp.
-- If the interval elapses, inactivity must be attested by an optional **M-of-N quorum of designated guardians** (trusted nodes, family members, or legal signers) before entering contest.
+- If the interval elapses, inactivity must be attested by a **2-of-3 guardian consensus quorum** before entering contest.
+- Guardians can designate secondary backups with zero custodial override by vault owners, ensuring a single unreachable guardian never permanently freezes a family vault.
 
 ### Pillar 3: 72-Hour Contest Window & EIP-712 Stealth Cancel
 - Once inactivity is certified, zero funds move immediately. An immutable **72-hour contest window** opens.
@@ -74,45 +87,74 @@ Existing approaches suffer from critical flaws:
 - Any third-party relayer broadcasts this transaction. **Zero ETH is required from the owner wallet**, completely defeating frontrunning and address-linkage surveillance.
 
 ### Pillar 4: Cadence Streams — Autonomous Streaming Trust & Anti-Drainer Circuit Breakers (Flagship)
-- Transforms Cadence from a simple locker into a decentralized family trust.
+- Transforms Cadence from a simple locker into an autonomous, yield-bearing family trust.
 - Pays an immediate emergency liquidity tranche (e.g. 10% Day 1 buffer for immediate needs).
 - Unlocks the remaining 90% continuously per-second with live 100ms real-time UI ticker precision.
-- Idle principal accrues compounding yield (Aave v3 model).
-- Anti-Drainer Circuit Breaker: If an heir's wallet is compromised or drained, designated guardians (via Merkle proof) or backup addresses can trigger `pauseStream` and `redirectStream` to freeze outflows and redirect unvested streams to a safe cold hardware wallet.
+- **Asset-Scoped Yield Engine**:
+  - *"Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield."*
+  - Unvested supported assets (USDC) are deposited directly into Aave v3 pool (`pool.supply`), track dynamic yield via `balanceOf`, and withdraw directly on `claimStream()`.
+  - USDG-denominated vaults earn a modeled 7.00% APY pegged to Paxos USDG's published Robinhood Earn yield.
+- **Anti-Drainer Circuit Breaker**: If an heir's wallet is compromised or drained, designated guardians (via Merkle proof) or backup addresses can trigger `pauseStream` and `redirectStream` to freeze outflows and redirect unvested streams to a safe cold hardware wallet.
 
 ### Competitive Matrix: How Cadence Stands Out
 
 | Capability | Sarcophagus | Inheriti | Safe (HeirSafe / Zodiac) | Casa / Unchained | **Cadence Protocol** |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Asset Execution** | Seed phrase / file decryption | Secret shard reconstruction | Full Safe ownership transfer | Legal / Multi-sig concierge | **Direct On-Chain Settlement** |
+| **Target User** | Crypto-native power users | Enterprise / Crypto-native | Safe multi-sig users | HNW concierge clients | **Retail Families & Long-Term Wealth Holders** |
+| **Asset Execution** | Seed phrase / file decryption | Secret shard reconstruction | Full Safe ownership transfer | Legal / Multi-sig concierge | **Direct On-Chain Settlement (USDG, ETH, USDC)** |
 | **Payout Structure** | Lump sum (manual) | Lump sum (manual) | 100% lump sum takeover | Fiat/Custodial transfer | **Per-Second Streaming Trust (Cadence Streams)** |
 | **Anti-Drainer Defense** | ❌ None (heir drainer loss) | ❌ None | ❌ None | ⚠️ Customer support delay | **✅ Instant Guardian Pause & Cold Wallet Redirection** |
+| **Yield on Unvested Funds**| ❌ 0% (Idle capital) | ❌ 0% | ❌ 0% | ❌ 0% | **✅ Live Aave v3 Lending / 7% Robinhood Earn Peg** |
 | **Privacy Model** | ⚠️ Public on-chain | ⚠️ Hardware-dependent | ❌ Public mappings | ❌ Exhaustive KYC / identity doxxing | **✅ ECIES-secp256k1 + Blinded Merkle Trees** |
 | **False-Positive Cancel**| Re-wrap tx | Manual login | Direct owner tx | Legal affidavit | **✅ EIP-712 Relayed Stealth Cancel (0 Gas Linkage)** |
 | **Heir UX** | CLI / SARCO token | SafeKey hardware token | Web3 wallet required | Web2 portal | **✅ ERC-4337 Smart Accounts (Gasless Claims)** |
 
-### Product-Market Fit & User Retention Flywheel
+### Product-Market Fit & Retail Wealth Preservation Flywheel
 
 - **Built-In Heartbeat Retention**: Protocol architecture requires recurring check-ins (30–180 days). Sentinel email daemons trigger consistent, high-intent user re-engagement without relying on speculative trading cycles.
-- **Multi-Player Viral Onboarding (1 Creator = 5 Users)**: 1 vault naturally brings in 2 guardians and multiple beneficiaries. Each vault creator virally seeds new prospective vault creators with near-zero CAC.
-- **Sticky, Generational Capital**: Inheritance funds have 5-to-20 year time horizons; locked TVL remains sticky and compounding, unaffected by market cycle volatility.
+- **Targeting Real Retail Holdings**: Tailored for Robinhood and Arbitrum retail users holding cash-equivalent stablecoins (USDG, USDC) and core blue chips, rather than speculative altcoins.
+- **Multi-Player Viral Onboarding (1 Creator = 5 Users)**: 1 vault naturally brings in 3 guardians and multiple beneficiaries. Each vault creator virally seeds new prospective vault creators with near-zero CAC.
+- **Sticky, Generational Capital**: Inheritance funds have 5-to-20 year time horizons; locked TVL remains sticky and interest-bearing, unaffected by market cycle volatility.
 - **Urgent Market Need**: Directly protects the $100B+ in lost crypto via 1-Click self-custodial provisioning, eliminating $2,000–$10,000+ legal fees.
 
 ---
 
-## 4. Live Verified Contracts on Ethereum Sepolia
+## 4. Live Verified Contracts & Multi-Chain Deployments
 
-All contracts are compiled with Solidity 0.8.28 (Via-IR enabled) and verified on Sepolia Etherscan:
+All contracts are compiled with Solidity 0.8.24 (Via-IR enabled) and deployed at deterministic addresses across three networks:
 
+### A. Ethereum Sepolia (Chain ID: `11155111`)
 | Contract | Address | Explorer Link |
 | :--- | :--- | :--- |
 | **InheritanceVault (Standard 90-Day)** | `0x043d02c39B86CAd83E1Bf05728D32d24f6289e74` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x043d02c39B86CAd83E1Bf05728D32d24f6289e74#code) |
-| **InheritanceVault (Demo 5-Min Test)** | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1#code) |
+| **InheritanceVault (Demo 180s Stream)** | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1#code) |
 | **ProofOfLifeConsensus** | `0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1#code) |
 | **GuardianRegistry** | `0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863#code) |
 | **StealthAddressRegistry (EIP-5564)** | `0x583eC2de840034478a61EF572cea2904bFD8671E` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x583eC2de840034478a61EF572cea2904bFD8671E#code) |
 | **BalanceCommitment** | `0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC#code) |
 | **BeneficiaryAccountFactory (ERC-4337)** | `0x30489c0f3566AF47b71867bc992408B91E500823` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x30489c0f3566AF47b71867bc992408B91E500823#code) |
+
+### B. Arbitrum Sepolia (Chain ID: `421614`)
+| Contract | Address | Explorer Link |
+| :--- | :--- | :--- |
+| **InheritanceVault (Standard 90-Day)** | `0x043d02c39B86CAd83E1Bf05728D32d24f6289e74` | [View on Arbiscan](https://sepolia.arbiscan.io/address/0x043d02c39B86CAd83E1Bf05728D32d24f6289e74) |
+| **InheritanceVault (Demo 180s Stream)** | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` | [View on Arbiscan](https://sepolia.arbiscan.io/address/0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1) |
+| **ProofOfLifeConsensus** | `0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1` | [View on Arbiscan](https://sepolia.arbiscan.io/address/0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1) |
+| **GuardianRegistry** | `0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863` | [View on Arbiscan](https://sepolia.arbiscan.io/address/0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863) |
+| **StealthAddressRegistry (EIP-5564)** | `0x583eC2de840034478a61EF572cea2904bFD8671E` | [View on Arbiscan](https://sepolia.arbiscan.io/address/0x583eC2de840034478a61EF572cea2904bFD8671E) |
+| **BalanceCommitment** | `0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC` | [View on Arbiscan](https://sepolia.arbiscan.io/address/0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC) |
+| **BeneficiaryAccountFactory** | `0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf` | [View on Arbiscan](https://sepolia.arbiscan.io/address/0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf) |
+
+### C. Robinhood Chain Testnet (Chain ID: `46630`)
+| Contract | Address | Explorer Link |
+| :--- | :--- | :--- |
+| **InheritanceVault (Standard 90-Day)** | `0x043d02c39B86CAd83E1Bf05728D32d24f6289e74` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x043d02c39B86CAd83E1Bf05728D32d24f6289e74) |
+| **InheritanceVault (Demo 180s Stream)** | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1) |
+| **ProofOfLifeConsensus** | `0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1) |
+| **GuardianRegistry** | `0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863) |
+| **StealthAddressRegistry (EIP-5564)** | `0x583eC2de840034478a61EF572cea2904bFD8671E` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x583eC2de840034478a61EF572cea2904bFD8671E) |
+| **BalanceCommitment** | `0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC) |
+| **BeneficiaryAccountFactory** | `0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf) |
 
 ---
 
@@ -149,9 +191,9 @@ The Cadence protocol supports standard Web3 wallet connections (MetaMask, Rabby,
 | :--- | :--- | :--- |
 | **0:00 - 0:30** | Landing Page + Oscilloscope Animation (`/`) | *"Welcome to Cadence. Over 100 billion dollars in crypto has been permanently lost because the holder died without sharing their keys. But current dead man switches are broken: they broadcast your beneficiaries' addresses on public explorers, and if your keys are compromised, you can't even cancel them without getting frontrun. Cadence is the first self-custodial inheritance protocol that guarantees zero allocation leaks and zero gas-linkage."* |
 | **0:30 - 1:15** | Vault Creation Flow (`/vault/create`) | *"Let's create a vault. Notice what happens when I add Alice at 40% and Bob at 60%. Cadence doesn't write their balances on-chain. Instead, our client encrypts their shares off-chain using their public keys with ECIES-secp256k1, and computes a 32-byte Merkle Root. On Sepolia Etherscan, observers only see an unreadable root hash. We also enable Cadence Streams to turn this locker into an autonomous family trust with linear per-second vesting."* |
-| **1:15 - 1:55** | Pulse Dashboard & Heartbeat (`/dashboard`) | *"Here is the Pulse Dashboard with a live oscilloscope ECG monitor. As owner, I can send an on-chain heartbeat. Notice the toast: with ERC-4337, this check-in can be gaslessly sponsored by a paymaster. If I miss my check-ins, the background Sentinel daemon alerts my guardians, and the protocol requires an M-of-N guardian quorum before any window opens."* |
+| **1:15 - 1:55** | Pulse Dashboard & Heartbeat (`/dashboard`) | *"Here is the Pulse Dashboard with a live oscilloscope ECG monitor. As owner, I can send an on-chain heartbeat. Notice the toast: with ERC-4337, this check-in can be gaslessly sponsored by a paymaster. If I miss my check-ins, the background Sentinel daemon alerts my guardians, and the protocol requires a resilient 2-of-3 guardian quorum before any window opens."* |
 | **1:55 - 2:25** | Contest Window & EIP-712 Stealth Cancel (`/contest`) | *"Now, suppose an attacker tries to grief my locker or I'm temporarily incapacitated. The 72-hour Contest Window opens. Even if an attacker drains all ETH from my main wallet, I am protected. I sign an off-chain EIP-712 cancellation typed digest. Any relayer can broadcast this without a single wei coming from my wallet — instantly restoring my vault to Active status."* |
-| **2:25 - 3:00** | Cadence Streams Claim & Anti-Drainer Demo (`/claim`) | *"Finally, when a locker finalizes, beneficiaries unlock their allocation in-memory with zero raw key inputs. Instead of a dangerous 100% lump sum that drainers can steal, Cadence Streams pays an immediate 10% emergency buffer and streams the remaining 90% per-second down to 7 decimal places, while earning compounding yield. If the heir's wallet is compromised, guardians or backup addresses can hit the on-chain circuit breaker to pause the stream and redirect future payouts to a safe cold wallet. Cadence is verified on Sepolia with 208 passing Foundry tests, ready to preserve multi-generational wealth."* |
+| **2:25 - 3:00** | Cadence Streams Claim & Anti-Drainer Demo (`/claim`) | *"Finally, when a locker finalizes, beneficiaries unlock their allocation in-memory with zero raw key inputs. Instead of a dangerous 100% lump sum that drainers can steal, Cadence Streams pays an immediate 10% emergency buffer and streams the remaining 90% per-second down to 7 decimal places. Unvested inheritance deposits into Aave v3's live Arbitrum Sepolia market for supported assets to earn real interest, while USDG vaults earn a modeled 7% pegged to Robinhood Earn. If the heir's wallet is compromised, guardians or backup addresses can hit the on-chain circuit breaker to pause the stream and redirect future payouts to a safe cold wallet. Cadence is verified on Arbitrum Sepolia and Robinhood Chain testnets with 240 passing Foundry tests and Slither/Mythril static analysis."* |
 
 ---
 

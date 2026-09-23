@@ -63,5 +63,48 @@ interface IGuardianRegistry {
         bytes32[] calldata proof
     ) external view returns (bool);
 
+    event GuardianBackupRegistered(
+        address indexed guardian,
+        address indexed backup
+    );
+    event BackupGuardianAttested(
+        address indexed vault,
+        address indexed originalGuardian,
+        address indexed backupGuardian,
+        uint256 attestationCount
+    );
+    event AttestationPeriodOpened(
+        address indexed vault,
+        uint256 indexed cycle,
+        uint256 openedAt
+    );
+
+    function registerGuardianBackup(address backup) external;
+
+    function guardianBackupOf(address guardian) external view returns (address);
+
+    function attestAsBackup(
+        address vault,
+        address originalGuardian,
+        bytes32[] calldata proof
+    ) external;
+
+    function verifyGuardianOrBackup(
+        address vault,
+        address caller,
+        address originalGuardian,
+        bytes32[] calldata proof
+    ) external view returns (bool);
+
+    function openAttestationPeriod(address vault) external;
+
+    function BACKUP_WAITING_PERIOD() external view returns (uint256);
+    function setBackupWaitingPeriod(address vault, uint256 period) external;
+    function getBackupWaitingPeriod(address vault) external view returns (uint256);
+
+    function cycleFirstAttestationTime(address vault, uint256 cycle) external view returns (uint256);
+
     function getGuardianConfig(address vault) external view returns (GuardianConfig memory);
+    function DEFAULT_THRESHOLD() external view returns (uint256);
+    function DEFAULT_TOTAL_GUARDIANS() external view returns (uint256);
 }

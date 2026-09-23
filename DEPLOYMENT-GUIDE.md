@@ -28,15 +28,37 @@ An end-to-end, production-ready runbook for deploying and launching the **Cadenc
 |               | Read/Write State                                        | Event Poll    |
 |               v                                                         v               |
 |  +-----------------------------------------------------------------------------------+  |
-|  |                              ETHEREUM SEPOLIA TESTNET                             |  |
+|  |                 MULTI-CHAIN SETTLEMENT NETWORKS & SMART CONTRACTS                 |  |
 |  |                                                                                   |  |
-|  | • InheritanceVault.sol           (0x043d02c39B86CAd83E1Bf05728D32d24f6289e74)     |  |
-|  | • ProofOfLifeConsensus.sol       (0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1)     |  |
-|  | • GuardianRegistry.sol           (0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863)     |  |
-|  | • StealthAddressRegistry.sol     (0x583eC2de840034478a61EF572cea2904bFD8671E)     |  |
-|  | • BalanceCommitment.sol          (0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC)     |  |
-|  | • VaultFactory.sol               (0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0)     |  |
-|  | • BeneficiarySmartAccount.sol    (0x30489c0f3566AF47b71867bc992408B91E500823)     |  |
+|  | 1. ETHEREUM SEPOLIA (Chain ID: 11155111)                                          |  |
+|  |    • InheritanceVault.sol (90d):    0x043d02c39B86CAd83E1Bf05728D32d24f6289e74   |  |
+|  |    • Demo Vault (180s Stream):      0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1   |  |
+|  |    • ProofOfLifeConsensus.sol:      0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1   |  |
+|  |    • GuardianRegistry.sol:          0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863   |  |
+|  |    • StealthAddressRegistry.sol:    0x583eC2de840034478a61EF572cea2904bFD8671E   |  |
+|  |    • BalanceCommitment.sol:         0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC   |  |
+|  |    • VaultFactory.sol:              0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0   |  |
+|  |    • BeneficiarySmartAccount.sol:   0x30489c0f3566AF47b71867bc992408B91E500823   |  |
+|  |                                                                                   |  |
+|  | 2. ARBITRUM SEPOLIA (Chain ID: 421614) — Nitro Rollup                             |  |
+|  |    • InheritanceVault.sol (90d):    0x043d02c39B86CAd83E1Bf05728D32d24f6289e74   |  |
+|  |    • Demo Vault (180s Stream):      0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1   |  |
+|  |    • ProofOfLifeConsensus.sol:      0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1   |  |
+|  |    • GuardianRegistry.sol:          0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863   |  |
+|  |    • StealthAddressRegistry.sol:    0x583eC2de840034478a61EF572cea2904bFD8671E   |  |
+|  |    • BalanceCommitment.sol:         0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC   |  |
+|  |    • VaultFactory.sol:              0xac0f91C7d7c3537896248C42fc880F6DFF838622   |  |
+|  |    • BeneficiaryAccountFactory.sol: 0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf   |  |
+|  |                                                                                   |  |
+|  | 3. ROBINHOOD CHAIN TESTNET (Chain ID: 46630) — Arbitrum Orbit Stylus L2           |  |
+|  |    • InheritanceVault.sol (90d):    0x043d02c39B86CAd83E1Bf05728D32d24f6289e74   |  |
+|  |    • Demo Vault (180s Stream):      0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1   |  |
+|  |    • ProofOfLifeConsensus.sol:      0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1   |  |
+|  |    • GuardianRegistry.sol:          0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863   |  |
+|  |    • StealthAddressRegistry.sol:    0x583eC2de840034478a61EF572cea2904bFD8671E   |  |
+|  |    • BalanceCommitment.sol:         0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC   |  |
+|  |    • VaultFactory.sol:              0xac0f91C7d7c3537896248C42fc880F6DFF838622   |  |
+|  |    • BeneficiaryAccountFactory.sol: 0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf   |  |
 |  +-----------------------------------------------------------------------------------+  |
 |                                                                                         |
 +-----------------------------------------------------------------------------------------+
@@ -145,6 +167,49 @@ DEMO_CHECK_IN_INTERVAL=180 DEMO_CONTEST_DURATION=900 forge script script/DeployD
   --broadcast
 ```
 
+### Step 1.5: Multi-Chain Deployment (Arbitrum Sepolia & Robinhood Chain Testnet)
+
+Cadence also runs on **Arbitrum Sepolia** (Chain ID: `421614`) and **Robinhood Chain Testnet** (Chain ID: `46630`, Arbitrum Nitro Orbit L2):
+
+#### A. Deploy to Arbitrum Sepolia
+```bash
+# Core deployment
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url https://sepolia-rollup.arbitrum.io/rpc \
+  --broadcast
+
+# Demo vault with short intervals & Cadence Streams
+DEMO_CHECK_IN_INTERVAL=120 DEMO_CONTEST_DURATION=60 DEMO_STREAM_DURATION=180 forge script script/DeployDemoVault.s.sol:DeployDemoVault \
+  --rpc-url https://sepolia-rollup.arbitrum.io/rpc \
+  --broadcast
+```
+
+#### B. Deploy to Robinhood Chain Testnet
+```bash
+# Core deployment
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url https://rpc.testnet.chain.robinhood.com \
+  --broadcast
+
+# Demo vault with short intervals & Cadence Streams
+DEMO_CHECK_IN_INTERVAL=120 DEMO_CONTEST_DURATION=60 DEMO_STREAM_DURATION=180 forge script script/DeployDemoVault.s.sol:DeployDemoVault \
+  --rpc-url https://rpc.testnet.chain.robinhood.com \
+  --broadcast
+```
+
+#### C. Verified Deployed Addresses Reference Table
+
+| Contract | Ethereum Sepolia (`11155111`) | Arbitrum Sepolia (`421614`) | Robinhood Testnet (`46630`) |
+| :--- | :--- | :--- | :--- |
+| **`InheritanceVault.sol` (90d)** | `0x043d02c39B86CAd83E1Bf05728D32d24f6289e74` | `0x043d02c39B86CAd83E1Bf05728D32d24f6289e74` | `0x043d02c39B86CAd83E1Bf05728D32d24f6289e74` |
+| **`InheritanceVault.sol` (Demo 180s)** | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` |
+| **`ProofOfLifeConsensus.sol`** | `0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1` | `0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1` | `0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1` |
+| **`GuardianRegistry.sol`** | `0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863` | `0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863` | `0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863` |
+| **`StealthAddressRegistry.sol`** | `0x583eC2de840034478a61EF572cea2904bFD8671E` | `0x583eC2de840034478a61EF572cea2904bFD8671E` | `0x583eC2de840034478a61EF572cea2904bFD8671E` |
+| **`BalanceCommitment.sol`** | `0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC` | `0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC` | `0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC` |
+| **`VaultFactory.sol`** | `0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0` | `0xac0f91C7d7c3537896248C42fc880F6DFF838622` | `0xac0f91C7d7c3537896248C42fc880F6DFF838622` |
+| **`BeneficiaryAccountFactory.sol`** | `0x30489c0f3566AF47b71867bc992408B91E500823` | `0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf` | `0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf` |
+
 ---
 
 ## 5. Stage 2: Deploy Notification Microservice (Render)
@@ -229,20 +294,22 @@ The user interface is built on Next.js 16 (App Router + Turbopack) and connects 
 In the Vercel deployment screen, expand **Environment Variables** and paste the following values (replacing contract addresses if you deployed your own in Stage 1):
 
 ```env
-# Network & RPC
+# Network & RPC (Default: Ethereum Sepolia; supports Arbitrum Sepolia: 421614 & Robinhood Testnet: 46630)
 NEXT_PUBLIC_CHAIN_ID=11155111
 NEXT_PUBLIC_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
 NEXT_PUBLIC_SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
+NEXT_PUBLIC_ROBINHOOD_TESTNET_RPC_URL=https://rpc.testnet.chain.robinhood.com
 
-# Core Deployed Smart Contracts
+# Core Deployed Smart Contracts (Identical deterministic addresses across all 3 chains)
 NEXT_PUBLIC_VAULT_ADDRESS=0x043d02c39B86CAd83E1Bf05728D32d24f6289e74
 NEXT_PUBLIC_DEMO_VAULT_ADDRESS=0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1
 NEXT_PUBLIC_CONSENSUS_ADDRESS=0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1
 NEXT_PUBLIC_GUARDIAN_REGISTRY_ADDRESS=0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863
 NEXT_PUBLIC_STEALTH_REGISTRY_ADDRESS=0x583eC2de840034478a61EF572cea2904bFD8671E
 NEXT_PUBLIC_BALANCE_COMMITMENT_ADDRESS=0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC
-NEXT_PUBLIC_VAULT_FACTORY_ADDRESS=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
-NEXT_PUBLIC_FACTORY_ADDRESS=0x30489c0f3566AF47b71867bc992408B91E500823
+NEXT_PUBLIC_VAULT_FACTORY_ADDRESS=0xac0f91C7d7c3537896248C42fc880F6DFF838622
+NEXT_PUBLIC_FACTORY_ADDRESS=0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf
 
 # Pimlico Paymaster (Optional)
 NEXT_PUBLIC_PIMLICO_API_KEY=

@@ -52,7 +52,7 @@ const FAQ_ITEMS: FAQItem[] = [
     category: "VAULTS",
     question: "What assets can I store in a Cadence Locker?",
     answer:
-      "Currently on Ethereum Sepolia, Cadence Lockers natively support native ETH and standard ERC-20 tokens (e.g., USDC, DAI, WBTC). When creating a Locker or making subsequent deposits, balances are tracked directly within your vault contract.",
+      "Cadence natively supports native ETH and regulated ERC-20 tokens, featuring Paxos USDG as the premier retail stablecoin (modeled 7.00% APY pegged to published Robinhood Earn yield), alongside USDC, USDT, and WBTC. Token whitelists are enforced on-chain.",
   },
   {
     id: "v-02",
@@ -67,6 +67,13 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "How are multiple Lockers managed?",
     answer:
       "You can create distinct Lockers for different portfolios or beneficiary tiers (e.g. immediate family vs. organizational continuity). Each Locker has its own autonomous address, heartbeat frequency, and Merkle root.",
+  },
+  {
+    id: "v-04",
+    category: "VAULTS",
+    question: "Why Paxos USDG and how does the yield work?",
+    answer:
+      "Paxos USDG is a regulated global dollar designed for consumer protection and retail savings. Cadence aligns with Robinhood Earn's published 7.00% APY, allowing retail family estates to compound yield without crypto volatility. For USDG vaults, yield is calculated using a modeled rate pegged to Robinhood Earn's published APY.",
   },
 
   // 3. HEARTBEATS
@@ -105,7 +112,7 @@ const FAQ_ITEMS: FAQItem[] = [
     category: "GUARDIANS",
     question: "How does Guardian consensus work?",
     answer:
-      "Cadence enforces an m-of-n threshold rule. For example, in a 2-of-3 guardian setup, at least 2 distinct guardian nodes must independently inspect the on-chain heartbeat and submit signed attestations before a Contest Window can open.",
+      "Cadence enforces an m-of-n threshold rule. In our standard setup, at least 2 of 3 independent guardians must independently inspect the on-chain heartbeat and submit signed attestations before a Contest Window can open.",
   },
   {
     id: "g-03",
@@ -113,6 +120,13 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Can I choose my own personal guardians?",
     answer:
       "Yes. In addition to public protocol sentinels, you can register custom trusted addresses (e.g. family attorneys, institutional custodians, or cold wallets) as your personal guardian quorum during vault setup.",
+  },
+  {
+    id: "g-04",
+    category: "GUARDIANS",
+    question: "What is Guardian Resilience and backup nomination?",
+    answer:
+      "Guardian Resilience eliminates the risk of orphan lockouts if a guardian loses their private key or becomes unreachable. Guardians can nominate a non-custodial backup key. After an attestation waiting period elapses, the backup can submit consensus attestations, preventing estates from freezing.",
   },
 
   // 5. BENEFICIARIES
@@ -174,7 +188,7 @@ const FAQ_ITEMS: FAQItem[] = [
     category: "CLAIMS",
     question: "What is Cadence Streaming vs. Lump-Sum claim?",
     answer:
-      "Heirs can choose to receive their payout either as an instant lump-sum transfer or streamed continuously second-by-second (Cadence Stream). Streaming protects beneficiaries from sudden tax hits, flash liquidations, or theft while providing steady continuous cashflow.",
+      "Heirs can choose instant lump-sum settlement or continuous per-second streaming (Cadence Streams). Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield. Unvested principal is lent to liquidity pools, never staked.",
   },
   {
     id: "c-03",
@@ -183,6 +197,13 @@ const FAQ_ITEMS: FAQItem[] = [
     answer:
       "Never. Decryption of the allocation voucher happens entirely in-memory inside the browser using standard Web Crypto API. Your private keys never touch Cadence servers or any external API.",
   },
+  {
+    id: "c-04",
+    category: "CLAIMS",
+    question: "What happens if an heir's wallet is compromised?",
+    answer:
+      "Cadence Streams features on-chain anti-drainer circuit breakers. If an heir's keys are stolen, designated guardians or registered backup addresses can call pauseStream() and redirectStream() on-chain, freezing outflows and redirecting remaining streams to a secure cold hardware wallet.",
+  },
 
   // 8. SECURITY
   {
@@ -190,7 +211,7 @@ const FAQ_ITEMS: FAQItem[] = [
     category: "SECURITY",
     question: "What cryptographic standards does Cadence use?",
     answer:
-      "Cadence implements peer-reviewed industry-standard cryptography: AES-GCM-256 with authenticated additional data for symmetric encryption, PBKDF2 with 600,000 rounds for key derivation, Keccak256 Merkle trees for state commitments, and EIP-712 structured typed data for gasless signatures.",
+      "Cadence implements peer-reviewed industry-standard cryptography: AES-GCM-256 for symmetric encryption, client-side ECIES-secp256k1 for share privacy, Keccak-256 double-hashed Merkle trees, EIP-712 structured typed signatures, and Arbitrum Stylus Rust WASM verification (stylus_merkle) for sub-cent on-chain proof execution.",
   },
   {
     id: "s-02",
@@ -202,9 +223,9 @@ const FAQ_ITEMS: FAQItem[] = [
   {
     id: "s-03",
     category: "SECURITY",
-    question: "Are the smart contracts verified on Etherscan?",
+    question: "Are the smart contracts verified and audited?",
     answer:
-      "Yes. All contracts deployed on Ethereum Sepolia are open-source and verified on Etherscan with publicly accessible source code, ABI definitions, and compiler metadata.",
+      "Yes. All contracts are verified across Arbitrum Sepolia Arbiscan, Robinhood Explorer, and Sepolia Etherscan. The codebase features 252 / 252 passing Foundry tests across 18 suites and a clean Slither 0.11.6 static analysis pass (0 Critical, 0 High, 0 Medium across 55 contracts).",
   },
 
   // 9. NETWORK
@@ -213,21 +234,21 @@ const FAQ_ITEMS: FAQItem[] = [
     category: "NETWORK",
     question: "Which networks are supported today?",
     answer:
-      "Cadence is live on Ethereum Sepolia testnet (Chain ID 11155111). Mainnet deployment to Ethereum L1 and leading Layer-2s (Arbitrum, Base, Optimism) is scheduled following final external audits.",
+      "Cadence is deployed across three active testnets: Arbitrum Sepolia (Chain ID: 421614 — Nitro L2 Rollup supporting Stylus WASM and live Aave v3 lending integration), Robinhood Chain Testnet (Chain ID: 46630 — Arbitrum Orbit L2 featuring native Paxos USDG), and Ethereum Sepolia (Chain ID: 11155111 — baseline L1 reference implementation).",
   },
   {
     id: "n-02",
     category: "NETWORK",
     question: "How do I monitor network status and RPC health?",
     answer:
-      "You can visit the dedicated Network Status screen (/network) to inspect live block height, Sepolia RPC round-trip latency, Guardian consensus uptime, Indexer sync latency, and verified contract addresses.",
+      "You can visit the dedicated Network Status dashboard (/network) and switch between Arbitrum Sepolia, Robinhood Chain, and Ethereum Sepolia to inspect live block numbers, round-trip RPC latency, and verified contract addresses for each network.",
   },
   {
     id: "n-03",
     category: "NETWORK",
     question: "Where can I view the deployed contract addresses?",
     answer:
-      "All canonical contract addresses are listed on the Network Status page (/network) and on GitHub. You can verify them directly on Sepolia Etherscan at any time.",
+      "All canonical contract addresses are listed on the Network Status page (/network) with direct links to Arbiscan, Robinhood Explorer, and Etherscan.",
   },
 ];
 

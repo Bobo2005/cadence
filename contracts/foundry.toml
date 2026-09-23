@@ -15,6 +15,10 @@ remappings = [
 
 [rpc_endpoints]
 sepolia = "${RPC_URL}"
+arbitrum_sepolia = "${ARBITRUM_SEPOLIA_RPC_URL}"
+robinhood_testnet = "https://rpc.testnet.chain.robinhood.com"
 
 [etherscan]
 sepolia = { key = "${ETHERSCAN_API_KEY}", url = "https://api-sepolia.etherscan.io/api" }
+arbitrum_sepolia = { key = "${ARBISCAN_API_KEY}", url = "https://api-sepolia.arbiscan.io/api" }
+robinhood_testnet = { key = "any", url = "https://explorer.testnet.chain.robinhood.com/api" }

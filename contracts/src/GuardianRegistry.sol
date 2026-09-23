@@ -23,10 +23,25 @@ contract GuardianRegistry is ReentrancyGuard, EIP712, IGuardianRegistry {
     error DuplicateAttestation(address guardian);
     error InvalidSignature();
     error DeadlineExpired(uint256 deadline, uint256 current);
+    error SelfBackupNotAllowed();
+    error NotRegisteredBackup(address caller, address guardian);
+    error WaitingPeriodNotElapsed(uint256 elapsed, uint256 requiredPeriod);
+    error AttestationPeriodNotOpen();
 
     // --- Constants ---
     bytes32 public constant GUARDIAN_ATTESTATION_TYPEHASH =
         keccak256("GuardianAttestation(address vault,address guardian,uint256 cycle,uint256 deadline)");
+
+    /// @notice Default consensus threshold (M-of-N): 2-of-3 for resilient quorum (Guardian Resilience Fix 1)
+    uint256 public constant DEFAULT_THRESHOLD = 2;
+    /// @notice Default total guardian count (N): 3 guardians prevent single-point bricking
+    uint256 public constant DEFAULT_TOTAL_GUARDIANS = 3;
+
+    /// @notice Waiting period before a registered backup guardian can attest (7 days)
+    uint256 public constant BACKUP_WAITING_PERIOD = 7 days;
+
+    /// @notice Custom waiting period per vault for presentations/evaluations (0 defaults to BACKUP_WAITING_PERIOD).
+    mapping(address => uint256) public customBackupWaitingPeriod;
 
     // --- State Variables ---
 
@@ -41,6 +56,9 @@ contract GuardianRegistry is ReentrancyGuard, EIP712, IGuardianRegistry {
 
     /// @notice Tracks whether a guardian has attested in a given cycle: [vault][cycle][guardian] => bool.
     mapping(address => mapping(uint256 => mapping(address => bool))) public hasAttestedByCycle;
+
+    /// @notice Timestamp when the attestation window opened: [vault][cycle] => timestamp.
+    mapping(address => mapping(uint256 => uint256)) public override cycleFirstAttestationTime;
 
     /// @notice Authorized consensus contract mapped by vault address.
     mapping(address => address) public consensusContracts;
@@ -137,6 +155,11 @@ contract GuardianRegistry is ReentrancyGuard, EIP712, IGuardianRegistry {
         if (config.guardianRoot == bytes32(0)) revert RootNotCommitted(vault);
 
         uint256 currentCycle = attestationCycle[vault];
+        if (cycleFirstAttestationTime[vault][currentCycle] == 0) {
+            cycleFirstAttestationTime[vault][currentCycle] = block.timestamp;
+            emit AttestationPeriodOpened(vault, currentCycle, block.timestamp);
+        }
+
         if (hasAttestedByCycle[vault][currentCycle][guardian]) {
             revert DuplicateAttestation(guardian);
         }
@@ -216,7 +239,16 @@ contract GuardianRegistry is ReentrancyGuard, EIP712, IGuardianRegistry {
         address vault,
         address guardian,
         bytes32[] calldata proof
-    ) external view returns (bool) {
+    ) external view override returns (bool) {
+        return _verifyGuardian(vault, guardian, proof);
+    }
+
+    /// @dev Internal helper for guardian proof verification.
+    function _verifyGuardian(
+        address vault,
+        address guardian,
+        bytes32[] calldata proof
+    ) internal view returns (bool) {
         bytes32 root = guardianConfigs[vault].guardianRoot;
         if (root == bytes32(0)) return false;
 
@@ -224,9 +256,145 @@ contract GuardianRegistry is ReentrancyGuard, EIP712, IGuardianRegistry {
         return MerkleProofLib.verify(proof, root, leaf);
     }
 
+    /// @notice Verifies if a caller is an authorized guardian or an eligible registered backup.
+    /// @dev If caller == originalGuardian, verifies Merkle proof directly.
+    ///      If caller != originalGuardian, verifies caller is registered backup, originalGuardian is valid,
+    ///      and BACKUP_WAITING_PERIOD has elapsed since the attestation window opened.
+    /// @param vault The vault address.
+    /// @param caller The address attempting to act (guardian or backup).
+    /// @param originalGuardian The guardian slot being acted for.
+    /// @param proof Merkle proof for the original guardian.
+    function verifyGuardianOrBackup(
+        address vault,
+        address caller,
+        address originalGuardian,
+        bytes32[] calldata proof
+    ) external view override returns (bool) {
+        if (caller == originalGuardian) {
+            return _verifyGuardian(vault, caller, proof);
+        }
+
+        if (guardianBackupOf[originalGuardian] != caller) {
+            return false;
+        }
+
+        if (!_verifyGuardian(vault, originalGuardian, proof)) {
+            return false;
+        }
+
+        uint256 currentCycle = attestationCycle[vault];
+        uint256 windowStart = cycleFirstAttestationTime[vault][currentCycle];
+        if (windowStart == 0) {
+            return false;
+        }
+
+        uint256 requiredPeriod = getBackupWaitingPeriod(vault);
+        if (block.timestamp < windowStart + requiredPeriod) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /// @notice Opens the attestation period for the current cycle of a vault if not already open.
+    /// @param vault The vault address.
+    function openAttestationPeriod(address vault) external override {
+        GuardianConfig storage config = guardianConfigs[vault];
+        if (config.guardianRoot == bytes32(0)) revert RootNotCommitted(vault);
+        uint256 currentCycle = attestationCycle[vault];
+        if (cycleFirstAttestationTime[vault][currentCycle] == 0) {
+            cycleFirstAttestationTime[vault][currentCycle] = block.timestamp;
+            emit AttestationPeriodOpened(vault, currentCycle, block.timestamp);
+        }
+    }
+
     /// @notice Returns the full GuardianConfig for a vault.
     /// @param vault The vault address.
     function getGuardianConfig(address vault) external view returns (GuardianConfig memory) {
         return guardianConfigs[vault];
+    }
+
+    /// @notice Returns the effective backup waiting period for a vault.
+    function getBackupWaitingPeriod(address vault) public view override returns (uint256) {
+        uint256 custom = customBackupWaitingPeriod[vault];
+        return custom > 0 ? custom : BACKUP_WAITING_PERIOD;
+    }
+
+    /// @notice Sets a custom backup waiting period for demo/evaluation environments.
+    function setBackupWaitingPeriod(address vault, uint256 period) external override {
+        if (msg.sender != vaultOwners[vault] && msg.sender != vault) revert Unauthorized();
+        customBackupWaitingPeriod[vault] = period;
+    }
+
+    // --- Guardian Backup Nomination (Zero-Custodial-Trust) ---
+
+    /// @notice Designated backup guardian address per guardian.
+    /// @dev Maps a guardian address to their designated backup guardian.
+    ///      Follows zero-custodial-trust invariant: only msg.sender can set their own backup.
+    mapping(address => address) public override guardianBackupOf;
+
+    /// @notice Registers a backup guardian for msg.sender's guardian slot.
+    /// @dev STRICTLY GUARDIAN-CONTROLLED: msg.sender can ONLY register a backup for themselves.
+    ///      Neither the vault owner nor any other guardian has any ability to set or override
+    ///      another guardian's backup nomination (Constraint #2 from ARBITRUM-ARCHITECTURE.md).
+    /// @param backup The designated backup guardian address.
+    function registerGuardianBackup(address backup) external {
+        if (backup == address(0)) revert ZeroAddress();
+        if (backup == msg.sender) revert SelfBackupNotAllowed();
+
+        guardianBackupOf[msg.sender] = backup;
+
+        emit GuardianBackupRegistered(msg.sender, backup);
+    }
+
+    /// @notice Submits an attestation as a registered backup for an original guardian.
+    /// @dev Can only be called if:
+    ///      1. msg.sender is the registered backup for originalGuardian.
+    ///      2. The original guardian has NOT already attested in the current cycle.
+    ///      3. The original guardian is a valid member of the vault's guardian Merkle tree.
+    ///      4. The attestation period has opened and BACKUP_WAITING_PERIOD has elapsed.
+    /// @param vault The vault contract address.
+    /// @param originalGuardian The original guardian whose slot is being filled.
+    /// @param proof The Merkle proof for the originalGuardian.
+    function attestAsBackup(
+        address vault,
+        address originalGuardian,
+        bytes32[] calldata proof
+    ) external override nonReentrant {
+        if (guardianBackupOf[originalGuardian] != msg.sender) {
+            revert NotRegisteredBackup(msg.sender, originalGuardian);
+        }
+
+        GuardianConfig storage config = guardianConfigs[vault];
+        if (config.guardianRoot == bytes32(0)) revert RootNotCommitted(vault);
+
+        uint256 currentCycle = attestationCycle[vault];
+        if (hasAttestedByCycle[vault][currentCycle][originalGuardian]) {
+            revert DuplicateAttestation(originalGuardian);
+        }
+
+        if (!_verifyGuardian(vault, originalGuardian, proof)) {
+            revert InvalidGuardianProof();
+        }
+
+        uint256 windowStart = cycleFirstAttestationTime[vault][currentCycle];
+        if (windowStart == 0) {
+            revert AttestationPeriodNotOpen();
+        }
+        uint256 requiredPeriod = getBackupWaitingPeriod(vault);
+        if (block.timestamp < windowStart + requiredPeriod) {
+            revert WaitingPeriodNotElapsed(block.timestamp - windowStart, requiredPeriod);
+        }
+
+        hasAttestedByCycle[vault][currentCycle][originalGuardian] = true;
+        config.attestationCount++;
+
+        emit BackupGuardianAttested(vault, originalGuardian, msg.sender, config.attestationCount);
+        emit GuardianAttested(vault, originalGuardian, config.attestationCount);
+
+        if (config.attestationCount >= config.threshold && !config.thresholdReached) {
+            config.thresholdReached = true;
+            emit GuardianThresholdMet(vault, config.attestationCount, config.threshold);
+        }
     }
 }

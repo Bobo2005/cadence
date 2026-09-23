@@ -38,6 +38,7 @@ contract InheritanceVaultTest is Test {
     MockERC20 internal usdc;
     MockERC20 internal usdt;
     MockERC20 internal wbtc;
+    MockERC20 internal usdg;
     MockERC20 internal unwhitelistedToken;
 
     address internal owner = address(0xA11CE);
@@ -68,13 +69,15 @@ contract InheritanceVaultTest is Test {
         usdc = new MockERC20("USD Coin", "USDC", 6);
         usdt = new MockERC20("Tether USD", "USDT", 6);
         wbtc = new MockERC20("Wrapped BTC", "WBTC", 8);
+        usdg = new MockERC20("Paxos Global Dollar", "USDG", 6);
         unwhitelistedToken = new MockERC20("Random Token", "RND", 18);
 
-        // Prepare whitelist array
-        address[] memory initialTokens = new address[](3);
+        // Prepare whitelist array (ETH, USDC, USDT, WBTC, USDG)
+        address[] memory initialTokens = new address[](4);
         initialTokens[0] = address(usdc);
         initialTokens[1] = address(usdt);
         initialTokens[2] = address(wbtc);
+        initialTokens[3] = address(usdg);
 
         // Deploy vault delegating consensus to ProofOfLifeConsensus
         vault = new InheritanceVault(owner, INITIAL_INTERVAL, initialTokens, address(consensus));
@@ -94,6 +97,7 @@ contract InheritanceVaultTest is Test {
         usdc.mint(depositor, 100_000 * 1e6);
         usdt.mint(depositor, 100_000 * 1e6);
         wbtc.mint(depositor, 10 * 1e8);
+        usdg.mint(depositor, 100_000 * 1e6);
         unwhitelistedToken.mint(depositor, 1000 * 1e18);
     }
 
@@ -109,6 +113,7 @@ contract InheritanceVaultTest is Test {
         assertEq(vault.isWhitelistedToken(address(usdc)), true, "USDC should be whitelisted");
         assertEq(vault.isWhitelistedToken(address(usdt)), true, "USDT should be whitelisted");
         assertEq(vault.isWhitelistedToken(address(wbtc)), true, "WBTC should be whitelisted");
+        assertEq(vault.isWhitelistedToken(address(usdg)), true, "USDG should be whitelisted");
         assertEq(vault.isWhitelistedToken(address(unwhitelistedToken)), false, "Random token should not be whitelisted");
         assertFalse(vault.isInactive(), "Vault should not be inactive initially");
         assertEq(vault.timeUntilInactive(), INITIAL_INTERVAL, "Time until inactive should equal interval");
@@ -224,6 +229,23 @@ contract InheritanceVaultTest is Test {
 
         assertEq(vault.totalDeposited(address(wbtc)), amount);
         assertEq(vault.getVaultBalance(address(wbtc)), amount);
+    }
+
+    function test_depositToken_usdg_success() public {
+        uint256 amount = 5000 * 1e6; // 5,000 USDG
+
+        vm.startPrank(depositor);
+        usdg.approve(address(vault), amount);
+
+        vm.expectEmit(true, true, false, true);
+        emit Deposit(depositor, address(usdg), amount);
+
+        vault.depositToken(address(usdg), amount);
+        vm.stopPrank();
+
+        assertEq(vault.totalDeposited(address(usdg)), amount, "totalDeposited mismatch for USDG");
+        assertEq(vault.getVaultBalance(address(usdg)), amount, "Vault USDG balance mismatch");
+        assertEq(usdg.balanceOf(address(vault)), amount, "Actual USDG token balance mismatch");
     }
 
     function test_depositToken_unwhitelisted_reverts() public {

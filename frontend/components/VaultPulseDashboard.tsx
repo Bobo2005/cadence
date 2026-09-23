@@ -497,7 +497,7 @@ export default function VaultPulseDashboard({
 
           <div className="flex items-center justify-between text-xs text-[#5F6368] pt-2 border-t border-[#E8EAED]">
             <span>≈ $41,250.00 USD Estimated</span>
-            <span className="font-mono text-[#22A06B]">ETH · USDC · cbBTC</span>
+            <span className="font-mono text-[#22A06B]">ETH · USDC · USDG · WBTC</span>
           </div>
         </div>
 
@@ -637,7 +637,7 @@ export default function VaultPulseDashboard({
             PROTECTED ASSETS
           </div>
           <div className="text-xl font-bold font-mono text-[#111111]">
-            ETH, USDC, cbBTC
+            ETH, USDC, USDG, WBTC
           </div>
           <div className="text-[11px] text-[#5F6368]">
             Non-custodial smart locker

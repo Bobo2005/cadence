@@ -20,9 +20,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cadence — Crypto Inheritance Protocol",
+  title: "Cadence — Regulated Family Wealth & Inheritance Protocol",
   description:
-    "Privacy-preserving multi-signal crypto inheritance. Proof-of-Life Consensus: your assets reach your heirs, even if you can't.",
+    "Cadence secures regulated, yield-bearing family wealth for the next generation of retail investors — not speculative crypto for DeFi natives.",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

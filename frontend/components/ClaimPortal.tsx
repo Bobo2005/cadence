@@ -1043,16 +1043,24 @@ export default function ClaimPortal() {
 
             {/* Cadence Stream Display (with localized numeric animation) */}
             {settlementMode === "stream" && (
-              <div className="my-4">
+              <div className="my-4 space-y-2">
                 <LiveStreamCounter
                   ratePerSecText="0.00000231 ETH / SEC"
                   initialReceivedEth={0.0184}
                   ratePerSecEth={0.00000231}
                   isStreaming={true}
                 />
-                <p className="text-[11px] text-[#5F6368] font-mono mt-2">
-                  Smart Trust Yield accrues continuously. Tokens stream directly to your wallet per second.
-                </p>
+                <div className="p-3.5 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] text-xs font-mono text-[#5F6368] space-y-1">
+                  <div className="font-bold text-[#111111]">
+                    Lending Yield Engine (No Cross-Chain Dependency)
+                  </div>
+                  <p>
+                    Cadence Streams deposits unvested inheritance into Aave v3&apos;s live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG&apos;s own published yield (7.00% Robinhood Earn APY). Assets are lent, never staked.
+                  </p>
+                  <p className="text-[11px] text-[#137333] font-semibold pt-1">
+                    🛡 Anti-Drainer Protection: If your wallet is compromised, designated guardians or registered backups can pause and redirect remaining streams to cold storage.
+                  </p>
+                </div>
               </div>
             )}
 

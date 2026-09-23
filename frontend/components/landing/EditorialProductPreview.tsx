@@ -8,25 +8,25 @@ export default function EditorialProductPreview() {
       number: "1",
       title: "Deposit into your self-custodial locker",
       description:
-        "A dedicated smart contract vault holding your ETH and tokens. You retain 100% control, private ownership, and withdrawal rights at all times.",
+        "A dedicated smart contract vault holding your native ETH, Paxos USDG, or stablecoins on Arbitrum Sepolia and Robinhood Chain. You retain 100% control, private ownership, and withdrawal rights at all times.",
     },
     {
       number: "2",
-      title: "Configure allocations client-side",
+      title: "Configure allocations & Cadence Streams",
       description:
-        "Designate heir addresses and percentage shares. All allocations are encrypted in your browser using ECIES before committing to Ethereum.",
+        "Designate heir addresses, shares, and streaming schedules. Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield.",
     },
     {
       number: "3",
-      title: "Designate zero-knowledge guardians",
+      title: "Designate 2-of-3 Resilient Guardians",
       description:
-        "Select trusted guardians who only attest to inactivity status. Guardians cannot see your vault balance, asset types, or heir identities.",
+        "Designate trusted guardians who attest to inactivity status. Guardian Resilience includes non-custodial backup nomination to eliminate orphan lockouts, with zero access to balances or heir identities.",
     },
     {
       number: "4",
-      title: "Set heartbeat interval, then walk away",
+      title: "Set heartbeat interval & Stylus settlement",
       description:
-        "The moment inactivity is detected and guardians confirm, a 72-hour reversible contest window protects against premature execution.",
+        "The moment inactivity is confirmed, a 72-hour reversible contest window opens. Final settlement executes autonomously via high-performance Arbitrum Stylus Rust WASM Merkle verification.",
     },
   ];
 

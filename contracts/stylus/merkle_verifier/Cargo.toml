@@ -1,0 +1,27 @@
+[package]
+name = "stylus-merkle-verifier"
+version = "0.1.0"
+edition = "2021"
+description = "Arbitrum Stylus WASM Merkle Proof Verifier for Cadence Protocol"
+authors = ["Cadence Protocol"]
+license = "MIT"
+
+[dependencies]
+stylus-sdk = "0.6.0"
+alloy-primitives = { version = "=0.7.6", default-features = false }
+alloy-sol-types = { version = "=0.7.6", default-features = false }
+tiny-keccak = { version = "2.0.2", features = ["keccak"] }
+
+[features]
+default = []
+export-abi = ["stylus-sdk/export-abi"]
+
+[lib]
+crate-type = ["lib", "cdylib"]
+
+[profile.release]
+codegen-units = 1
+opt-level = "z"
+lto = true
+panic = "abort"
+strip = true

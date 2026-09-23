@@ -25,7 +25,8 @@ import {
   BENEFICIARY_SMART_ACCOUNT_ABI,
   BENEFICIARY_ACCOUNT_FACTORY_ABI,
   VAULT_FACTORY_ABI,
-} from "../abi";
+} from "../abi/index.ts";
+
 
 export const CONTRACT_ADDRESSES = {
   vault: (process.env.NEXT_PUBLIC_VAULT_ADDRESS || "0x043d02c39B86CAd83E1Bf05728D32d24f6289e74") as Address,
@@ -39,6 +40,50 @@ export const CONTRACT_ADDRESSES = {
   beneficiaryFactory: (process.env.NEXT_PUBLIC_FACTORY_ADDRESS || "0x30489c0f3566AF47b71867bc992408B91E500823") as Address,
   vaultFactory: (process.env.NEXT_PUBLIC_VAULT_FACTORY_ADDRESS || "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0") as Address,
 } as const;
+
+export const MULTI_CHAIN_NETWORKS = {
+  arbitrumSepolia: {
+    chainId: 421614,
+    name: "Arbitrum Sepolia",
+    shortName: "Arbitrum",
+    tagline: "Nitro L2 Rollup · Stylus & Aave v3 Live",
+    rpcUrl: "https://sepolia-rollup.arbitrum.io/rpc",
+    explorerUrl: "https://sepolia.arbiscan.io",
+    vault: "0x07f9e3f0c0bb2d45300711d4f425917fa493525d" as Address,
+    usdg: "0x75ef6c3f8cfa9410c6d45924d96aa5b107f166fb" as Address,
+    consensus: "0xe340662aad9cce18ffba38449e585fd8d7c78ae1" as Address,
+    guardianRegistry: "0xe09c19696990fc99c92f8eba070c36ba51cdade7" as Address,
+    stealthRegistry: "0x583eC2de840034478a61EF572cea2904bFD8671E" as Address,
+  },
+  robinhoodTestnet: {
+    chainId: 46630,
+    name: "Robinhood Chain Testnet",
+    shortName: "Robinhood",
+    tagline: "Arbitrum Orbit Stylus L2 · Paxos USDG Native",
+    rpcUrl: "https://rpc.testnet.chain.robinhood.com",
+    explorerUrl: "https://explorer.testnet.chain.robinhood.com",
+    vault: "0x65d7646e9da74e4d537b3f11ebc32acf3a4fe38f" as Address,
+    usdg: "0x499fc59f8847f4922850e426fbf9e82d2beaf5e3" as Address,
+    consensus: "0x30454c1dc8d230665b2b6693c11937cc8af7f18b" as Address,
+    guardianRegistry: "0x2d3c214c54a01c13a1e17f1d4112ea95bb3549ee" as Address,
+    stealthRegistry: "0x583eC2de840034478a61EF572cea2904bFD8671E" as Address,
+  },
+  ethereumSepolia: {
+    chainId: 11155111,
+    name: "Ethereum Sepolia",
+    shortName: "Sepolia",
+    tagline: "Ethereum L1 Reference Deployment",
+    rpcUrl: "https://ethereum-sepolia-rpc.publicnode.com",
+    explorerUrl: "https://sepolia.etherscan.io",
+    vault: "0x043d02c39B86CAd83E1Bf05728D32d24f6289e74" as Address,
+    usdg: "0x0000000000000000000000000000000000000000" as Address,
+    consensus: "0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1" as Address,
+    guardianRegistry: "0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863" as Address,
+    stealthRegistry: "0x583eC2de840034478a61EF572cea2904bFD8671E" as Address,
+  },
+} as const;
+
+export type SupportedNetworkKey = keyof typeof MULTI_CHAIN_NETWORKS;
 
 export const CADENCE_VAULT_ADDRESS = CONTRACT_ADDRESSES.vault;
 export const DEMO_VAULT_ADDRESS = CONTRACT_ADDRESSES.demoVault;

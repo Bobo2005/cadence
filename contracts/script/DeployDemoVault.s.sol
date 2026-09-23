@@ -25,6 +25,7 @@ contract DeployDemoVault is Script {
     // Demo Guardian Personas with correct EIP-55 checksums
     address public constant GUARDIAN_1 = 0x81C3D582F3473F71C4C8bF394E1d32BA218991a2;
     address public constant GUARDIAN_2 = 0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0;
+    address public constant GUARDIAN_3 = 0x90F79bf6EB2c4f870365E785982E1f101E93b906;
 
     // Demo Beneficiary Personas (Alice 40%, Bob 60%)
     address public constant BENEFICIARY_ALICE = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8;
@@ -72,7 +73,7 @@ contract DeployDemoVault is Script {
         );
         console2.log("Deployed Demo InheritanceVault at:", address(demoVault));
 
-        // 4. Commit Demo Guardian Merkle Root (2-of-2 threshold met by Guardian 1 & 2)
+        // 4. Commit Demo Guardian Merkle Root (2-of-3 threshold met by Guardians 1, 2, and 3)
         // Sets deployer as authorized vaultOwner in GuardianRegistry
         _commitDemoGuardians(guardianRegistry, address(demoVault));
 
@@ -88,11 +89,19 @@ contract DeployDemoVault is Script {
         // 7. Commit Demo Allocation Merkle Root (Alice 40%, Bob 60%)
         _commitDemoAllocations(demoVault);
 
-        // 8. Deposit initial ETH capital if funded
-        uint256 depositAmount = vm.envOr("DEMO_DEPOSIT_WEI", uint256(0.05 ether));
+        // 8. Configure Cadence Streams for demo interval (default 180s duration, 10% upfront, 4.2% APY)
+        uint256 streamDuration = vm.envOr("DEMO_STREAM_DURATION", uint256(180));
+        uint256 streamInitialBps = vm.envOr("DEMO_STREAM_INITIAL_BPS", uint256(1000));
+        uint256 streamYieldBps = vm.envOr("DEMO_STREAM_YIELD_BPS", uint256(420));
+        demoVault.setStreamingConfig(streamDuration, streamInitialBps, streamYieldBps);
+        console2.log("Configured Cadence Streams duration (sec):", streamDuration);
+        console2.log("Configured Cadence Streams yield (bps):   ", streamYieldBps);
+
+        // 9. Deposit initial ETH capital if funded
+        uint256 depositAmount = vm.envOr("DEMO_DEPOSIT_WEI", uint256(0.002 ether));
         if (deployer.balance >= depositAmount && depositAmount > 0) {
             demoVault.depositETH{value: depositAmount}();
-            console2.log("Funded Demo Vault with:", depositAmount / 1e18, "ETH");
+            console2.log("Funded Demo Vault with:", depositAmount, "wei");
         }
 
         vm.stopBroadcast();
@@ -132,12 +141,16 @@ contract DeployDemoVault is Script {
     function _commitDemoGuardians(GuardianRegistry registry, address vault) internal {
         bytes32 gLeaf1 = MerkleProofLib.computeGuardianLeaf(GUARDIAN_1);
         bytes32 gLeaf2 = MerkleProofLib.computeGuardianLeaf(GUARDIAN_2);
-        bytes32 guardianRoot = gLeaf1 < gLeaf2
+        bytes32 gLeaf3 = MerkleProofLib.computeGuardianLeaf(GUARDIAN_3);
+        bytes32 parent12 = gLeaf1 < gLeaf2
             ? keccak256(abi.encodePacked(gLeaf1, gLeaf2))
             : keccak256(abi.encodePacked(gLeaf2, gLeaf1));
+        bytes32 guardianRoot = parent12 < gLeaf3
+            ? keccak256(abi.encodePacked(parent12, gLeaf3))
+            : keccak256(abi.encodePacked(gLeaf3, parent12));
 
-        registry.commitGuardianRoot(vault, guardianRoot, 2, 2);
-        console2.log("Committed Guardian Merkle Root: 2-of-2 threshold met by Guardian 1 & 2");
+        registry.commitGuardianRoot(vault, guardianRoot, 2, 3);
+        console2.log("Committed Guardian Merkle Root: 2-of-3 threshold met by Guardians 1, 2, and 3");
     }
 
     function _commitDemoAllocations(InheritanceVault vault) internal {

@@ -8,7 +8,7 @@
  *   1. Deposit ETH/Tokens into InheritanceVault
  *   2. Owner records heartbeat (Pimlico ERC-4337 gasless checkIn)
  *   3. Owner misses subsequent check-ins (Inactivity timeout expires: isTimeoutExpired == true)
- *   4. Guardians 1 & 2 submit Merkle attestations to GuardianRegistry (threshold 2-of-2 met)
+ *   4. Guardians 1 & 2 submit Merkle attestations to GuardianRegistry (threshold 2-of-3 met)
  *   5. triggerClaimPending opens the 72-hour contest window (ECG transitions Active -> Erratic)
  *   6. Owner signs EIP-712 CancelClaim off-chain with stealth private key
  *   7. Relayer broadcasts cancelClaimWithSig (zero gas linkage, Constraint #1)
@@ -127,7 +127,7 @@ async function runSepoliaLifecycleVerification() {
   console.log(`      Guardian 1 Attestation calldata: ${g1Calldata.slice(0, 34)}...`);
   console.log(`      Guardian 2 Attestation calldata: ${g2Calldata.slice(0, 34)}...`);
   const thresholdMet = true;
-  assert(thresholdMet === true, "Guardian threshold 2-of-2 confirmed met");
+  assert(thresholdMet === true, "Guardian threshold 2-of-3 confirmed met");
 
   // Step 5: Open Contest Window
   console.log("\n[A.5] ProofOfLifeConsensus.triggerClaimPending() initiates 72-hour challenge period");

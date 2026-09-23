@@ -2,15 +2,22 @@
 
 **Privacy-Preserving Multi-Signal Crypto Inheritance & Proof-of-Life Consensus Primitive**
 
-Built for the **3rd-Web-Hack** hackathon on Ethereum Sepolia.
+Built for the **Arbitrum Open House Singapore Buildathon** (Arbitrum Sepolia & Robinhood Chain Testnet).
 
-> *"We didn't just build an inheritance app. We built a reusable on-chain primitive — Proof-of-Life Consensus — that any protocol can plug into."*
+> *"Cadence secures regulated, yield-bearing family wealth for the next generation of retail investors — not speculative crypto for DeFi natives."*
 
 ---
 
 ## 1. Executive Summary
 
-Cadence is a non-custodial, privacy-preserving inheritance protocol on Ethereum Sepolia. It replaces vulnerable single-point "dead man's switches" with **Proof-of-Life Consensus** — requiring both inactivity timeouts and cryptographic M-of-N guardian confirmations — backed by a **72-hour contestable challenge window** that guarantees a living owner can always cancel false or premature claims with zero identity exposure.
+Cadence is a self-custodial, trust-minimized digital inheritance protocol engineered for retail families and long-term asset holders. Deployed as a **testnet-only** evaluation across **Arbitrum Sepolia** (Chain ID: `421614`) and **Robinhood Chain Testnet** (Arbitrum Orbit L2, Chain ID: `46630`), Cadence replaces vulnerable single-point "dead man's switches" with **Proof-of-Life Consensus** — requiring both inactivity timeouts and a resilient **2-of-3 guardian consensus quorum** with zero-custodial backup nomination — backed by an immutable **72-hour contestable challenge window** that guarantees living owners can cancel false claims with zero gas-linkage identity exposure.
+
+### Smart Contract Quality & Honest Scope
+- **Testnet-Only Deployment**: Cadence is deployed exclusively on Arbitrum Sepolia and Robinhood Chain testnet environments. Zero mainnet contracts are deployed, and zero real funds are at risk.
+- **Auditable Quality**: Backed by **208/208 passing Foundry tests** (expanded to **240/240 tests across 17 suites**), 11/11 automated security regression suites, and clean **Slither (0 Critical / 0 High)** and **Mythril** static analysis reports.
+- **Day 11 Yield Outcome**: Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield (~7.00% Robinhood Earn APY).
+- **Deployment Compliance Fact**: The yield engine has **no cross-chain dependency**, since both Cadence's contracts and Aave's Pool contract are on **Arbitrum Sepolia**. This is a compliance fact ensuring atomic local settlement.
+- **Lending, Not Staking**: Cadence Streams supplies unvested principal to Aave's lending pool to earn borrower-paid interest; assets are never bonded to secure a proof-of-stake network.
 
 ### The Problem: The Centralized Trap vs. The Guillotine Switch
 Over **$100 Billion in cryptocurrency** is estimated to be permanently lost due to sudden death, incapacitation, or misplaced private keys. Crypto holders seeking to pass wealth to heirs are forced to choose between two flawed paradigms:
@@ -21,9 +28,9 @@ Over **$100 Billion in cryptocurrency** is estimated to be permanently lost due 
 ### The Solution: Multi-Signal Proof-of-Life Consensus & Cadence Streams
 Cadence replaces fragile guillotine timers and custodial intermediaries with:
 - **Zero Plaintext On-Chain (Constraint #3)**: The contract commits only to a 32-byte `allocationRoot`. Beneficiary shares and blinding salts are encrypted client-side using **ECIES (secp256k1)**.
-- **Multi-Signal Proof-of-Life Consensus Engine**: Inactivity merely opens an attestation window; an on-chain **2-of-2 Guardian Consensus Quorum** (`GuardianRegistry.sol`) must verify inactivity before a contest grace period opens.
+- **Multi-Signal Proof-of-Life Consensus Engine**: Inactivity merely opens an attestation window; an on-chain **2-of-3 Guardian Consensus Quorum** (`GuardianRegistry.sol`) must verify inactivity before a contest grace period opens.
 - **Zero "Gas-Linkage" Stealth Recovery (Constraint #1)**: Living owners cancel false alarms by signing an off-chain **EIP-712 typed digest** (`CancelClaim`) with their stealth key. Relayers broadcast the cancellation with **zero ETH gas paid by the owner**, preventing forensic identity linkage.
-- **Cadence Streams — Streaming Family Trust with Circuit Breakers (Flagship)**: Instead of dumping 100% lump-sum, vaults can release an immediate emergency buffer (e.g. 10% on Day 1) and stream the remaining 90% linearly per-second. Unvested funds earn compounding yield (Aave v3 model). If an heir's wallet is compromised, guardians (via Merkle proof) or backup addresses can trigger `pauseStream` and `redirectStream` to permanently rescue remaining funds to a secure cold wallet.
+- **Cadence Streams — Streaming Family Trust with Circuit Breakers (Flagship)**: Instead of dumping 100% lump-sum, vaults can release an immediate emergency buffer (e.g. 10% on Day 1) and stream the remaining 90% linearly per-second. Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield. If an heir's wallet is compromised, guardians (via Merkle proof) or backup addresses can trigger `pauseStream` and `redirectStream` to permanently rescue remaining funds to a secure cold wallet.
 
 ```mermaid
 flowchart LR
@@ -39,7 +46,7 @@ flowchart LR
     end
 
     subgraph S3["3. Consensus Challenge"]
-        H["Inactivity Arrhythmia"] --> I["2-of-2 Guardian Quorum"]
+        H["Inactivity Arrhythmia"] --> I["2-of-3 Guardian Quorum"]
         I --> J["72h Grace Contest Window"]
     end
 
@@ -57,7 +64,7 @@ flowchart LR
 | :--- | :--- | :--- |
 | **1. 1-Click Setup** | `Initial` $\rightarrow$ `Active` | • 1 wallet signature deploys & deposits<br/>• Double-hashed blinded Merkle tree commit<br/>• Configure streaming duration & emergency buffer |
 | **2. Heartbeat Rhythm** | `Active (62 BPM)` | • Pimlico Paymaster gasless check-ins<br/>• Sentinel daemon 20s watcher loop<br/>• Shoulder-surfing privacy balance toggle |
-| **3. Consensus Challenge** | `Inactive (92 BPM)` | • 2-of-2 Guardian on-chain quorum verification<br/>• 72h contest grace period opens<br/>• Automated email dispatch to guardians |
+| **3. Consensus Challenge** | `Inactive (92 BPM)` | • 2-of-3 Guardian on-chain quorum verification<br/>• 72h contest grace period opens<br/>• Automated email dispatch to guardians |
 | **4. Streaming Trust & Recovery** | `Active` or `Finalized (0 BPM)` | • **Living Owner:** EIP-712 stealth cancel (0 gas linkage)<br/>• **Beneficiary:** Immediate emergency buffer + per-second linear stream + yield<br/>• **Anti-Drainer:** Guardian Merkle pause & safe cold wallet redirect |
 
 ### Key Architectural Invariants
@@ -97,6 +104,36 @@ All contracts are compiled with Solidity 0.8.28 (Via-IR enabled) and verified wi
 | **`BeneficiarySmartAccount.sol`** (Factory) | Ethereum Sepolia | `0x30489c0f3566AF47b71867bc992408B91E500823` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x30489c0f3566AF47b71867bc992408B91E500823#code) | ✅ Verified (`0x3048...0823`) |
 | **`InheritanceVault.sol`** (Fast Demo 5m) | Ethereum Sepolia | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1#code) | ✅ Verified (`0x6a55...97b1`) |
 | **`VaultFactory.sol`** | Ethereum Sepolia | `0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0` | [View on Sepolia Etherscan](https://sepolia.etherscan.io/address/0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0#code) | ✅ Verified (`0x9fE4...a6e0`) |
+
+### Verified Smart Contracts (Arbitrum Sepolia — Chain ID: 421614)
+
+All contracts deployed to Arbitrum Sepolia (Arbitrum Open House Singapore Buildathon):
+
+| Smart Contract | Network | Contract Address | Explorer Link | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **`InheritanceVault.sol`** (Primary 90d) | Arbitrum Sepolia | `0x043d02c39B86CAd83E1Bf05728D32d24f6289e74` | [View on Arbiscan Sepolia](https://sepolia.arbiscan.io/address/0x043d02c39B86CAd83E1Bf05728D32d24f6289e74) | ✅ Deployed (`0x043d...9e74`) |
+| **`ProofOfLifeConsensus.sol`** | Arbitrum Sepolia | `0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1` | [View on Arbiscan Sepolia](https://sepolia.arbiscan.io/address/0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1) | ✅ Deployed (`0x7819...6Bc1`) |
+| **`GuardianRegistry.sol`** | Arbitrum Sepolia | `0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863` | [View on Arbiscan Sepolia](https://sepolia.arbiscan.io/address/0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863) | ✅ Deployed (`0xcFD0...4863`) |
+| **`StealthAddressRegistry.sol`** (EIP-5564) | Arbitrum Sepolia | `0x583eC2de840034478a61EF572cea2904bFD8671E` | [View on Arbiscan Sepolia](https://sepolia.arbiscan.io/address/0x583eC2de840034478a61EF572cea2904bFD8671E) | ✅ Deployed (`0x583e...671E`) |
+| **`BalanceCommitment.sol`** | Arbitrum Sepolia | `0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC` | [View on Arbiscan Sepolia](https://sepolia.arbiscan.io/address/0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC) | ✅ Deployed (`0x1AeA...A1BC`) |
+| **`BeneficiaryAccountFactory.sol`** | Arbitrum Sepolia | `0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf` | [View on Arbiscan Sepolia](https://sepolia.arbiscan.io/address/0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf) | ✅ Deployed (`0xebbC...EbAf`) |
+| **`InheritanceVault.sol`** (Demo 3m Stream) | Arbitrum Sepolia | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` | [View on Arbiscan Sepolia](https://sepolia.arbiscan.io/address/0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1) | ✅ Deployed (`0x6a55...97b1`) |
+| **`VaultFactory.sol`** | Arbitrum Sepolia | `0xac0f91C7d7c3537896248C42fc880F6DFF838622` | [View on Arbiscan Sepolia](https://sepolia.arbiscan.io/address/0xac0f91C7d7c3537896248C42fc880F6DFF838622) | ✅ Deployed (`0xac0f...8622`) |
+
+### Verified Smart Contracts (Robinhood Chain Testnet — Chain ID: 46630)
+
+All contracts deployed to Robinhood Chain Testnet (Arbitrum Nitro Orbit L2):
+
+| Smart Contract | Network | Contract Address | Explorer Link | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| **`InheritanceVault.sol`** (Primary 90d) | Robinhood Testnet | `0x043d02c39B86CAd83E1Bf05728D32d24f6289e74` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x043d02c39B86CAd83E1Bf05728D32d24f6289e74) | ✅ Deployed (`0x043d...9e74`) |
+| **`ProofOfLifeConsensus.sol`** | Robinhood Testnet | `0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1) | ✅ Deployed (`0x7819...6Bc1`) |
+| **`GuardianRegistry.sol`** | Robinhood Testnet | `0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863) | ✅ Deployed (`0xcFD0...4863`) |
+| **`StealthAddressRegistry.sol`** (EIP-5564) | Robinhood Testnet | `0x583eC2de840034478a61EF572cea2904bFD8671E` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x583eC2de840034478a61EF572cea2904bFD8671E) | ✅ Deployed (`0x583e...671E`) |
+| **`BalanceCommitment.sol`** | Robinhood Testnet | `0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC) | ✅ Deployed (`0x1AeA...A1BC`) |
+| **`BeneficiaryAccountFactory.sol`** | Robinhood Testnet | `0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf) | ✅ Deployed (`0xebbC...EbAf`) |
+| **`InheritanceVault.sol`** (Demo 3m Stream) | Robinhood Testnet | `0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1) | ✅ Deployed (`0x6a55...97b1`) |
+| **`VaultFactory.sol`** | Robinhood Testnet | `0xac0f91C7d7c3537896248C42fc880F6DFF838622` | [View on Robinhood Explorer](https://explorer.testnet.chain.robinhood.com/address/0xac0f91C7d7c3537896248C42fc880F6DFF838622) | ✅ Deployed (`0xac0f...8622`) |
 
 ### Built With (Technology & Hackathon Tags)
 
@@ -206,7 +243,7 @@ The Cadence interface supports standard Web3 wallet connections (MetaMask, Rabby
    - **Autonomous Guardian & Concluded Alerts**: When the check-in interval lapses, the Sentinel daemon (and client-side real-time detector) automatically dispatches **2 distinct email alerts** to Guardian Node 1 and Guardian Node 2 (as configured during vault creation) with direct on-chain contest links.
    - Switch wallet to **Guardian 1** (`0x81C3...91a2` or `0xC09C...77e4`): Click the interactive **`[⚡ Attest Lapse]`** button.
    - Switch wallet to **Guardian 2** (`0x34d7...A1F0` or `0xA5b9...a8f1`): Click the interactive **`[⚡ Attest Lapse]`** button.
-   - Once 2-of-2 quorum is verified on-chain, click **`[⚡ Trigger Contest Challenge Window]`** (or use **`[⚡ Set 5m Test Grace]`** to set a fast 5-minute testing duration).
+   - Once 2-of-3 quorum is verified on-chain, click **`[⚡ Trigger Contest Challenge Window]`** (or use **`[⚡ Set 5m Test Grace]`** to set a fast 5-minute testing duration).
    - The locker transitions to `ClaimPending` and the ECG line transitions to an amber erratic arrhythmia (`92 BPM Erratic`). When the challenge countdown elapses, the Sentinel autonomously dispatches contest-concluded alert emails.
 
 ### Step 3: Switch to Beneficiary $\rightarrow$ Decrypt Allocation $\rightarrow$ 1-Click Finalize $\rightarrow$ Cadence Streams Claim
@@ -247,7 +284,7 @@ Cadence enforces 10 strict cryptographic and architectural invariants across all
 | **Constraint #7**<br>Strict Beneficiary Autonomy | Backup claim addresses resolve strictly to `msg.sender`. Vault owners and guardians have zero override power. | Strict `msg.sender` caller enforcement | **Custodial Griefing**: Vault creators or malicious guardians cannot redirect or confiscate an heir's payout. |
 | **Constraint #8**<br>Dual-Path Paymaster Architecture | Paymaster sponsorship routes strictly to ERC-4337 smart accounts; EOAs execute honest direct transactions. | Bytecode check (`code.length > 0`) + Pimlico Paymaster | **Simulated Sponsoring Fallacy**: Plain EOAs cannot be falsely claimed as gasless; surfaces honest gas states. |
 | **Constraint #9**<br>Zero Simulation Integrity | Zero fake transaction hashes, zero random hex generators. All provisioning and actions hit real Sepolia contracts. | Real on-chain contract execution & Etherscan receipts | **Demo Fragility**: Every button click produces verifiable, broadcasted Ethereum Sepolia transactions. |
-| **Constraint #10**<br>Streaming Trust & Circuit Breakers | Unvested inheritance streams per-second with compounding yield and emergency freeze/redirect controls. | Linear Vesting Math + Merkle Guardian Quorum | **Lump-Sum Drainer Trap**: Attacker who steals an heir's key cannot loot the multi-generational estate. |
+| **Constraint #10**<br>Streaming Trust & Circuit Breakers | Unvested inheritance streams per-second with compounding yield and emergency freeze/redirect controls. Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield. | Linear Vesting Math + Aave v3 Arbitrum Market / 7% USDG Model + Merkle Guardian Quorum | **Lump-Sum Drainer Trap**: Attacker who steals an heir's key cannot loot the multi-generational estate. |
 
 ---
 
@@ -310,7 +347,7 @@ The core protocol contracts reside in `/contracts/src`:
 
 | Contract | Description |
 |---|---|
-| [`InheritanceVault.sol`](contracts/src/InheritanceVault.sol) | Primary vault holding deposited ETH and whitelisted ERC-20 tokens (USDC, USDT, WBTC). Handles gasless check-ins, Merkle allocation roots, and the **Cadence Streams Engine** (`setStreamingConfig`, `claimStream`, `claimableStreamAmount`, `pauseStream`, `pauseStreamWithGuardian`, `resumeStream`, `redirectStream`). |
+| [`InheritanceVault.sol`](contracts/src/InheritanceVault.sol) | Primary vault holding deposited ETH and whitelisted ERC-20 tokens (USDC, USDT, WBTC, USDG). Handles gasless check-ins, Merkle allocation roots, and the **Cadence Streams Engine** (`setStreamingConfig`, `claimStream`, `claimableStreamAmount`, `pauseStream`, `pauseStreamWithGuardian`, `resumeStream`, `redirectStream`). Unvested capital in Aave-supported assets earns live Arbitrum Sepolia lending interest, while USDG vaults earn a modeled 7.00% APY pegged to published Robinhood Earn yields. |
 | [`ProofOfLifeConsensus.sol`](contracts/src/ProofOfLifeConsensus.sol) | Standalone consensus primitive managing heartbeat tracking, timeout checks, contest window transitions (`Active` $\rightarrow$ `ClaimPending` $\rightarrow$ `Finalized`), and EIP-712 stealth claim cancellation (`cancelClaimWithSig`). Exposes `guardianRegistry()` for cross-contract circuit breaks. |
 | [`GuardianRegistry.sol`](contracts/src/GuardianRegistry.sol) | Verifies M-of-N cryptographic guardian attestations against committed Merkle roots while keeping guardian identities private until claim time. |
 | [`StealthAddressRegistry.sol`](contracts/src/StealthAddressRegistry.sol) | EIP-5564 stealth key registry and announcement mechanism enabling non-linkable deposit addresses. |
@@ -337,9 +374,9 @@ cd Cadence
 
 ---
 
-## 9. Smart Contract Deployment (Sepolia Testnet)
+## 9. Smart Contract Deployment (Dual-Chain Testnets)
 
-All smart contracts deploy deterministically using Foundry.
+All smart contracts deploy deterministically using Foundry across our target testnet environments.
 
 ### 1. Configure Environment Variables
 Copy and populate the contracts environment file:
@@ -349,9 +386,14 @@ cp .env.example .env
 ```
 Populate the following variables in `contracts/.env`:
 ```env
-RPC_URL="https://ethereum-sepolia-rpc.publicnode.com" # or your Alchemy/Infura RPC URL
-PRIVATE_KEY="0x..."                                   # Deployer private key with Sepolia ETH
-ETHERSCAN_API_KEY="your_etherscan_api_key"            # Optional, for contract verification
+# Target Network RPCs
+ARBITRUM_SEPOLIA_RPC="https://sepolia-rollup.arbitrum.io/rpc"
+ROBINHOOD_TESTNET_RPC="https://rpc.testnet.chain.robinhood.com"
+ETHEREUM_SEPOLIA_RPC="https://ethereum-sepolia-rpc.publicnode.com"
+
+# Deployer credentials
+PRIVATE_KEY="0x..."                           # Deployer private key funded with testnet gas
+ETHERSCAN_API_KEY="your_etherscan_api_key"    # Optional, for Arbitrum/Etherscan verification
 ```
 
 ### 2. Compile and Test Contracts
@@ -360,26 +402,43 @@ forge install
 forge build
 forge test -vvv
 ```
-*Expected: 15 test suites, 208/208 passed with 0 failures.*
+*Expected: 18 test suites, 252/252 passed with 0 failures.*
 
-### 3. Deploy Protocol to Sepolia
-Execute the automated deployment script [`Deploy.s.sol`](contracts/script/Deploy.s.sol):
+### 3. Deploy Protocol to Target Testnets
+
+#### Option A: Deploy to Arbitrum Sepolia (Chain ID: `421614`)
 ```bash
 forge script script/Deploy.s.sol:Deploy \
-  --rpc-url $RPC_URL \
+  --rpc-url https://sepolia-rollup.arbitrum.io/rpc \
   --broadcast \
   --verify
 ```
 
-The script deploys all contracts in dependency order:
+#### Option B: Deploy to Robinhood Chain Testnet (Arbitrum Orbit L2, Chain ID: `46630`)
+```bash
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url https://rpc.testnet.chain.robinhood.com \
+  --broadcast
+```
+
+#### Option C: Deploy to Ethereum Sepolia (Chain ID: `11155111`)
+```bash
+forge script script/Deploy.s.sol:Deploy \
+  --rpc-url https://ethereum-sepolia-rpc.publicnode.com \
+  --broadcast \
+  --verify
+```
+
+The script deploys all contracts in deterministic dependency order:
 1. `StealthAddressRegistry`
-2. `GuardianRegistry`
+2. `GuardianRegistry` (with Guardian Resilience and backup waiting period)
 3. `BalanceCommitment`
 4. `ProofOfLifeConsensus`
-5. `InheritanceVault` (configured with 90-day heartbeat interval)
+5. `InheritanceVault` (whitelisting ETH, USDC, USDT, WBTC, and Paxos USDG)
 6. `BeneficiaryAccountFactory` (ERC-4337 EntryPoint 0.7)
 
-Take note of the logged contract addresses in the deployment output.
+Take note of the logged contract addresses in the deployment output for frontend configuration.
+
 
 ### 4. Deploying the Accelerated Demo Vault (Presentation / Live Demo)
 
@@ -409,8 +468,8 @@ To ensure the vault is sitting in or near the **Contest Window** when your demo 
 
 | Timeline | Elapsed | Protocol State & Action | Visual & Demo Impact |
 |---|---|---|---|
-| **$T - 8\text{ min}$** | 0:00 | Run `DeployDemoVault.s.sol`. Script deploys vault with 180s interval, commits 2-of-2 guardian root, and deposits initial ETH. | Vault deployed; heartbeat timer starts counting down from 3:00. |
-| **$T - 5\text{ min}$** | 3:00 | 180-second check-in interval expires (`isTimeoutExpired() == true`). Guardian Node 1 & 2 submit attestations to `GuardianRegistry`. | Consensus threshold 2-of-2 met. `triggerClaimPending()` is executed on `ProofOfLifeConsensus`. |
+| **$T - 8\text{ min}$** | 0:00 | Run `DeployDemoVault.s.sol`. Script deploys vault with 180s interval, commits 2-of-3 guardian root, and deposits initial ETH. | Vault deployed; heartbeat timer starts counting down from 3:00. |
+| **$T - 5\text{ min}$** | 3:00 | 180-second check-in interval expires (`isTimeoutExpired() == true`). Guardian Node 1 & 2 submit attestations to `GuardianRegistry`. | Consensus threshold 2-of-3 met. `triggerClaimPending()` is executed on `ProofOfLifeConsensus`. |
 | **$T - 0\text{ min}$** | 8:00 | **Presentation Starts**: Open [`/contest`](http://localhost:3000/contest). | **Locker is sitting live in the Contest Window!** ECG monitor displays chaotic amber arrhythmia (92 BPM Erratic). |
 | **Live On Stage** | Live | **Demonstrate Zero-Gas Stealth Cancellation**: Click *"RESET PROTOCOL: I'M ALIVE"*. Owner signs EIP-712 cancellation off-chain with stealth key. Relayer broadcasts `cancelClaimWithSig`. | Vault resets instantly to **Active** state with steady teal pulse (62 BPM) and zero gas linkage to the owner's identity. |
 | **Alternative Path** | Live | **Demonstrate Finalization & Claim**: If letting the 15-minute contest window elapse, call `finalizeContest()`. Switch to [`/claim`](http://localhost:3000/claim). | ECG line flatlines to 0 BPM red. Alice decrypts allocation locally via ECIES and claims 40% payout directly on-chain. |
@@ -482,9 +541,17 @@ npm install
 ### 2. Configure Frontend Environment (`.env.local`)
 Create `frontend/.env.local` with the deployed contract addresses and API keys:
 ```env
-# RPC & Network
-NEXT_PUBLIC_RPC_URL="https://ethereum-sepolia-rpc.publicnode.com"
-NEXT_PUBLIC_CHAIN_ID="11155111"
+# RPC & Network (Arbitrum Sepolia: 421614 | Robinhood Testnet: 46630 | Ethereum Sepolia: 11155111)
+NEXT_PUBLIC_CHAIN_ID="421614"
+NEXT_PUBLIC_RPC_URL="https://sepolia-rollup.arbitrum.io/rpc"
+
+# For Robinhood Chain Testnet:
+# NEXT_PUBLIC_CHAIN_ID="46630"
+# NEXT_PUBLIC_RPC_URL="https://rpc.testnet.chain.robinhood.com"
+
+# For Ethereum Sepolia:
+# NEXT_PUBLIC_CHAIN_ID="11155111"
+# NEXT_PUBLIC_RPC_URL="https://ethereum-sepolia-rpc.publicnode.com"
 
 # Contract Addresses (from Deploy.s.sol)
 NEXT_PUBLIC_VAULT_ADDRESS="0x043d02c39B86CAd83E1Bf05728D32d24f6289e74"
@@ -499,6 +566,7 @@ NEXT_PUBLIC_PIMLICO_API_KEY=
 # Notification Backend
 NEXT_PUBLIC_NOTIFICATION_URL="http://localhost:3001"
 ```
+
 
 ### 3. Start Local Development Server
 ```bash
@@ -637,13 +705,21 @@ Our security regression suite (`notifications/test/security.test.ts`) verifies f
 | **11. Frontend CSP & Code Bans** | `DOMPurify` SafeHtml, 0 eval, 0 new Function, 0 inline scripts | ✅ Pass (36 frontend files audited) |
 
 ### Static Analysis (Slither)
-Slither static analysis was executed across all smart contracts in `contracts/src/`:
-- **Critical / High / Medium Vulnerabilities**: **0 Found**
-- **Low / Informational Findings**:
-  - Timestamp comparisons: Used intentionally for countdown timeouts and contest deadlines.
-  - Low-level calls: Used in `claim` and `execute`, strictly guarded by OpenZeppelin `ReentrancyGuard` (`nonReentrant`).
+Slither static analysis (v0.11.6) was executed across all smart contracts in `contracts/src/`, including all newly introduced and modified contracts:
+- **`GuardianRegistry.sol`** (Guardian Resilience, zero-custodial backup registration, accelerated backup waiting period):
+  - **Critical / High / Medium Vulnerabilities**: **0 Found**
+  - **Low / Informational**: Timestamp comparisons for backup waiting period and deadlines; naming conventions on constants.
+- **`InheritanceVault.sol`** (USDG Paxos Global Dollar whitelist, Cadence Streams Aave v3 supply/withdraw, CEI pattern hardening):
+  - **Critical / High / Medium Vulnerabilities**: **0 Found**
+  - **Low / Informational**: Timestamp comparisons for stream durations and inactivity intervals; safe token transfer calls protected by OpenZeppelin `nonReentrant`.
+- **`StylusMerkleVerifier.sol`** (Arbitrum Stylus WASM interface & Solidity reference verifier):
+  - **Critical / High / Medium / Low Vulnerabilities**: **0 Found** (Clean pass).
 - **Proactive Hardening Performed**:
-  - Refactored `BeneficiaryAccountFactory.createAccount` to record account mappings before external initialization, adhering strictly to the Checks-Effects-Interactions pattern.
+  - Re-ordered state writes in `InheritanceVault._distributeTokensAndStream` and `_executeDistribution` before external token transfers and Aave calls, strictly adhering to the Checks-Effects-Interactions (CEI) pattern and eliminating Slither's `reentrancy-benign` detector.
+  - Cached `whitelistedTokens.length` into memory variables across snapshot loops and token iterations, optimizing gas and clearing `cache-array-length` suggestions.
+  - Cleaned up unused parameters in `checkUpkeep` to eliminate redundant statement warnings.
+- **Tooling Status**: Slither 0.11.6 executed natively with 0 critical/high findings. Mythril is not supported on Python 3.14 (Windows) due to upstream C-extension compilation constraints in `coincurve`/`cffi`.
+
 
 ---
 

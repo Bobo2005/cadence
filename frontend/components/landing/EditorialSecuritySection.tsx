@@ -20,17 +20,24 @@ export default function EditorialSecuritySection() {
     },
     {
       index: "03",
-      title: "Guardians cannot see balances or heirs",
+      title: "2-of-3 Resilient Guardian Quorum",
       description:
-        "Guardians only attest to the owner's status. They receive zero metadata regarding vault balances, asset distributions, or beneficiary identities. Collusion to steal funds is cryptographically impossible.",
-      tag: "ZERO-KNOWLEDGE",
+        "Guardians attest to inactivity without access to balances or heir identities. Guardian Resilience introduces non-custodial backup nomination to eliminate single-point-of-failure orphan lockouts.",
+      tag: "RESILIENT QUORUM",
     },
     {
       index: "04",
       title: "Reversible 72-hour Contest Window",
       description:
-        "Distribution cannot occur until the configured Contest Window expires. If guardians trigger prematurely, the owner can cancel and penalize malicious attestation with a single heartbeat check-in.",
+        "Distribution cannot occur until the configured Contest Window expires. If guardians trigger prematurely, the owner can cancel with zero gas linkage via an off-chain EIP-712 stealth reset signature.",
       tag: "REVERSIBLE SETTLEMENT",
+    },
+    {
+      index: "05",
+      title: "Anti-Drainer Stream Circuit Breakers",
+      description:
+        "If an heir's wallet is compromised or drained, designated guardians or backup addresses can invoke pauseStream and redirectStream on-chain, redirecting all remaining inheritance to a secure cold wallet.",
+      tag: "CIRCUIT BREAKER",
     },
   ];
 
@@ -52,11 +59,10 @@ export default function EditorialSecuritySection() {
 
             <div className="p-5 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
               <div className="text-xs font-mono font-semibold text-[#111111] uppercase tracking-wider">
-                Audited & Formally Verified
+                Audited & Verified Across 18 Suites
               </div>
               <div className="text-xs text-[#5F6368] leading-relaxed">
-                Contracts are verified on Sepolia with 0 high/critical vulnerabilities identified
-                in automated Slither analysis.
+                Deployed and verified on Arbitrum Sepolia, Robinhood Chain, and Ethereum Sepolia with 252/252 passing Foundry tests, 0 High/Critical findings in Slither 0.11.6 static analysis across 55 contracts, and Stylus Rust WASM verification.
               </div>
             </div>
           </div>

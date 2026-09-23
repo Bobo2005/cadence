@@ -1,9 +1,10 @@
 // Barrel export for all Cadence contract ABIs and bytecodes
-export * from "./InheritanceVault";
-export * from "./ProofOfLifeConsensus";
-export * from "./GuardianRegistry";
-export * from "./StealthAddressRegistry";
-export * from "./BalanceCommitment";
-export * from "./BeneficiarySmartAccount";
-export * from "./VaultFactory";
-export * from "./OneClickVault";
+export * from "./InheritanceVault.ts";
+export * from "./ProofOfLifeConsensus.ts";
+export * from "./GuardianRegistry.ts";
+export * from "./StealthAddressRegistry.ts";
+export * from "./BalanceCommitment.ts";
+export * from "./BeneficiarySmartAccount.ts";
+export * from "./VaultFactory.ts";
+export * from "./OneClickVault.ts";
+

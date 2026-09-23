@@ -31,11 +31,19 @@ export const CONTEST_PRESETS = [
 ] as const;
 
 export const SUPPORTED_TOKENS = [
-  { symbol: "ETH", name: "Ethereum", icon: "Ξ" },
-  { symbol: "USDC", name: "USD Coin", icon: "$" },
-  { symbol: "USDT", name: "Tether USD", icon: "₮" },
-  { symbol: "WBTC", name: "Wrapped Bitcoin", icon: "₿" },
+  { symbol: "USDG", name: "Paxos Global Dollar", icon: "$", apyBadge: "7.00% APY", description: "Regulated stablecoin · Robinhood Earn yield" },
+  { symbol: "ETH", name: "Ethereum (Native)", icon: "Ξ", description: "Native gas and settlement token" },
+  { symbol: "USDC", name: "USD Coin", icon: "$", description: "Circle USD stablecoin" },
+  { symbol: "USDT", name: "Tether USD", icon: "₮", description: "Tether USD stablecoin" },
+  { symbol: "WBTC", name: "Wrapped Bitcoin", icon: "₿", description: "ERC-20 Bitcoin" },
 ] as const;
 
 export const SEPOLIA_CHAIN_ID = 11155111;
 export const SEPOLIA_EXPLORER_URL = "https://sepolia.etherscan.io";
+
+export const ARBITRUM_SEPOLIA_CHAIN_ID = 421614;
+export const ARBITRUM_SEPOLIA_EXPLORER_URL = "https://sepolia.arbiscan.io";
+
+export const ROBINHOOD_TESTNET_CHAIN_ID = 46630;
+export const ROBINHOOD_TESTNET_RPC_URL = "https://rpc.testnet.chain.robinhood.com";
+export const ROBINHOOD_TESTNET_EXPLORER_URL = "https://explorer.testnet.chain.robinhood.com";

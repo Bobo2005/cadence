@@ -20,8 +20,7 @@ export default function EditorialFinalCTA() {
             </h2>
 
             <p className="text-base text-[#8A8F98] leading-relaxed max-w-lg mx-auto">
-              Deploy your self-custodial inheritance locker on Ethereum Sepolia in under 3 minutes.
-              No third-party custodian, zero plaintext stored on-chain, and guaranteed contest windows.
+              Cadence secures regulated, yield-bearing family wealth for the next generation of retail investors — not speculative crypto for DeFi natives.
             </p>
 
             <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
@@ -57,19 +56,35 @@ export default function EditorialFinalCTA() {
           <div className="flex items-center gap-3">
             <span className="font-semibold text-[#111111]">Cadence Protocol</span>
             <span>·</span>
-            <span>Ethereum Sepolia Testnet</span>
+            <span>Arbitrum Sepolia &amp; Robinhood Testnets (Testnet-Only)</span>
             <span>·</span>
-            <span>Slither 0 High / Critical</span>
+            <span>252 / 252 Tests &amp; Slither 0.11.6 Verified</span>
           </div>
 
           <div className="flex items-center gap-6">
+            <a
+              href="https://sepolia.arbiscan.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#111111] transition-colors"
+            >
+              Arbiscan
+            </a>
+            <a
+              href="https://explorer.testnet.chain.robinhood.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-[#111111] transition-colors"
+            >
+              Robinhood Explorer
+            </a>
             <a
               href="https://sepolia.etherscan.io"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-[#111111] transition-colors"
             >
-              Explorer
+              Etherscan
             </a>
             <a
               href="https://github.com/Bobo2005/cadence"

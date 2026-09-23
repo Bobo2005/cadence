@@ -60,7 +60,7 @@ Cadence adheres to a strict multi-layer zero-leakage privacy model verified acro
 | **Double-Hashed Blinded Merkle Proofs** | Cryptography (`lib/merkle.ts`) | Each leaf is computed as `keccak256(bytes.concat(keccak256(abi.encode(beneficiary, shareBps, salt))))`. Random 32-byte salts eliminate dictionary and brute-force guessing attacks. | **22/22 Passing** (`scripts/test-beneficiary-claim-flow.mjs`) |
 | **Zero Gas-Linkage Stealth Cancellation** (Constraint #1) | Consensus (`ProofOfLifeConsensus.sol`) | Living vault owners dismiss false-alarm contest windows off-chain via **EIP-712 typed digests** (`CancelClaim`). Any relayer can broadcast the cancel with zero owner ETH funding or gas tracking. | **19/19 Passing** (`ContestableClaim.t.sol`; `test_relayedCancel_stealthAddressZeroBalance_succeeds`) |
 | **Safe In-Memory Key Derivation** | Frontend UI (`ClaimPortal.tsx`) | Beneficiaries sign an authorization message (`personal_sign` over `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory—zero raw private keys are ever entered in the UI. | **Verified Live** (Supports single & multi-beneficiary allocation roots without key exposure) |
-| **Guardian Quorum Privacy** | Registry (`GuardianRegistry.sol`) | Guardians are committed via a 2-of-2 Merkle tree (`guardianRoot`). Observers cannot inspect full guardian rosters on-chain prior to active attestation. | **15/15 Passing** (`StealthAddressRegistry.t.sol`) |
+| **Guardian Quorum Privacy** | Registry (`GuardianRegistry.sol`) | Guardians are committed via a 2-of-3 Merkle tree (`guardianRoot`). Observers cannot inspect full guardian rosters on-chain prior to active attestation. | **15/15 Passing** (`StealthAddressRegistry.t.sol`) |
 | **Cryptographic Email Binding** (Constraint #6) | Microservice (`bindingVerifier.ts`) | Beneficiary emails remain unverified/pending until the wallet owner signs an EIP-712 binding proof, preventing notification hijacking. | **18/18 Passing** (`notifications/test/notifications.test.mjs`) |
 
 ### 2. Balance Visibility & Shoulder-Surfing Privacy Controls
@@ -93,10 +93,22 @@ The user interface presents live balance data with fine-grained privacy controls
             | Read/Write Sepolia Contracts                                 | Verify Signatures
             v                                                              v
 +----------------------------------------------------------------------------------------+
-|                                ETHEREUM SEPOLIA TESTNET                                |
-|  - InheritanceVault.sol (0x043d...9e74)      - ProofOfLifeConsensus.sol (0x7819...6Bc1)|
-|  - GuardianRegistry.sol (0xcFD0...4863)      - StealthAddressRegistry.sol (0x583e...671E)|
-|  - BalanceCommitment.sol (0x1AeA...A1BC)     - BeneficiarySmartAccount.sol             |
+|                 MULTI-CHAIN SETTLEMENT NETWORKS & SMART CONTRACTS                      |
+|                                                                                        |
+| 1. ETHEREUM SEPOLIA (11155111)                                                         |
+|    - InheritanceVault.sol (0x043d...9e74)      - ProofOfLifeConsensus.sol (0x7819...6Bc1)|
+|    - GuardianRegistry.sol (0xcFD0...4863)      - StealthAddressRegistry.sol (0x583e...671E)|
+|    - BalanceCommitment.sol (0x1AeA...A1BC)     - BeneficiarySmartAccount.sol (0x3048...0823)|
+|                                                                                        |
+| 2. ARBITRUM SEPOLIA (421614)                                                           |
+|    - InheritanceVault.sol (0x043d...9e74)      - ProofOfLifeConsensus.sol (0x7819...6Bc1)|
+|    - GuardianRegistry.sol (0xcFD0...4863)      - StealthAddressRegistry.sol (0x583e...671E)|
+|    - BalanceCommitment.sol (0x1AeA...A1BC)     - BeneficiaryAccountFactory (0xebbC...EbAf)  |
+|                                                                                        |
+| 3. ROBINHOOD CHAIN TESTNET (46630)                                                     |
+|    - InheritanceVault.sol (0x043d...9e74)      - ProofOfLifeConsensus.sol (0x7819...6Bc1)|
+|    - GuardianRegistry.sol (0xcFD0...4863)      - StealthAddressRegistry.sol (0x583e...671E)|
+|    - BalanceCommitment.sol (0x1AeA...A1BC)     - BeneficiaryAccountFactory (0xebbC...EbAf)  |
 +----------------------------------------------------------------------------------------+
 ```
 
@@ -135,7 +147,7 @@ EVM smart contracts do not automatically advance state when block time advances;
 [State 0: Active]
        │
        │  Condition 1: block.timestamp > lastActiveTimestamp + checkInInterval (isTimeoutExpired)
-       │  Condition 2: guardianRegistry.isThresholdMet(vault) (2-of-2 Guardian Attestations)
+       │  Condition 2: guardianRegistry.isThresholdMet(vault) (2-of-3 Guardian Attestations)
        │  Notifications: 2 Distinct Email Alerts dispatched to Guardian Node 1 & Guardian Node 2
        ▼  Transaction: ProofOfLifeConsensus.triggerClaimPending(vault)
 [State 1: ClaimPending (Contest Window)]

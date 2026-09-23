@@ -579,7 +579,7 @@ class EmailService {
         </div>
 
         <p style="color: #8993A6; font-size: 14px; line-height: 1.5;">
-          Under Cadence's decentralized consensus mechanism, the contest challenge window only opens if <strong>2-of-2 guardians</strong> affirm inactivity. Please connect this guardian wallet to submit your attestation:
+          Under Cadence's decentralized consensus mechanism, the contest challenge window only opens if <strong>2-of-3 guardians</strong> affirm inactivity. Please connect this guardian wallet to submit your attestation:
         </p>
 
         <div style="margin: 24px 0;">

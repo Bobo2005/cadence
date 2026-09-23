@@ -195,8 +195,10 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   const [selectedGracePeriod, setSelectedGracePeriod] = useState(GRACE_PERIOD_OPTIONS[2]); // 72 HOURS default
   const [guardian1, setGuardian1] = useState("");
   const [guardian2, setGuardian2] = useState("");
+  const [guardian3, setGuardian3] = useState("");
   const [guardian1Email, setGuardian1Email] = useState("");
   const [guardian2Email, setGuardian2Email] = useState("");
+  const [guardian3Email, setGuardian3Email] = useState("");
 
   // Step 3b: Cadence Streams — Autonomous Streaming Trust (default OFF per specs)
   const [isStreamingTrust, setIsStreamingTrust] = useState(false);
@@ -209,8 +211,10 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     if (typeof window !== "undefined") {
       const savedG1Email = localStorage.getItem("cadence_guardian_email_1");
       const savedG2Email = localStorage.getItem("cadence_guardian_email_2");
+      const savedG3Email = localStorage.getItem("cadence_guardian_email_3");
       if (savedG1Email) setGuardian1Email(savedG1Email);
       if (savedG2Email) setGuardian2Email(savedG2Email);
+      if (savedG3Email) setGuardian3Email(savedG3Email);
     }
   }, []);
 
@@ -362,16 +366,19 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
 
     let effectiveG1 = guardian1.trim();
     let effectiveG2 = guardian2.trim();
-    if (!effectiveG1 || !effectiveG2) {
+    let effectiveG3 = guardian3.trim();
+    if (!effectiveG1 || !effectiveG2 || !effectiveG3) {
       effectiveG1 = effectiveG1 || "0x81C3D582F3473F71C4C8bF394E1d32BA218991a2";
       effectiveG2 = effectiveG2 || "0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0";
+      effectiveG3 = effectiveG3 || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
       setGuardian1(effectiveG1);
       setGuardian2(effectiveG2);
+      setGuardian3(effectiveG3);
     }
 
-    if (!isAddress(effectiveG1) || !isAddress(effectiveG2)) {
+    if (!isAddress(effectiveG1) || !isAddress(effectiveG2) || !isAddress(effectiveG3)) {
       setActiveStep(3);
-      showToast("Please specify two valid guardian Ethereum addresses.", "warning");
+      showToast("Please specify three valid guardian Ethereum addresses.", "warning");
       return;
     }
 
@@ -396,8 +403,9 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     try {
       const effectiveG1 = guardian1.trim() || "0x81C3D582F3473F71C4C8bF394E1d32BA218991a2";
       const effectiveG2 = guardian2.trim() || "0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0";
+      const effectiveG3 = guardian3.trim() || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 
-      const guardianTree = buildGuardianTree([getAddress(effectiveG1), getAddress(effectiveG2)]);
+      const guardianTree = buildGuardianTree([getAddress(effectiveG1), getAddress(effectiveG2), getAddress(effectiveG3)]);
       const allocTree = buildAllocationTree(allocationsList);
 
       const depositWei = parseEther(depositAmount || "0");
@@ -417,7 +425,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
           CONTRACT_ADDRESSES.guardianRegistry,
           guardianTree.root,
           2n,
-          2n,
+          3n,
           CONTRACT_ADDRESSES.consensus,
         ],
       });
@@ -445,7 +453,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
           setActiveStepDescription("Configuring Cadence Streams Smart Trust & Yield parameters...");
           const streamDurationSec = BigInt(selectedStreamDuration.seconds);
           const initialBps = BigInt(selectedInitialReleaseBps);
-          const yieldBps = BigInt(selectedYieldBps);
+          const yieldBps = BigInt(selectedToken === "USDG" ? 700 : selectedYieldBps);
           const configHash = await client.writeContract({
             chain: sepolia,
             address: deployedAddress,
@@ -501,7 +509,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         tokenBalances: [{ symbol: selectedToken, amount: depositAmount || "0" }],
         leaves: allocTree.leaves,
         encryptedAllocations: encryptedAllocationsList,
-        guardians: [getAddress(effectiveG1), getAddress(effectiveG2)],
+        guardians: [getAddress(effectiveG1), getAddress(effectiveG2), getAddress(effectiveG3)],
         allocationRoot: allocTree.root,
       });
 
@@ -514,6 +522,10 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
           localStorage.setItem(`cadence_guardian_email_2_${deployedAddress}`, guardian2Email.trim());
           localStorage.setItem("cadence_guardian_email_2", guardian2Email.trim());
         }
+        if (guardian3Email.trim()) {
+          localStorage.setItem(`cadence_guardian_email_3_${deployedAddress}`, guardian3Email.trim());
+          localStorage.setItem("cadence_guardian_email_3", guardian3Email.trim());
+        }
       }
 
       // Register with Sentinel for live notifications
@@ -523,6 +535,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
         guardians: [
           { address: getAddress(effectiveG1), label: "Guardian Node 1", email: guardian1Email.trim() || undefined },
           { address: getAddress(effectiveG2), label: "Guardian Node 2", email: guardian2Email.trim() || undefined },
+          { address: getAddress(effectiveG3), label: "Guardian Node 3", email: guardian3Email.trim() || undefined },
         ],
       }).catch(() => {});
 
@@ -707,7 +720,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                 <label className="block text-xs font-mono font-semibold text-[#5F6368] uppercase tracking-wider">
                   Supported Assets
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5">
                   {SUPPORTED_TOKENS.map((tok) => {
                     const isSelected = selectedToken === tok.symbol;
                     return (
@@ -728,14 +741,28 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                         >
                           {tok.icon}
                         </div>
-                        <div>
-                          <div className="text-xs font-bold">{tok.symbol}</div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs font-bold">{tok.symbol}</span>
+                            {"apyBadge" in tok && tok.apyBadge && (
+                              <span className="text-[8px] font-mono px-1 py-0.2 rounded bg-[#E6F4EA] text-[#137333] font-bold">
+                                {tok.apyBadge}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[10px] text-[#8A8F98] truncate">{tok.name}</div>
                         </div>
                       </button>
                     );
                   })}
                 </div>
+
+                {selectedToken === "USDG" && (
+                  <div className="p-3 rounded-2xl bg-[#E6F4EA] border border-[#CEEAD6] text-xs font-mono text-[#137333] flex items-center gap-2">
+                    <span>💵</span>
+                    <span>Paxos USDG earns modeled 7.00% APY pegged to Robinhood Earn published interest. Zero market volatility for family estates.</span>
+                  </div>
+                )}
               </div>
 
               {/* Deposit Amount Input */}
@@ -896,14 +923,14 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-mono font-bold text-[#111111] uppercase tracking-wider">
-                    Guardian Consensus Nodes (2-of-2 Required)
+                    Guardian Consensus Nodes (2-of-3 Required)
                   </label>
                   <p className="text-xs text-[#5F6368]">
                     Guardians attest to owner inactivity without learning asset amounts or heir identities.
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Guardian 1 */}
                   <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
                     <div className="flex items-center justify-between">
@@ -982,6 +1009,47 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                         className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
                         placeholder="guardian2@cadence.xyz"
                         aria-label="Guardian 2 Email address"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Guardian 3 */}
+                  <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono font-bold text-[#111111] flex items-center gap-1.5">
+                        <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
+                        Guardian Node 3
+                      </span>
+                      <span className="text-[10px] font-mono text-[#5F6368] bg-white px-2 py-0.5 rounded-full border border-[#E8EAED]">
+                        Node #3
+                      </span>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-mono text-[#5F6368]">
+                        Wallet Address <span className="text-[#D64545]">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={guardian3}
+                        onChange={(e) => setGuardian3(e.target.value)}
+                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
+                        placeholder="0xf39F...2266"
+                        aria-label="Guardian 3 Ethereum address"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-mono text-[#5F6368]">
+                        Alert Email <span className="text-[#8A8F98]">(Optional)</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={guardian3Email}
+                        onChange={(e) => setGuardian3Email(e.target.value)}
+                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
+                        placeholder="guardian3@cadence.xyz"
+                        aria-label="Guardian 3 Email address"
                       />
                     </div>
                   </div>
@@ -1164,9 +1232,26 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs font-mono p-2.5 rounded-xl bg-white border border-[#E8EAED]">
-                      <span className="text-[#5F6368]">Simulated Aave v3 Yield:</span>
-                      <span className="text-[#22A06B] font-bold">+5.00% APY (Auto-Compounding)</span>
+                    <div className="space-y-1.5 p-2.5 rounded-xl bg-white border border-[#E8EAED]">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="text-[#5F6368]">
+                          {selectedToken === "USDG"
+                            ? "USDG Modeled Yield:"
+                            : selectedToken === "USDC"
+                            ? "Aave v3 Yield (Arbitrum):"
+                            : "Streaming Yield:"}
+                        </span>
+                        <span className="text-[#22A06B] font-bold">
+                          {selectedToken === "USDG"
+                            ? "+7.00% APY (Robinhood Earn Peg)"
+                            : selectedToken === "USDC"
+                            ? "Live Aave v3 Market Interest"
+                            : "+5.00% APY"}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-[#5F6368] leading-tight">
+                        Cadence Streams deposits unvested inheritance into Aave v3&apos;s live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG&apos;s own published yield.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -1226,7 +1311,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               </div>
               <div className="flex items-center justify-between py-1 border-b border-[#E8EAED]/60">
                 <span className="text-[#5F6368]">Guardian Consensus</span>
-                <span className="font-bold text-[#111111]">2 / 2</span>
+                <span className="font-bold text-[#111111]">2 / 3</span>
               </div>
               <div className="flex items-center justify-between py-1 border-b border-[#E8EAED]/60">
                 <span className="text-[#5F6368]">Heartbeat</span>
@@ -1367,7 +1452,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                 </div>
                 <div>
                   <div className="text-[#8A8F98]">Guardian Count</div>
-                  <div className="font-bold text-[#111111]">2 Guardians</div>
+                  <div className="font-bold text-[#111111]">3 Guardians (2-of-3)</div>
                 </div>
                 <div>
                   <div className="text-[#8A8F98]">Heartbeat</div>

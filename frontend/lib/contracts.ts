@@ -9,5 +9,6 @@
  * - Addresses & Clients: @/lib/config/contracts
  */
 
-export * from "./abi";
-export * from "./config/contracts";
+export * from "./abi/index.ts";
+export * from "./config/contracts.ts";
+

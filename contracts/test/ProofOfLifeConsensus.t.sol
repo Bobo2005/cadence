@@ -68,7 +68,7 @@ contract ProofOfLifeConsensusTest is Test {
         address[] memory initialTokens = new address[](0);
         vault = new InheritanceVault(owner, CHECK_IN_INTERVAL, initialTokens, address(consensus));
 
-        // Setup 2-of-2 Merkle tree for guardians
+        // Setup guardian Merkle tree (using 2-of-2 for this specific test scenario)
         bytes32 leafA = MerkleProofLib.computeGuardianLeaf(guardianA);
         bytes32 leafB = MerkleProofLib.computeGuardianLeaf(guardianB);
         guardianRoot = Hashes.commutativeKeccak256(leafA, leafB);

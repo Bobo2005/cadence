@@ -64,14 +64,22 @@ To prevent HTTP 429 rate-limiting during testing and evaluation, `lib/contracts.
 2. Set **Root Directory** to `frontend` (leave Build & Output settings at default Next.js).
 3. Copy environment variables from `.env.production.example`:
    ```env
+   # Network & RPC (Ethereum Sepolia: 11155111, Arbitrum Sepolia: 421614, Robinhood Testnet: 46630)
    NEXT_PUBLIC_CHAIN_ID=11155111
    NEXT_PUBLIC_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+   NEXT_PUBLIC_SEPOLIA_RPC_URL=https://ethereum-sepolia-rpc.publicnode.com
+   NEXT_PUBLIC_ARBITRUM_SEPOLIA_RPC_URL=https://sepolia-rollup.arbitrum.io/rpc
+   NEXT_PUBLIC_ROBINHOOD_TESTNET_RPC_URL=https://rpc.testnet.chain.robinhood.com
+
+   # Core Deployed Smart Contracts (Deterministic across all 3 chains)
    NEXT_PUBLIC_VAULT_ADDRESS=0x043d02c39B86CAd83E1Bf05728D32d24f6289e74
    NEXT_PUBLIC_DEMO_VAULT_ADDRESS=0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1
    NEXT_PUBLIC_CONSENSUS_ADDRESS=0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1
    NEXT_PUBLIC_GUARDIAN_REGISTRY_ADDRESS=0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863
    NEXT_PUBLIC_STEALTH_REGISTRY_ADDRESS=0x583eC2de840034478a61EF572cea2904bFD8671E
-   NEXT_PUBLIC_FACTORY_ADDRESS=0x30489c0f3566AF47b71867bc992408B91E500823
+   NEXT_PUBLIC_BALANCE_COMMITMENT_ADDRESS=0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC
+   NEXT_PUBLIC_VAULT_FACTORY_ADDRESS=0xac0f91C7d7c3537896248C42fc880F6DFF838622
+   NEXT_PUBLIC_FACTORY_ADDRESS=0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf
    NEXT_PUBLIC_PIMLICO_API_KEY=your_pimlico_api_key_here
    NEXT_PUBLIC_NOTIFICATION_URL=https://cadence-notifications.onrender.com
    ```

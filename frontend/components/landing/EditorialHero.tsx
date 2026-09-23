@@ -43,8 +43,7 @@ export default function EditorialHero() {
 
             {/* Supporting Copy */}
             <p className="text-base sm:text-lg md:text-xl text-[#5F6368] leading-relaxed max-w-md lg:max-w-[540px] font-normal">
-              Cadence is a self-custodial inheritance protocol that monitors a cryptographic Heartbeat
-              and only begins inheritance settlement after configured inactivity and a reversible Contest Window.
+              Cadence secures regulated, yield-bearing family wealth for the next generation of retail investors — not speculative crypto for DeFi natives.
             </p>
 
             {/* Primary & Secondary Actions */}
@@ -75,10 +74,22 @@ export default function EditorialHero() {
             </div>
 
             {/* Feature Callouts */}
-            <div className="pt-6 sm:pt-8 border-t border-[#E8EAED] grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs font-medium text-[#5F6368]">
+            <div className="pt-6 sm:pt-8 border-t border-[#E8EAED] grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-xs font-medium text-[#5F6368]">
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#22A06B] shrink-0" />
+                <span>Arbitrum Sepolia & Robinhood Chain Live</span>
+              </div>
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#111111] shrink-0" />
-                <span>Merkle-committed guardians</span>
+                <span>2-of-3 Resilient Consensus (Backup Nomination)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#111111] shrink-0" />
+                <span>Paxos USDG (7.00% Robinhood Earn APY)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#111111] shrink-0" />
+                <span>Arbitrum Stylus WASM Verification</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#111111] shrink-0" />
@@ -143,8 +154,8 @@ export default function EditorialHero() {
                   <span className="text-[11px] font-mono tracking-wider text-[#8A8F98] uppercase">
                     STEP 02 · READY
                   </span>
-                  <span className="px-2 py-0.5 rounded-full bg-[#F7F8FA] text-[#5F6368] text-[10px] font-bold tracking-wider uppercase border border-[#E8EAED]">
-                    ACTIVE
+                  <span className="px-2 py-0.5 rounded-full bg-[#F7F8FA] text-[#22A06B] text-[10px] font-bold tracking-wider uppercase border border-[#E8EAED]">
+                    RESILIENT
                   </span>
                 </div>
                 <div className="mt-1 text-base font-bold text-[#111111]">
@@ -154,11 +165,11 @@ export default function EditorialHero() {
                 <div className="grid grid-cols-3 gap-2 text-left">
                   <div>
                     <div className="text-[10px] font-mono uppercase text-[#8A8F98]">GUARDIANS</div>
-                    <div className="text-xs font-bold font-mono text-[#111111] mt-0.5">2 / 2</div>
+                    <div className="text-xs font-bold font-mono text-[#111111] mt-0.5">2 / 3</div>
                   </div>
                   <div>
                     <div className="text-[10px] font-mono uppercase text-[#8A8F98]">PROTECTED</div>
-                    <div className="text-xs font-bold font-mono text-[#111111] mt-0.5">12.50 ETH</div>
+                    <div className="text-xs font-bold font-mono text-[#111111] mt-0.5">10,000 USDG</div>
                   </div>
                   <div>
                     <div className="text-[10px] font-mono uppercase text-[#8A8F98]">ALLOCATION</div>
@@ -253,8 +264,8 @@ export default function EditorialHero() {
                     <span className="text-[11px] font-mono tracking-wider text-[#8A8F98] uppercase">
                       STEP 02 · READY
                     </span>
-                    <span className="px-2 py-0.5 rounded-full bg-[#F7F8FA] text-[#5F6368] text-[10px] font-bold tracking-wider uppercase border border-[#E8EAED]">
-                      ACTIVE
+                    <span className="px-2 py-0.5 rounded-full bg-[#F7F8FA] text-[#22A06B] text-[10px] font-bold tracking-wider uppercase border border-[#E8EAED]">
+                      RESILIENT
                     </span>
                   </div>
 
@@ -270,7 +281,7 @@ export default function EditorialHero() {
                         GUARDIANS
                       </div>
                       <div className="text-xs font-bold font-mono text-[#111111] mt-0.5">
-                        2 / 2
+                        2 / 3
                       </div>
                     </div>
 
@@ -279,7 +290,7 @@ export default function EditorialHero() {
                         PROTECTED
                       </div>
                       <div className="text-xs font-bold font-mono text-[#111111] mt-0.5">
-                        12.50 ETH
+                        10,000 USDG
                       </div>
                     </div>
 

@@ -163,7 +163,7 @@ async function main() {
   console.log(`  ✓ Allocation root committed (Status: ${allocReceipt.status})\n`);
 
   // Tx 4: Commit Guardian Consensus Merkle Root
-  console.log("[Tx 4/4] Committing 2-of-2 guardian consensus root in GuardianRegistry...");
+  console.log("[Tx 4/4] Committing 2-of-3 guardian consensus root in GuardianRegistry...");
   const guardianHash = await deployerWallet.writeContract({
     address: CONTRACT_ADDRESSES.demoGuardianRegistry,
     abi: GUARDIAN_REGISTRY_ABI,
@@ -270,7 +270,7 @@ async function main() {
     functionName: "isThresholdMet",
     args: [vaultAddress],
   });
-  console.log(`  ✓ Guardian threshold 2-of-2 met: ${thresholdMet}`);
+  console.log(`  ✓ Guardian threshold 2-of-3 met: ${thresholdMet}`);
 
   // Trigger Claim Pending (Opens Contest Window)
   console.log("[3.5] Triggering ClaimPending to open contest window...");

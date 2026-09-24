@@ -9,6 +9,7 @@ import { useAccount, useDisconnect, useSwitchChain } from "wagmi";
 import { useWalletModal } from "./ui/ConnectWalletModal";
 import { useUserRole } from "../hooks/useUserRole";
 import { publicClient } from "../lib/contracts";
+import { useCookieConsent } from "../context/CookieContext";
 
 export type NavTabId = "Vault Pulse" | "Create Vault" | "Contest Window" | "Claim Portal" | "Network" | "Security" | "Help";
 
@@ -26,6 +27,7 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
   const { switchChain } = useSwitchChain();
   const { openWalletModal } = useWalletModal();
   const { roleBadge, recommendedRoute } = useUserRole();
+  const { openPreferencesModal } = useCookieConsent();
 
   const isWrongNetwork = Boolean(isConnected && chain && chain.id !== 11155111);
 
@@ -393,11 +395,28 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
           </div>
 
           {/* Sidebar Footer Status */}
-          <div className="pt-6 border-t border-[#E8EAED] text-xs text-[#8A8F98] font-mono">
-            <div>CADENCE PROTOCOL v1.0</div>
-            <div className="mt-1 text-[11px] text-[#22A06B] flex items-center gap-1.5">
+          <div className="pt-6 border-t border-[#E8EAED] text-xs text-[#8A8F98]">
+            <div className="font-mono">CADENCE PROTOCOL v1.0</div>
+            <div className="mt-1 text-[11px] text-[#22A06B] flex items-center gap-1.5 font-mono">
               <span className="w-1.5 h-1.5 rounded-full bg-[#22A06B]" />
               HEALTHY HEARTBEAT
+            </div>
+            <div className="mt-3 pt-3 border-t border-[#E8EAED]/60 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#8A8F98]">
+              <Link href="/terms" className="hover:text-[#111111] transition-colors">
+                Terms
+              </Link>
+              <span>•</span>
+              <Link href="/privacy" className="hover:text-[#111111] transition-colors">
+                Privacy
+              </Link>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={openPreferencesModal}
+                className="hover:text-[#111111] transition-colors cursor-pointer text-left"
+              >
+                Cookies
+              </button>
             </div>
           </div>
         </aside>
@@ -568,11 +587,39 @@ export default function AppShell({ children, activeTab: propActiveTab }: AppShel
               </div>
 
               {/* Drawer Footer */}
-              <div className="pt-4 border-t border-[#E8EAED] text-xs text-[#8A8F98] font-mono">
-                <div>CADENCE PROTOCOL v1.0</div>
-                <div className="mt-1 text-[11px] text-[#22A06B] flex items-center gap-1.5">
+              <div className="pt-4 border-t border-[#E8EAED] text-xs text-[#8A8F98]">
+                <div className="font-mono">CADENCE PROTOCOL v1.0</div>
+                <div className="mt-1 text-[11px] text-[#22A06B] flex items-center gap-1.5 font-mono">
                   <span className="w-1.5 h-1.5 rounded-full bg-[#22A06B]" />
                   HEALTHY HEARTBEAT
+                </div>
+                <div className="mt-3 pt-3 border-t border-[#E8EAED]/60 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-[#8A8F98]">
+                  <Link
+                    href="/terms"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="hover:text-[#111111] transition-colors"
+                  >
+                    Terms
+                  </Link>
+                  <span>•</span>
+                  <Link
+                    href="/privacy"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="hover:text-[#111111] transition-colors"
+                  >
+                    Privacy
+                  </Link>
+                  <span>•</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      openPreferencesModal();
+                    }}
+                    className="hover:text-[#111111] transition-colors cursor-pointer text-left"
+                  >
+                    Cookies
+                  </button>
                 </div>
               </div>
             </nav>

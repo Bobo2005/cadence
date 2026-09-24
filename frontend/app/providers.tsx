@@ -7,6 +7,10 @@ import { config } from "../lib/wagmi";
 import { WalletModalProvider } from "../components/ui/ConnectWalletModal";
 import { ToastProvider } from "../components/ui/Toast";
 
+import { CookieProvider } from "../context/CookieContext";
+import CookieBanner from "../components/ui/CookieBanner";
+import CookiePreferencesModal from "../components/ui/CookiePreferencesModal";
+
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
     () =>
@@ -24,7 +28,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <WagmiProvider config={config}>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <WalletModalProvider>{children}</WalletModalProvider>
+          <WalletModalProvider>
+            <CookieProvider>
+              {children}
+              <CookieBanner />
+              <CookiePreferencesModal />
+            </CookieProvider>
+          </WalletModalProvider>
         </ToastProvider>
       </QueryClientProvider>
     </WagmiProvider>

@@ -51,7 +51,10 @@ Existing decentralized alternatives rely on brittle smart contract countdown tim
    - **Deployment Compliance Fact**: The yield engine has **no cross-chain dependency**, since both Cadence contracts and Aave v3 reside directly on **Arbitrum Sepolia**. Assets are lent to liquidity pools to earn borrower-paid interest, **never staked**.
    - **Anti-Drainer Defense:** Designated guardians or registered backup addresses can call `pauseStream()` and `redirectStream()` to immediately freeze outflows and redirect unvested streams to a safe cold wallet if an heir is phished.
 5. **Arbitrum Stylus WASM Verification:** Merkle allocation verification implemented in Rust as an Arbitrum Stylus WASM contract (`stylus_merkle`), demonstrating sub-cent execution and bit-for-bit equivalence with OpenZeppelin Solidity.
-6. **Encrypted Vault Box for Off-Chain Secrets:** Hybrid AES-256-GCM + ECIES envelope encryption allowing benefactors to attach private credentials (CEX logins, hardware seed shards, 1Password master keys) pinned to decentralized storage (IPFS/Arweave). Unlocked in browser memory only after finalized Proof-of-Life verification.
+6. **Encrypted Vault Box with Live 2FA Authenticator & Assisted CEX Onramp:**
+   - **Off-Chain Legacy Box:** Hybrid AES-256-GCM + ECIES envelope encryption allowing benefactors to attach private credentials (CEX logins, hardware seed shards, 1Password master keys, and personal wills) pinned to decentralized storage (IPFS) and anchored immutably to `InheritanceVault.sol`.
+   - **Live Google Authenticator 2FA Engine (RFC-6238):** Heirs inherit not only passwords, but also a live, ticking 6-digit Google Authenticator code generated client-side in the Heir Decryption Portal, bypassing the exchange 2FA lockout barrier.
+   - **Assisted 1-Click QR Deposit:** Living owners can fund their wallet during vault setup or top up an existing vault directly from Coinbase, Binance, Kraken, and mobile Web3 wallets via high-contrast dynamic QR codes with zero passwords typed and native exchange FaceID/2FA approval.
 
 ```mermaid
 flowchart LR
@@ -130,8 +133,9 @@ flowchart LR
 
 ## Complete Protocol Lifecycle: How It Works
 
-### Phase 1: 1-Click Vault Provisioning (`/vault/create`)
-The owner deposits ETH or Paxos USDG, configures ECIES-encrypted allocations (shares sum to 10,000 bps), appoints 2-of-3 guardians with optional backup nomination, and executes deployment in **1 single transaction** via `OneClickInheritanceVault.sol`.
+### Phase 1: 1-Click Vault Provisioning & Assisted QR Deposit (`/vault/create`)
+The owner deposits ETH or Paxos USDG, configures ECIES-encrypted allocations (shares sum to 10,000 bps), configures the optional Off-Chain Legacy Box (with exchange credentials, seed shards, and 2FA setup keys), appoints 2-of-3 guardians with optional backup nomination, and executes deployment in **1 single transaction** via `OneClickInheritanceVault.sol`.
+- **Assisted 1-Click QR Deposit Modal:** Users can tap `[⚡ Scan QR / Transfer from Coinbase, Binance, or Mobile App]` to fund their wallet before deployment (or fund an active vault directly) without entering passwords or exporting API keys. Native FaceID/2FA on the exchange app authorizes the transfer.
 
 ### Phase 2: Heartbeat Monitoring & Telemetry (`/dashboard`)
 The dashboard displays real-time ECG rhythm telemetry (`62 BPM Steady`). Owners check in via standard EOA transactions or gasless ERC-4337 Pimlico paymasters. A shoulder-surfing privacy toggle obscures live balances (`••••••••`). The Sentinel daemon sends automated reminders before check-in intervals expire.
@@ -147,6 +151,7 @@ When the contest window concludes, the vault transitions to `Finalized`. The hei
 - **Lump-Sum vs. Streaming:** Pays an immediate emergency buffer (10%) and streams the remaining 90% per-second with live yield.
 - **Anti-Drainer Defense:** If an heir's wallet is compromised, guardians or registered backups call `pauseStream()` and `redirectStream(newColdWallet)` to rescue all unvested capital.
 - **Heir Secret Box Decryption Portal:** If the vault includes an anchored Off-Chain Legacy Box (`beneficiarySecretBoxes`), a prominent golden card alerts the heir: `"📦 Off-Chain Legacy Box Available — Inherited Credentials & Instructions"`. Clicking `[🔓 Decrypt Legacy Instructions]` prompts for an ephemeral EIP-191 signature (`personal_sign` on `"Cadence Legacy Box Decryption Authorization"`), derives the ECIES key in browser RAM, downloads the ciphertext from IPFS, and decrypts the credentials inside an interactive modal (obscured passwords, hold-to-reveal, copy-to-clipboard, personal will letter, and offline JSON/PDF export) with zero disk persistence.
+- **Live Google Authenticator 2FA Card:** If the deceased benefactor attached a 2FA TOTP seed key, the modal renders a live, synchronized Google Authenticator card with ticking 30-second countdowns and 1-click OTP copying, giving the heir everything necessary to access exchange accounts legally.
 
 ---
 
@@ -180,6 +185,10 @@ When the contest window concludes, the vault transitions to `Finalized`. The hei
    - *Problem:* Real-world wealth involves off-chain accounts: centralized exchange portfolios (Coinbase, Kraken), master passwords (1Password), and cold storage seed shards (Ledger Shamir backups). Storing these on-chain is public suicide, while cloud servers create custodial breach points.
    - *Solution:* Built an end-to-end Client-Side Hybrid Encryption Engine (AES-256-GCM + ECIES). Benefactors encrypt credentials and wills locally in browser memory before pinning to IPFS. The ciphertext CID and wrapped AES key are anchored immutably to `InheritanceVault.sol`. Heirs unwrap and decrypt strictly in volatile browser RAM upon finalized claim with zero disk or cookie persistence.
 
+8. **The 2FA Authenticator Barrier & Password-Free CEX Funding Dilemma:**
+   - *Problem:* Passing exchange passwords to heirs is useless because logins are blocked by Google Authenticator (TOTP). Furthermore, forcing living users to type passwords or export API keys to fund their vaults creates severe attack surfaces.
+   - *Solution:* Separated the estate lifecycle into two distinct phases. For living owners, built an **Assisted 1-Click QR Deposit Modal** enabling instant transfers from Coinbase/Binance apps approved via native FaceID/2FA without entering passwords or exposing API keys. For post-mortem heir access, built an in-browser **RFC-6238 TOTP Engine** into the Heir Decryption Portal, generating synchronized 6-digit Google Authenticator codes live in RAM from an encrypted seed.
+
 ---
 
 ## Verification & Audit Compliance Matrix
@@ -188,11 +197,12 @@ When the contest window concludes, the vault transitions to `Finalized`. The hei
 | :--- | :--- | :--- | :--- | :--- |
 | **Foundry Smart Contract Suite** | All 19 Test Suites | `contracts/test/` | **257 / 257 tests passing** | **PASSED** |
 | **Dedicated Secret Box Security Suite** | 6 Security Domains (40 checks) | `frontend/scripts/test-secret-box-security.mjs` | **40 / 40 tests passing** | **PASSED** |
+| **RFC-6238 TOTP Engine Suite** | Base32 & HMAC-SHA1 dynamic truncation | `frontend/scripts/test-totp.mjs` | **8 / 8 tests passing** | **PASSED** |
 | **Heir Claim Decryption Flow** | E2E In-Memory Decryption | `frontend/scripts/test-heir-claim-decryption-flow.mjs` | **11 / 11 tests passing** | **PASSED** |
-| **Hybrid Cryptography Suite** | AES-256-GCM + ECIES | `frontend/scripts/test-secret-box-crypto.mjs` | **15 / 15 tests passing** | **PASSED** |
+| **Hybrid Cryptography Suite** | AES-256-GCM + ECIES + 2FA preservation | `frontend/scripts/test-secret-box-crypto.mjs` | **16 / 16 tests passing** | **PASSED** |
 | **Slither Static Analysis (v0.11.6)** | All 55 contracts | `contracts/` | **0 Critical, 0 High, 0 Medium** | **PASSED** |
 | **Notifications Security Suite** | 11 Security Regression Suites | `notifications/test/security.test.ts` | **11 / 11 suites passing** | **PASSED** |
-| **Frontend ESLint Audit** | 106 source files | `frontend/` | **0 errors, 0 warnings** | **PASSED** |
+| **Frontend ESLint Audit** | 108 source files | `frontend/` | **0 errors, 0 warnings** | **PASSED** |
 | **Frontend TypeScript Typecheck** | Strict compilation | `npx tsc --noEmit` | **0 errors (exit code 0)** | **PASSED** |
 | **Dependency Security Audit** | Monorepo dependencies | `npm audit` | **0 vulnerabilities** | **PASSED** |
 | **Terminology Compliance** | Frontend & Docs Copy | All files | **0 instances of "staking"; strictly lending** | **PASSED** |

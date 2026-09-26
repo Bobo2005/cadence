@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import type { SecretBoxPayload, CredentialType } from "../types/secretBox";
+import { generateTOTP } from "../lib/totp";
 
 interface DecryptedSecretBoxModalProps {
   isOpen: boolean;
@@ -43,6 +44,84 @@ const TYPE_CONFIG: Record<
     badgeClass: "bg-slate-50 text-slate-700 border-slate-200",
   },
 };
+
+function TotpLiveViewer({
+  secret,
+  itemId,
+  onCopy,
+  copiedFieldId,
+}: {
+  secret: string;
+  itemId: string;
+  onCopy: (text: string, id: string) => void;
+  copiedFieldId: string | null;
+}) {
+  const [code, setCode] = useState<string>("------");
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(30);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function updateCode() {
+      const res = await generateTOTP(secret);
+      if (mounted) {
+        setCode(res.code);
+        setSecondsRemaining(res.secondsRemaining);
+      }
+    }
+
+    updateCode();
+    const interval = setInterval(updateCode, 1000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, [secret]);
+
+  const formattedCode =
+    code.length === 6 ? `${code.slice(0, 3)} ${code.slice(3)}` : code;
+  const percentElapsed = Math.round(((30 - secondsRemaining) / 30) * 100);
+
+  return (
+    <div className="p-3 rounded-xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-white border border-emerald-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+      <div className="flex items-center gap-3">
+        {/* Animated Countdown Indicator */}
+        <div className="relative w-10 h-10 shrink-0 flex items-center justify-center rounded-xl bg-emerald-100 text-emerald-800 font-mono font-bold text-xs border border-emerald-300 shadow-xs overflow-hidden">
+          <span>{secondsRemaining}s</span>
+          <div
+            className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500 transition-all duration-1000"
+            style={{ width: `${100 - percentElapsed}%` }}
+          />
+        </div>
+
+        <div className="space-y-0.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] font-mono uppercase font-bold tracking-wider text-emerald-800 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              Live Google Authenticator 2FA
+            </span>
+            <span className="text-[9px] font-mono px-1.5 py-0.2 rounded bg-emerald-200/70 text-emerald-900 font-bold">
+              TOTP
+            </span>
+          </div>
+          <div className="font-mono text-base sm:text-lg font-extrabold tracking-widest text-slate-900">
+            {formattedCode}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 self-end sm:self-auto">
+        <button
+          type="button"
+          onClick={() => onCopy(code, `totp-${itemId}`)}
+          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[11px] transition-colors cursor-pointer shadow-xs flex items-center gap-1"
+        >
+          <span>{copiedFieldId === `totp-${itemId}` ? "✓ Copied!" : "📋 Copy 2FA Code"}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function DecryptedSecretBoxModal({
   isOpen,
@@ -155,11 +234,10 @@ export default function DecryptedSecretBoxModal({
           <button
             type="button"
             onClick={() => setActiveTab("accounts")}
-            className={`pb-2.5 px-3 text-xs sm:text-sm font-bold transition-all cursor-pointer border-b-2 flex items-center gap-1.5 ${
-              activeTab === "accounts"
+            className={`pb-2.5 px-3 text-xs sm:text-sm font-bold transition-all cursor-pointer border-b-2 flex items-center gap-1.5 ${activeTab === "accounts"
                 ? "border-[#111111] text-[#111111]"
                 : "border-transparent text-slate-400 hover:text-slate-700"
-            }`}
+              }`}
           >
             <span>🔑</span>
             <span>Accounts & Credentials</span>
@@ -171,11 +249,10 @@ export default function DecryptedSecretBoxModal({
           <button
             type="button"
             onClick={() => setActiveTab("letter")}
-            className={`pb-2.5 px-3 text-xs sm:text-sm font-bold transition-all cursor-pointer border-b-2 flex items-center gap-1.5 ${
-              activeTab === "letter"
+            className={`pb-2.5 px-3 text-xs sm:text-sm font-bold transition-all cursor-pointer border-b-2 flex items-center gap-1.5 ${activeTab === "letter"
                 ? "border-[#111111] text-[#111111]"
                 : "border-transparent text-slate-400 hover:text-slate-700"
-            }`}
+              }`}
           >
             <span>📝</span>
             <span>Personal Letter / Will</span>
@@ -290,6 +367,16 @@ export default function DecryptedSecretBoxModal({
                             {copiedFieldId === `sec-${item.id}` ? "✓ Copied!" : "📋 Copy Secret"}
                           </button>
                         </div>
+                      )}
+
+                      {/* Live 2FA TOTP Card */}
+                      {item.totpSecret && (
+                        <TotpLiveViewer
+                          secret={item.totpSecret}
+                          itemId={item.id}
+                          onCopy={handleCopy}
+                          copiedFieldId={copiedFieldId}
+                        />
                       )}
 
                       {/* Instructions */}

@@ -46,6 +46,7 @@ async function runTests() {
         title: "Coinbase Pro Main Family Fund",
         identifier: "investor@familywealth.com",
         secret: "Sup3rS3cur3P@ssw0rd!2026",
+        totpSecret: "JBSWY3DPEHPK3PXP",
         instructions: "Hardware YubiKey #2 is located in the home study lockbox.",
       },
       {
@@ -100,6 +101,7 @@ async function runTests() {
   assert(decrypted.beneficiaryAddress === samplePayload.beneficiaryAddress, "Beneficiary address matches");
   assert(decrypted.items.length === 4, "Decrypted 4 distinct secret items");
   assert(decrypted.items[0].secret === "Sup3rS3cur3P@ssw0rd!2026", "CEX password decrypted correctly");
+  assert(decrypted.items[0].totpSecret === "JBSWY3DPEHPK3PXP", "TOTP 2FA secret key decrypted bit-for-bit");
   assert(decrypted.items[2].type === "hardware_wallet_seed", "Seed shard type preserved");
   assert(decrypted.personalMessage === samplePayload.personalMessage, "Markdown personal letter matches bit-for-bit");
 

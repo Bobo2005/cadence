@@ -39,6 +39,7 @@ export default function OffChainLegacyBoxBuilder({
       title: "",
       identifier: "",
       secret: "",
+      totpSecret: "",
       instructions: "",
     };
     onChange([...items, newItem], personalMessage);
@@ -194,18 +195,57 @@ export default function OffChainLegacyBoxBuilder({
                 </div>
               </div>
 
-              {/* Special Instructions */}
-              <div>
-                <label className="block text-[11px] font-medium text-slate-600 mb-1">
-                  Access Instructions / Physical Location
-                </label>
-                <input
-                  type="text"
-                  value={item.instructions || ""}
-                  placeholder="e.g. Hardware YubiKey #2 is inside the master bedroom safe"
-                  onChange={(e) => updateItem(item.id, { instructions: e.target.value })}
-                  className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#2EE6A8]"
-                />
+              {/* Special Instructions & 2FA Setup */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* 2FA Authenticator Backup Key */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-medium text-slate-600 flex items-center gap-1">
+                      <span>🔐 2FA / Authenticator Backup Key (Optional)</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-slate-400">TOTP Seed</span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type={showSecrets[`totp-${item.id}`] ? "text" : "password"}
+                      value={item.totpSecret || ""}
+                      placeholder="e.g. JBSWY3DPEHPK3PXP"
+                      onChange={(e) =>
+                        updateItem(item.id, {
+                          totpSecret: e.target.value.toUpperCase().replace(/[\s-]/g, ""),
+                        })
+                      }
+                      className="w-full text-xs px-2.5 py-1.5 pr-12 border border-slate-200 rounded bg-white text-slate-800 placeholder-slate-400 font-mono uppercase focus:outline-none focus:border-[#2EE6A8]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => toggleSecretVisibility(`totp-${item.id}`)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-[11px] text-slate-400 hover:text-slate-600 px-1 font-medium cursor-pointer"
+                    >
+                      {showSecrets[`totp-${item.id}`] ? "Hide" : "Show"}
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                    TOTP Seed from exchange &apos;Set up 2FA&apos; screen (e.g. JBSWY3DPEHPK3PXP). Enables your heir to generate live 6-digit Google Authenticator codes in Cadence.
+                  </p>
+                </div>
+
+                {/* Special Instructions */}
+                <div>
+                  <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                    Access Instructions / Physical Location
+                  </label>
+                  <input
+                    type="text"
+                    value={item.instructions || ""}
+                    placeholder="e.g. Hardware YubiKey #2 is inside the master bedroom safe"
+                    onChange={(e) => updateItem(item.id, { instructions: e.target.value })}
+                    className="w-full text-xs px-2.5 py-1.5 border border-slate-200 rounded bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:border-[#2EE6A8]"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 leading-tight">
+                    Specific notes or physical instructions to help your heir locate devices or accounts.
+                  </p>
+                </div>
               </div>
             </div>
           ))}

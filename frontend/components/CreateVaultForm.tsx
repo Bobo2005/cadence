@@ -16,6 +16,7 @@ import {
 } from "viem";
 import { sepolia } from "viem/chains";
 import BeneficiarySetupForm, { type BeneficiaryItem } from "./BeneficiarySetupForm";
+import AssistedDepositModal from "./AssistedDepositModal";
 import {
   buildAllocationTree,
   buildGuardianTree,
@@ -154,7 +155,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   const { showToast } = useToast();
 
   // Fetch real connected wallet balance
-  const { data: balanceData } = useBalance({
+  const { data: balanceData, refetch: refetchBalance } = useBalance({
     address: connectedAddress,
   });
 
@@ -184,6 +185,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
   // Step 1: Deposit Capital state
   const [depositAmount, setDepositAmount] = useState<string>("0.05");
   const [selectedToken, setSelectedToken] = useState<string>("ETH");
+  const [isAssistedDepositOpen, setIsAssistedDepositOpen] = useState(false);
 
   // Step 2: Beneficiary Allocation state
   const [isBeneficiaryValid, setIsBeneficiaryValid] = useState(true);
@@ -908,6 +910,23 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                     Deposit amount exceeds available wallet balance ({balanceNum.toFixed(4)} {selectedToken}).
                   </p>
                 )}
+
+                {/* Assisted QR / Exchange Deposit Trigger */}
+                <div className="pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsAssistedDepositOpen(true)}
+                    className="w-full py-2.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/5 to-white hover:from-emerald-500/15 border border-emerald-200 text-emerald-900 text-xs font-semibold flex items-center justify-between transition-all cursor-pointer shadow-xs hover:border-emerald-300"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">⚡</span>
+                      <span>Scan QR / Transfer from Coinbase, Binance, or Mobile App</span>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white text-emerald-800 border border-emerald-200 font-bold uppercase tracking-wider">
+                      Zero Passwords
+                    </span>
+                  </button>
+                </div>
               </div>
 
               {/* Estimated Transaction Information */}
@@ -1756,6 +1775,21 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
           </div>
         </div>
       )}
+
+      {/* Assisted QR / Exchange Deposit Modal */}
+      <AssistedDepositModal
+        isOpen={isAssistedDepositOpen}
+        onClose={() => {
+          setIsAssistedDepositOpen(false);
+          refetchBalance?.();
+        }}
+        targetAddress={connectedAddress || ""}
+        tokenSymbol={selectedToken}
+        tokenAmount={depositAmount}
+        networkName="Sepolia"
+        chainId={chain?.id || sepolia.id}
+        isVaultAddress={false}
+      />
     </div>
   );
 }

@@ -48,12 +48,19 @@
     - **Compounding Idle Capital Yield**: Unvested principal accrues passive yield (Aave v3 yield strategy model).
     - **Emergency Circuit Breakers**: Beneficiaries (`pauseStream`), consensus guardians via Merkle proof (`pauseStreamWithGuardian`), and registered backup claim addresses (`pauseStream`, `redirectStream`) can freeze and permanently redirect streaming capital to a safe cold hardware wallet if an heir's keys are leaked or phished.
 
-11. **Off-Chain Legacy Secrets: Encrypted Vault Box (Hybrid AES-256 + ECIES).**
+11. **Off-Chain Legacy Secrets: Encrypted Vault Box (Hybrid AES-256 + ECIES) & RFC-6238 TOTP Engine.**
     To protect credentials that cannot live directly on-chain (CEX accounts, 1Password master keys, hardware seed shards, physical safe instructions, personal letters), Cadence utilizes a client-side hybrid envelope encryption pipeline:
     - **Payload Encryption**: The secret JSON payload is encrypted client-side using a random ephemeral 256-bit symmetric key (`AES-256-GCM`) with a 12-byte IV via the native Web Crypto API (`window.crypto.subtle`).
     - **Key Wrapping**: The symmetric key is encrypted using the beneficiary's secp256k1 uncompressed public key via ECIES (`EthCrypto.encryptWithPublicKey`).
     - **Zero Plaintext at Rest**: Encrypted ciphertext is pinned to decentralized storage (IPFS/Pinata); the CID and stringified ECIES cipher are anchored on-chain to `InheritanceVault.sol` (`beneficiarySecretBoxes` mapping) with minimal gas overhead (~45k gas).
-    - **In-Memory Ephemeral Decryption Portal**: Upon finalized Proof-of-Life verification, the heir signs `"Cadence Legacy Box Decryption Authorization"` to derive the ECIES private key in volatile browser RAM. Secrets are displayed inside an interactive modal with hold-to-reveal controls, masked passwords, personal will letter, and offline JSON/PDF export—with zero disk, LocalStorage, or cookie persistence.
+    - **In-Memory Ephemeral Decryption Portal & Live 2FA Engine**: Upon finalized Proof-of-Life verification, the heir signs `"Cadence Legacy Box Decryption Authorization"` to derive the ECIES private key in volatile browser RAM. If a 2FA TOTP seed was attached, an in-browser **RFC-6238 TOTP Engine** (`lib/totp.ts`) generates synchronized 6-digit Google Authenticator codes with an animated 30-second countdown ring and 1-click copy—bypassing the exchange 2FA lockout barrier with zero disk or cookie persistence.
+
+12. **Assisted 1-Click QR Deposit Architecture (Zero Password / Zero API Key CEX Funding).**
+    To solve the UX problem of funding vaults without exposing exchange credentials or sensitive API keys, Cadence separates the estate lifecycle into two distinct moments:
+    - **While the Owner is Alive (Vault Funding)**: Cadence generates dynamic, high-contrast QR codes (`AssistedDepositModal.tsx`) for Coinbase, Binance, Kraken, and mobile Web3 wallets. The owner scans the QR code using their phone's native exchange app, approving the deposit via **FaceID, TouchID, or 2FA directly inside the exchange**. Zero exchange passwords or API keys are ever entered into Cadence.
+    - **Dual-Destination Intelligence**:
+      * *During Vault Creation (`/vault/create`)*: The QR code targets the user's **Connected Wallet Address**, funding it with exact assets needed for the 1-click atomic contract deployment.
+      * *On Active Vaults (`/dashboard`)*: The QR code targets the **Vault Smart Contract Address** directly, depositing assets straight into autonomous Proof-of-Life custody and Aave v3 lending pools.
 
 ## End-to-End Privacy Architecture & Balance Visibility System
 
@@ -68,6 +75,8 @@ Cadence adheres to a strict multi-layer zero-leakage privacy model verified acro
 | **Zero Gas-Linkage Stealth Cancellation** (Constraint #1) | Consensus (`ProofOfLifeConsensus.sol`) | Living vault owners dismiss false-alarm contest windows off-chain via **EIP-712 typed digests** (`CancelClaim`). Any relayer can broadcast the cancel with zero owner ETH funding or gas tracking. | **19/19 Passing** (`ContestableClaim.t.sol`; `test_relayedCancel_stealthAddressZeroBalance_succeeds`) |
 | **Safe In-Memory Key Derivation** | Frontend UI (`ClaimPortal.tsx`) | Beneficiaries sign an authorization message (`personal_sign` over `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory—zero raw private keys are ever entered in the UI. | **Verified Live** (Supports single & multi-beneficiary allocation roots without key exposure) |
 | **Off-Chain Legacy Box (Encrypted Vault Box)** (Constraint #11) | Hybrid Crypto & Storage (`lib/secretBoxCrypto.ts`, `ClaimPortal.tsx`, `InheritanceVault.sol`) | CEX logins, seed shards, and wills encrypted via AES-256-GCM + ECIES, pinned to IPFS, anchored on-chain, and decrypted strictly in volatile RAM. | **40/40 Passing** (`scripts/test-secret-box-security.mjs`, `SecretBox.t.sol`) |
+| **RFC-6238 Live TOTP 2FA Generator** (Constraint #11) | Client Cryptography (`lib/totp.ts`, `DecryptedSecretBoxModal.tsx`) | Computes live 6-digit Google Authenticator codes in memory via Web Crypto HMAC-SHA1 from encrypted Base32 seeds. Zero network calls, zero disk persistence. | **8/8 Passing** (`scripts/test-totp.mjs`) |
+| **Assisted 1-Click QR Deposit** (Constraint #12) | Non-Custodial Onramp (`AssistedDepositModal.tsx`, `CreateVaultForm.tsx`) | Pre-fills destination address and amounts for Coinbase/Binance apps. Approved via FaceID/2FA inside the exchange. Zero password entry, zero API keys. | **Verified Live** (`AssistedDepositModal.tsx`) |
 | **Guardian Quorum Privacy** | Registry (`GuardianRegistry.sol`) | Guardians are committed via a 2-of-3 Merkle tree (`guardianRoot`). Observers cannot inspect full guardian rosters on-chain prior to active attestation. | **15/15 Passing** (`StealthAddressRegistry.t.sol`) |
 | **Cryptographic Email Binding** (Constraint #6) | Microservice (`bindingVerifier.ts`) | Beneficiary emails remain unverified/pending until the wallet owner signs an EIP-712 binding proof, preventing notification hijacking. | **18/18 Passing** (`notifications/test/notifications.test.mjs`) |
 

@@ -19,6 +19,7 @@ export interface SecretBoxItem {
   title: string;
   identifier?: string;
   secret: string;
+  totpSecret?: string; // Optional Base32 encoded 2FA secret key for live TOTP generation
   instructions?: string;
 }
 

@@ -2,6 +2,18 @@
 
 ---
 
+## 📌 Project Overview & Tagline
+
+> *"Cadence secures regulated, yield-bearing family wealth for the next generation of retail investors — not speculative crypto for DeFi natives."*
+
+**Cadence Protocol** is a self-custodial, zero-leak digital inheritance and estate planning protocol built for the next generation of retail investors. It replaces fragile dead man's switches and centralized custodial trusts with a multi-signal Proof-of-Life consensus engine, client-side ECIES encryption, autonomous yield-bearing distribution streams (Cadence Streams) powered by production Aave v3 adapters and regulated stablecoins (Paxos USDG), and an end-to-end Encrypted Vault Box bridging off-chain accounts, password managers, and live 2FA authenticators to heirs.
+
+- **Live dApp (Vercel):** [https://cadence-ebon-six.vercel.app/](https://cadence-ebon-six.vercel.app/)
+- **Live Notifications & Sentinel API (Render):** [https://cadence-notifications.onrender.com/health](https://cadence-notifications.onrender.com/health)
+- **Core Deployments:** Arbitrum Sepolia (`421614`), Robinhood Chain Testnet (`46630`), Ethereum Sepolia (`11155111`)
+
+---
+
 ## Verified Smart Contracts & Multi-Chain Deployments
 
 Cadence is deployed and verified across three production testnets with deterministic contract addresses:
@@ -35,6 +47,7 @@ Existing decentralized alternatives rely on brittle smart contract countdown tim
 - **The On-Chain Storage Trap (Zero Privacy):** Storing beneficiary addresses and percentage shares in plaintext public storage slots exposes family net worth and heir identities to anyone calling `eth_getStorageAt`.
 - **The Guillotine Timer (False Liquidation):** Simple countdown timers lack nuance. Hospitalization, off-grid travel, or a lost phone triggers irreversible distribution before death is verified.
 - **The Lump-Sum "Inheritance Dump" & Drainer Risk:** Dumping 100% of an estate into an heir's wallet in a single transaction makes grieving families instant targets for phishing drainers and impulsive liquidation, while idle capital earns 0% yield.
+- **The Off-Chain Estate Black Hole:** Real-world estates are not purely on-chain tokens. Heirs routinely lose access to centralized exchange balances (Coinbase, Kraken, Binance), password managers (1Password master keys), and cold storage seed shards because there is no secure, zero-knowledge way to pass credentials without exposing them in cloud plaintext. Furthermore, leaving passwords alone is useless because exchange logins are permanently blocked by Google Authenticator (2FA).
 
 ---
 

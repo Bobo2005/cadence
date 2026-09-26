@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+<head>
+<meta charset="utf-8">
+<title>Cadence Protocol — Comprehensive Buildathon Project Submission</title>
+<!--[if gte mso 9]>
+<xml>
+<w:WordDocument>
+<w:View>Print</w:View>
+<w:Zoom>100</w:Zoom>
+<w:DoNotOptimizeForBrowser/>
+</w:WordDocument>
+</xml>
+<![endif]-->
+<style>
+body {
+    font-family: 'Calibri', 'Arial', sans-serif;
+    font-size: 11pt;
+    line-height: 1.5;
+    color: #111827;
+    margin: 1in;
+}
+h1 {
+    font-size: 22pt;
+    color: #0f172a;
+    border-bottom: 2pt solid #059669;
+    padding-bottom: 6pt;
+    margin-bottom: 12pt;
+}
+h2 {
+    font-size: 14pt;
+    color: #065f46;
+    margin-top: 18pt;
+    margin-bottom: 8pt;
+    border-bottom: 1pt solid #e5e7eb;
+    padding-bottom: 3pt;
+}
+h3 {
+    font-size: 12pt;
+    color: #1f2937;
+    margin-top: 12pt;
+    margin-bottom: 4pt;
+}
+blockquote {
+    background-color: #f0fdf4;
+    border-left: 4pt solid #10b981;
+    margin: 12pt 0;
+    padding: 8pt 12pt;
+    font-style: italic;
+    color: #064e3b;
+}
+p {
+    margin-top: 0;
+    margin-bottom: 8pt;
+}
+ul, ol {
+    margin-top: 0;
+    margin-bottom: 8pt;
+    padding-left: 20pt;
+}
+li {
+    margin-bottom: 4pt;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12pt 0;
+}
+th, td {
+    border: 1pt solid #d1d5db;
+    padding: 6pt 10pt;
+    text-align: left;
+    font-size: 10pt;
+}
+th {
+    background-color: #f3f4f6;
+    color: #111827;
+    font-weight: bold;
+}
+a {
+    color: #059669;
+    text-decoration: underline;
+}
+code {
+    font-family: 'Consolas', 'Courier New', monospace;
+    background-color: #f3f4f6;
+    padding: 2pt 4pt;
+    font-size: 10pt;
+}
+</style>
+</head>
+<body>
+
+<h1>Cadence Protocol — Comprehensive Buildathon Project Submission</h1>
+
+<blockquote>
+"Cadence secures regulated, yield-bearing family wealth for the next generation of retail investors — not speculative crypto for DeFi natives."
+</blockquote>
+
+<p><strong>Cadence Protocol</strong> is a self-custodial, zero-leak digital inheritance and estate planning protocol built for Arbitrum Sepolia and Robinhood Chain Testnet. It replaces fragile dead man's switches and centralized custodial trusts with a multi-signal Proof-of-Life consensus engine, client-side ECIES encryption, autonomous yield-bearing distribution streams (Cadence Streams) powered by production Aave v3 adapters and regulated stablecoins (Paxos USDG), and an end-to-end Encrypted Vault Box bridging off-chain accounts, password managers, and live ticking 2FA authenticators to heirs with zero disk persistence.</p>
+
+<ul>
+    <li><strong>Live dApp (Vercel):</strong> <a href="https://cadence-ebon-six.vercel.app/">https://cadence-ebon-six.vercel.app/</a></li>
+    <li><strong>Live Notifications & Sentinel API (Render):</strong> <a href="https://cadence-notifications.onrender.com/health">https://cadence-notifications.onrender.com/health</a></li>
+    <li><strong>Core Deployments:</strong> Arbitrum Sepolia (421614), Robinhood Chain Testnet (46630), Ethereum Sepolia (11155111)</li>
+</ul>
+
+<h2>1. Inspiration & Problem Statement: Over $100 Billion in Trapped Wealth</h2>
+<p>Over <strong>$100 Billion in cryptocurrency</strong> is estimated to be permanently lost, trapped in inaccessible addresses due to death, incapacitation, or forgotten keys. The core ethos of Web3 — <em>"not your keys, not your coins"</em> — creates a catastrophic blindspot: when a self-custodial asset holder dies, their digital wealth dies with them.</p>
+
+<p>Today, holders face an impossible choice between two flawed models:</p>
+
+<h3>A. The Centralized Custodial Trap</h3>
+<p>Traditional estate trusts or centralized exchange custodians require surrendering private keys or multi-sigs to third-party institutions. This destroys self-sovereignty, incurs exorbitant probate fees (often 2–5% of estate value), introduces institutional bankruptcy risk (e.g., Celsius, FTX, Prime Trust), and permanently doxxes families through invasive KYC/AML procedures.</p>
+
+<h3>B. The Naive On-Chain "Guillotine" Switch</h3>
+<ul>
+    <li><strong>Zero Privacy (The On-Chain Storage Leak):</strong> Storing heir addresses and allocation percentages in plaintext public contract storage slots exposes family net worth to anyone calling <code>eth_getStorageAt</code> or viewing block explorers.</li>
+    <li><strong>The Guillotine Timer (False Liquidation):</strong> Simple countdown timers lack nuance. Hospitalization, off-grid travel, or a lost phone triggers irreversible, premature asset distribution before death is verified.</li>
+    <li><strong>The Lump-Sum "Inheritance Dump" & Drainer Risk):</strong> Dumping 100% of an estate into an heir's wallet in a single transaction makes grieving families immediate targets for phishing drainer bots and impulsive liquidation, while idle capital earns 0% yield.</li>
+    <li><strong>The Off-Chain Estate Black Hole:</strong> Real-world estates are not purely on-chain tokens. Heirs routinely lose access to centralized exchange balances (Coinbase, Kraken, Binance), password managers (1Password master keys), and cold storage seed shards because there is no secure, zero-knowledge way to pass credentials without exposing them in cloud plaintext. Furthermore, leaving passwords alone is useless because exchange logins are permanently blocked by Google Authenticator (2FA).</li>
+</ul>
+
+<h2>2. What It Does: The 6 Pillars of Cadence</h2>
+<p>Cadence provides institutional-grade digital estate protection paired with human-centric, consumer-friendly UX:</p>
+
+<h3>1. Multi-Signal Proof-of-Life Consensus Engine</h3>
+<ul>
+    <li><strong>Heartbeat Telemetry:</strong> Periodic owner check-ins via standard transactions or gasless ERC-4337 Pimlico paymasters.</li>
+    <li><strong>2-of-3 Guardian Quorum (<code>GuardianRegistry.sol</code>):</strong> Trusted contacts attest on-chain to trigger the inheritance sequence, backed by non-custodial backup guardian nomination for institutional resilience.</li>
+    <li><strong>72-Hour Contest Window:</strong> An unforgeable grace period for living owners to contest accidental, unauthorized, or malicious claims.</li>
+</ul>
+
+<h3>2. Cadence Streams: Autonomous Yield-Bearing Vesting</h3>
+<ul>
+    <li><strong>No Lump-Sum Dump:</strong> Upon activation, heirs receive an immediate emergency buffer (e.g., 10%) while the remaining 90% is streamed linearly per second over an agreed horizon (e.g., months or years).</li>
+    <li><strong>Production-Ready Lending Yield (Never Staked):</strong> Unvested principal integrates production-ready <code>IAavePool</code>/<code>IAToken</code> lending adapters (<code>InheritanceVault.sol</code>, evaluated against a high-fidelity <code>MockAavePool</code> on testnet, ready for Arbitrum One mainnet) alongside Paxos USDG vaults pegged to published Robinhood Earn yield (7.00% APY). Capital works continuously for the family rather than sitting idle. Unvested assets are supplied to lending pools, <strong>never staked</strong>.</li>
+    <li><strong>Anti-Drainer Circuit Breaker:</strong> If an heir’s wallet is compromised by a drainer bot, guardians or pre-registered backup addresses can call <code>pauseStream()</code> and <code>redirectStream()</code> to immediately halt outflows and re-route unvested assets to a secure cold wallet.</li>
+</ul>
+
+<h3>3. Zero Plaintext On-Chain Storage</h3>
+<p>Allocations, beneficiary addresses, and blinding salts are encrypted client-side using ECIES-secp256k1 and committed to the contract as an opaque 32-byte blinded Merkle root (<code>allocationRoot</code>). Family net worth, heir identities, and percentage splits remain completely invisible to block explorers and <code>eth_getStorageAt</code> queries.</p>
+
+<h3>4. Zero Gas-Linkage Stealth Cancellation</h3>
+<p>If a false alarm occurs, the living owner clicks <strong>[RESET PROTOCOL: I'M ALIVE]</strong> to generate an off-chain EIP-712 typed signature. Gasless relayers broadcast the reset transaction on the owner's behalf with zero gas paid by the owner, preventing blockchain forensics from linking the owner’s active wallet to the estate vault.</p>
+
+<h3>5. Arbitrum Stylus WASM Verification</h3>
+<p>Merkle allocation verification is implemented in Rust as an Arbitrum Stylus WASM contract (<code>stylus_merkle</code>), achieving sub-cent gas execution with bit-for-bit equivalence against OpenZeppelin Solidity standards.</p>
+
+<h3>6. Encrypted Vault Box with Live 2FA Authenticator & Assisted CEX Onramp</h3>
+<ul>
+    <li><strong>Funding Today (While Alive):</strong> An Assisted 1-Click QR Deposit Modal generates dynamic QR codes for Coinbase, Binance, Kraken, and mobile Web3 wallets. The owner scans from their mobile exchange app and authorizes deposits via native FaceID/2FA. Zero exchange passwords or API keys are ever entered into Cadence.</li>
+    <li><strong>Post-Mortem Heir Recovery (Tomorrow):</strong> Benefactors seal exchange credentials, seed shards, and 2FA setup keys via hybrid AES-256-GCM + ECIES envelope encryption anchored on-chain. When finalized, the heir decrypts the box in browser RAM. An in-browser RFC-6238 TOTP Engine generates live, synchronized 6-digit Google Authenticator codes with 30-second countdowns, allowing the heir to bypass the 2FA lockout barrier with zero disk persistence.</li>
+</ul>
+
+<h2>3. User Experience & Human-Centric Design Philosophy</h2>
+<blockquote>
+"It’s not about piling on more and more features — it’s about making the UX effortlessly simple so everyday users never get stuck or overwhelmed."
+</blockquote>
+<ol>
+    <li><strong>Zero Crypto Jargon in the UI:</strong> Instead of asking users to configure "ECIES public key envelopes" or "asymmetric ciphertexts", we give them clean, plain English: "Deposit with 1 Click" or "Unlock Inherited Box". Smart defaults guide them with intuitive presets (e.g. 5-minute testing for hackathon evaluation vs. 180-day production standard).</li>
+    <li><strong>The Assisted QR / Deep Link instead of Manual Hassle:</strong> Users never need to copy-paste contract addresses or worry about network mismatches. They tap or scan with Coinbase, Binance, Kraken, or mobile Web3 wallets, native FaceID/TouchID confirms it, and it's done.</li>
+    <li><strong>1-Click Atomic Deployment:</strong> Behind the scenes, Cadence deploys an Aave-connected vault, sets up Proof-of-Life consensus, and registers guardians in one single transaction (<code>OneClickInheritanceVault.sol</code>). The user clicks once and their family is protected.</li>
+    <li><strong>Zero-Password Claiming for Heirs:</strong> The heir never has to hunt for a master password or worry about lost passphrases. Connecting their wallet and clicking "Unlock Allocation" does all the math and decryption silently in the background in seconds.</li>
+</ol>
+
+<h2>4. How We Built It: Technical Architecture & Stack</h2>
+<ul>
+    <li><strong>Smart Contracts:</strong> Solidity <code>^0.8.24</code> (InheritanceVault, ProofOfLifeConsensus, GuardianRegistry, OneClickInheritanceVault) & Rust (Arbitrum Stylus WASM <code>stylus_merkle</code>). Built and tested with Foundry.</li>
+    <li><strong>Networks:</strong> Arbitrum Sepolia (421614), Robinhood Chain Testnet (46630), Ethereum Sepolia (11155111).</li>
+    <li><strong>Frontend:</strong> Next.js 16 (App Router + Turbopack), React 19, TypeScript 5, Viem <code>^2.56.3</code>, Wagmi <code>^3.7.7</code>, TanStack Query <code>^5.102.8</code>.</li>
+    <li><strong>Design System:</strong> Custom Vanilla CSS "Pulse" Light Editorial Theme, dynamic SVG ECG oscilloscope rhythm (62 BPM Steady to 92 BPM Arrhythmia).</li>
+    <li><strong>Account Abstraction & Signatures:</strong> ERC-4337 (Pimlico Paymaster), EIP-712 Typed Data, EIP-191 Personal Sign, ECIES-secp256k1.</li>
+    <li><strong>Cryptography & Off-Chain Storage:</strong> Web Crypto API (AES-256-GCM 256-bit + 12-byte IV), ECIES Key Wrapping, IPFS Pinning Gateway (<code>/api/secret-box/*</code>).</li>
+    <li><strong>In-Browser TOTP Engine:</strong> RFC-6238 Time-Based One-Time Password engine in browser RAM using Base32 decoding and dynamic HMAC-SHA1 truncation with live 30-second interval synchronization.</li>
+    <li><strong>Notifications & Sentinel Daemon:</strong> Node.js, Express <code>^4.21.2</code>, TypeScript <code>^5.7.2</code>, Viem multi-chain event watcher, Nodemailer SMTP / Resend API, strict EIP-712 binding verifier (<code>bindingVerifier.ts</code>).</li>
+    <li><strong>DeFi & Stablecoin Yield Integrations:</strong>
+        <ul>
+            <li><strong>Aave v3 Yield Architecture:</strong> Production-ready <code>IAavePool</code> and <code>IAToken</code> interfaces in <code>InheritanceVault.sol</code> with dynamic supply/withdraw accounting, verified against a high-fidelity testnet harness (<code>MockAavePool</code>) and architected for canonical Arbitrum One mainnet deployment.</li>
+            <li><strong>Paxos USDG Yield Engine:</strong> Modeled 7.00% APY compounding yield pegged directly to Robinhood Earn published APY on Robinhood Chain and Arbitrum Sepolia. Unvested capital is supplied to lending pools, <strong>never staked</strong>.</li>
+        </ul>
+    </li>
+</ul>
+
+<h2>5. Challenges We Overcame</h2>
+<ol>
+    <li><strong>The "Gas Linkage" De-Anonymization Trap:</strong> Broadcasting cancellations from newly derived stealth addresses requires funding them with gas, creating an on-chain forensic link to the owner. We solved this with off-chain EIP-712 typed signatures (<code>CancelClaim</code>). Relayers broadcast the cancellation; the contract recovers the signer address via <code>ECDSA.recover</code> with zero owner gas spent.</li>
+    <li><strong>The On-Chain Storage Leak Trap:</strong> Storing beneficiary allocations on-chain in public mapping slots exposes family net worth to <code>eth_getStorageAt</code>. We engineered a blinded Merkle tree structure where the contract stores only a 32-byte <code>allocationRoot</code>. Allocations and blinding salts are encrypted client-side via ECIES-secp256k1. <code>vm.load</code> audits in Foundry (<code>AllocationPrivacy.t.sol</code>) verify zero plaintext exposure.</li>
+    <li><strong>Single-Beneficiary vs. Multi-Beneficiary Merkle Parity:</strong> In 1-heir vaults (<code>leaf == root</code>), standard Merkle libraries crash on empty proof arrays (<code>[]</code>). We engineered OpenZeppelin-compliant proof handling in both TypeScript and Solidity, verifying that an empty proof against a single leaf correctly validates against the root.</li>
+    <li><strong>Eliminating the "Paste Private Key" UI Anti-Pattern:</strong> Requiring users to paste private keys for ECIES decryption is a severe security vulnerability. We engineered ephemeral key derivation: beneficiaries sign an ephemeral message (<code>personal_sign</code> over deterministic salt), derive the 32-byte ECIES key in browser memory, decrypt <code>{ shareBps, salt }</code>, and discard the key. Zero private keys are ever typed or stored.</li>
+    <li><strong>Multi-RPC Failover Under High Traffic:</strong> High-frequency polling on public testnet RPCs triggers HTTP 429 rate limits and browser CORS blocks. We implemented Viem <code>fallback([...])</code> transports pooling independent CORS-enabled endpoints across Arbitrum Sepolia, Robinhood Chain, and Ethereum Sepolia with 6000ms request timeouts.</li>
+    <li><strong>The "Inheritance Drainer & Zombie Pulse" Dilemma:</strong> A thief with stolen owner keys could make small transfers to indefinitely reset a dead man's switch ("zombie pulse"). Alternatively, compromising an heir's wallet allows drainer bots to steal a lump-sum inheritance instantly. We enforced strict intentional heartbeats (<code>checkIn()</code> only) to eliminate zombie pulses, and built Cadence Streams with guardian circuit breakers (<code>pauseStream</code> and <code>redirectStream</code>) to rescue unvested streams.</li>
+    <li><strong>The "Off-Chain Secret & Plaintext Exposure" Dilemma:</strong> Real-world wealth involves off-chain accounts: centralized exchange portfolios (Coinbase, Kraken), master passwords (1Password), and cold storage seed shards. We built an end-to-end Client-Side Hybrid Encryption Engine (AES-256-GCM + ECIES). Benefactors encrypt credentials locally in browser memory before pinning to IPFS. The ciphertext CID and wrapped AES key are anchored immutably to <code>InheritanceVault.sol</code>. Heirs unwrap and decrypt strictly in volatile browser RAM upon finalized claim with zero disk or cookie persistence.</li>
+    <li><strong>The 2FA Authenticator Barrier & Password-Free CEX Funding Dilemma:</strong> Passing exchange passwords to heirs is useless because logins are blocked by Google Authenticator (TOTP). Furthermore, forcing living users to type passwords or export API keys to fund their vaults creates severe attack surfaces. We separated the estate lifecycle into two distinct phases: for living owners, an Assisted 1-Click QR Deposit Modal enables instant transfers from Coinbase/Binance apps approved via native FaceID/2FA without entering passwords or exposing API keys. For post-mortem heir access, an in-browser RFC-6238 TOTP Engine generates synchronized 6-digit Google Authenticator codes live in RAM from an encrypted seed.</li>
+    <li><strong>Rigorous On-Chain Aave Truth:</strong> When verifying Aave v3 on Arbitrum Sepolia, we discovered that Aave DAO does not maintain a canonical deployment on this testnet. Rather than asserting false claims, we engineered production-ready <code>IAavePool</code>/<code>IAToken</code> interfaces in <code>InheritanceVault.sol</code>, evaluated them against a faithful <code>MockAavePool</code> harness on testnet, and documented the exact mainnet migration path to Arbitrum One.</li>
+</ol>
+
+<h2>6. Accomplishments & Verification Metrics</h2>
+<ul>
+    <li><strong>Foundry Smart Contract Suite:</strong> 257 / 257 tests passing across 19 test suites (<code>contracts/test/</code>).</li>
+    <li><strong>Dedicated Secret Box Security Suite:</strong> 40 / 40 security tests passing across 6 domains (<code>frontend/scripts/test-secret-box-security.mjs</code>).</li>
+    <li><strong>RFC-6238 TOTP Engine Suite:</strong> 8 / 8 tests passing verifying Base32 decoding, HMAC-SHA1 dynamic truncation, and zero-disk/network isolation (<code>frontend/scripts/test-totp.mjs</code>).</li>
+    <li><strong>Heir Claim Decryption Flow:</strong> 11 / 11 tests passing verifying end-to-end in-memory claim and secret box unwrapping.</li>
+    <li><strong>Hybrid Cryptography Suite:</strong> 16 / 16 tests passing for AES-256-GCM + ECIES key wrapping and 2FA preservation.</li>
+    <li><strong>Slither Static Analysis (v0.11.6):</strong> 0 Critical, 0 High, 0 Medium vulnerabilities across 55 smart contracts.</li>
+    <li><strong>Notification Security Suite:</strong> 11 / 11 security regression suites passing covering rate limiting, timing-safe auth, XSS sanitization, and strict Zod validation.</li>
+    <li><strong>Frontend Code Quality:</strong> Strict TypeScript compilation and ESLint verification with 0 errors, 0 warnings across all 108 source files.</li>
+    <li><strong>Dependency Audits:</strong> 0 vulnerabilities on npm audit across both frontend and backend services.</li>
+    <li><strong>Financial Compliance:</strong> 0 instances of "staking"; strictly lending.</li>
+</ul>
+
+<h2>7. What We Learned</h2>
+<ol>
+    <li><strong>Applied Zero-Leak Cryptography:</strong> Combining client-side ECIES-secp256k1 asymmetric encryption with double-hashed blinded Merkle trees enables smart contracts to enforce complex distribution logic without touching plaintext user data.</li>
+    <li><strong>Arbitrum Stylus WASM Composability:</strong> Demonstrated seamless interoperation between Rust-compiled WASM contracts and Solidity contracts via standard EVM ABI calls on Arbitrum Nitro chains.</li>
+    <li><strong>Designing for Non-Crypto Heirs:</strong> Inheritance tools must serve non-technical family members. In-memory key derivation and 1-click claim flows prove that institutional-grade privacy and effortless UX can coexist.</li>
+</ol>
+
+<h2>8. What's Next for Cadence</h2>
+<ol>
+    <li><strong>Mainnet Deployment on Arbitrum One & Robinhood Chain:</strong> Production deployment with formal verification of <code>ProofOfLifeConsensus.sol</code> and <code>GuardianRegistry.sol</code>.</li>
+    <li><strong>Multi-Asset & DeFi Yield Vaults:</strong> Support automated streaming distribution of additional yield-bearing assets (e.g. native Aave aTokens, Lido wstETH).</li>
+    <li><strong>Cross-Chain Inheritance via Chainlink CCIP:</strong> Monitor heartbeat vitality on Arbitrum while trustlessly orchestrating asset unlocks across Optimism, Base, and Ethereum.</li>
+    <li><strong>Passkey & WebAuthn Guardian Integration:</strong> Enable non-technical guardians to attest to proof-of-life consensus using device biometrics (FaceID / TouchID) via WebAuthn without installing browser extensions.</li>
+</ol>
+
+<h2>9. Verified Contract Deployments</h2>
+<table>
+    <tr><th>Contract</th><th>Arbitrum Sepolia (421614)</th><th>Robinhood Chain Testnet (46630)</th><th>Ethereum Sepolia (11155111)</th></tr>
+    <tr><td>Primary USDG Vault</td><td><code>0x07f9e3f0c0bb2d45300711d4f425917fa493525d</code></td><td><code>0x65d7646e9da74e4d537b3f11ebc32acf3a4fe38f</code></td><td><code>0x043d02c39B86CAd83E1Bf05728D32d24f6289e74</code></td></tr>
+    <tr><td>Paxos USDG Token</td><td><code>0x75ef6c3f8cfa9410c6d45924d96aa5b107f166fb</code></td><td><code>0x499fc59f8847f4922850e426fbf9e82d2beaf5e3</code></td><td>N/A (ETH Native)</td></tr>
+    <tr><td>Consensus Engine</td><td><code>0xe340662aad9cce18ffba38449e585fd8d7c78ae1</code></td><td><code>0x30454c1dc8d230665b2b6693c11937cc8af7f18b</code></td><td><code>0x781986427A17432E2d7B4B2C8a36E51a43fe6Bc1</code></td></tr>
+    <tr><td>Guardian Registry</td><td><code>0xe09c19696990fc99c92f8eba070c36ba51cdade7</code></td><td><code>0x2d3c214c54a01c13a1e17f1d4112ea95bb3549ee</code></td><td><code>0xcFD059B73ca3E2d329Ed7A7A899374968C3d4863</code></td></tr>
+    <tr><td>Demo 180s Vault</td><td><code>0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1</code></td><td><code>0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1</code></td><td><code>0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1</code></td></tr>
+    <tr><td>Stealth Registry</td><td><code>0x583eC2de840034478a61EF572cea2904bFD8671E</code></td><td><code>0x583eC2de840034478a61EF572cea2904bFD8671E</code></td><td><code>0x583eC2de840034478a61EF572cea2904bFD8671E</code></td></tr>
+    <tr><td>Balance Commitment</td><td><code>0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC</code></td><td><code>0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC</code></td><td><code>0x1AeAd0c358f067E6607BAc64CD3A2581547eA1BC</code></td></tr>
+    <tr><td>Vault Factory</td><td><code>0xac0f91C7d7c3537896248C42fc880F6DFF838622</code></td><td><code>0xac0f91C7d7c3537896248C42fc880F6DFF838622</code></td><td><code>0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0</code></td></tr>
+    <tr><td>Beneficiary Factory</td><td><code>0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf</code></td><td><code>0xebbC0241acb9AE8F52836C3BB4499152c4b5EbAf</code></td><td><code>0x30489c0f3566AF47b71867bc992408B91E500823</code></td></tr>
+</table>
+
+</body>
+</html>

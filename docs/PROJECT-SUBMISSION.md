@@ -114,6 +114,32 @@ flowchart LR
 
 ---
 
+## User Experience & Human-Centric Design Philosophy: "Effortlessly Simple for Everyday Families"
+
+> *"It’s not about piling on more and more features — it’s about making the UX effortlessly simple so everyday users never get stuck or overwhelmed."*
+
+Estate planning is already an emotional and intimidating topic. When an everyday retail investor or a grieving heir arrives at Cadence, the last thing they want is cryptic cryptographic steps, confusing 20-word forms, or technical friction.
+
+Every design decision in Cadence is engineered to feel as smooth, clear, and reassuring as an Apple or modern fintech product:
+
+### How We Keep Cadence Frictionless & Human-Centric:
+
+1. **Zero Crypto Jargon in the UI:**
+   - Instead of asking users to configure *"ECIES public key envelopes"* or *"asymmetric ciphertexts"*, we give them clean, plain English: **"Deposit with 1 Click"** or **"Unlock Inherited Box"**.
+   - Instead of asking for raw technical inputs, smart defaults guide them with intuitive presets (e.g. 5-minute testing for hackathon evaluation vs. 180-day production standard).
+
+2. **The Assisted QR / Deep Link instead of Manual Hassle:**
+   - The user doesn't need to copy-paste contract addresses or worry about sending tokens to the wrong network.
+   - They tap or scan with **Coinbase / Binance / Phantom / MetaMask**, native FaceID/TouchID confirms it, and it's done.
+
+3. **1-Click Atomic Deployment:**
+   - Behind the scenes, Cadence deploys an Aave-connected vault, sets up Proof-of-Life consensus, and registers guardians in **one single transaction** (`OneClickInheritanceVault.sol`). The user clicks once and their family is protected.
+
+4. **Zero-Password Claiming for Heirs:**
+   - The heir never has to hunt for a master password or worry about lost passphrases. Connecting their wallet and clicking **"Unlock Allocation"** does all the math and decryption silently in the background in seconds.
+
+---
+
 ## Technology Stack & Verification Matrix
 
 ### Architecture Components

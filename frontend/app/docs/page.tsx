@@ -133,6 +133,45 @@ export default function DocsPage() {
               </div>
             </section>
 
+            {/* Section: Human-Centric Design Philosophy */}
+            <section>
+              <h2 className="text-2xl font-medium tracking-[-0.01em]">Human-Centric Design Philosophy</h2>
+              <div className="mt-3 flex flex-col gap-3 text-[15px] leading-relaxed text-[#5F6368]">
+                <blockquote className="border-l-2 border-[#111111] pl-4 italic text-[#111111]">
+                  &ldquo;It&rsquo;s not about piling on more and more features &mdash; it&rsquo;s about making the UX effortlessly simple so everyday users never get stuck or overwhelmed.&rdquo;
+                </blockquote>
+                <p>
+                  Estate planning is already an emotional and intimidating topic. When an everyday retail investor or a grieving heir arrives at Cadence, the last thing they want is cryptic cryptographic steps, confusing 20-word forms, or technical friction. Every design decision in Cadence feels as smooth, clear, and reassuring as a modern consumer fintech application:
+                </p>
+                <dl className="divide-y divide-[#E8EAED] rounded-xl border border-[#E8EAED] bg-white">
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">Zero Crypto Jargon</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Clean, plain English throughout the entire app (&ldquo;Deposit with 1 Click&rdquo;, &ldquo;Unlock Allocation&rdquo;, &ldquo;Unlock Inherited Box&rdquo;) with intuitive presets (5-minute testing vs. 180-day standard) instead of raw technical configurations.
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">Assisted QR Funding</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      No manual contract copy-pasting or cross-chain bridge anxiety. Users simply scan with Coinbase, Binance, Kraken, or mobile Web3 wallets, confirm with native FaceID / TouchID, and funding is complete.
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">1-Click Atomic Deployment</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Behind the scenes, <code>OneClickInheritanceVault.sol</code> deploys an Aave-connected vault, configures Proof-of-Life consensus, and registers guardians in a single wallet transaction.
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">Zero-Password Claiming</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Heirs never have to hunt for master passwords or recovery phrases. Connecting their wallet and clicking &ldquo;Unlock Allocation&rdquo; handles in-browser mathematical decryption silently in seconds.
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
+
             {/* Section 2: Core concepts & parameters */}
             <section>
               <h2 className="text-2xl font-medium tracking-[-0.01em]">Core concepts &amp; parameters</h2>
@@ -188,6 +227,27 @@ export default function DocsPage() {
                       <code>redirectStream()</code> if an heir wallet is compromised.
                     </dd>
                   </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">Off-Chain Legacy Box</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Hybrid AES-256-GCM + ECIES envelope encryption allowing benefactors to attach centralized exchange accounts,
+                      1Password master keys, and hardware seed shards pinned to IPFS and anchored on-chain with zero disk persistence.
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">Live 2FA Google Authenticator</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Client-side RFC-6238 TOTP computation that generates synchronized 6-digit Google Authenticator codes in browser RAM,
+                      allowing heirs to bypass exchange 2FA barriers when claiming inherited accounts.
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">Assisted 1-Click QR Deposit</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Pre-filled dynamic QR codes for Coinbase, Binance, Kraken, and mobile Web3 wallets. Transfers are approved via native
+                      FaceID/2FA on the exchange app with zero passwords or API keys typed into Cadence.
+                    </dd>
+                  </div>
                 </dl>
               </div>
             </section>
@@ -211,7 +271,10 @@ export default function DocsPage() {
                   </li>
                   <li>
                     <strong>Deposit Assets &amp; Activate Stream Terms:</strong> Transfer Paxos USDG or ETH into your vault and define the
-                    stream vesting parameters (immediate liquidity unlock + linear vesting duration).
+                    stream vesting parameters (immediate liquidity unlock + linear vesting duration). Use the <em>Assisted 1-Click QR Deposit</em> button to fund via Coinbase, Binance, or mobile wallet with native FaceID approval.
+                  </li>
+                  <li>
+                    <strong>Attach Off-Chain Secrets &amp; 2FA Keys (Optional):</strong> Securely seal exchange accounts, 1Password master keys, seed shards, and 2FA setup seeds in the Off-Chain Legacy Box. Everything is encrypted in browser RAM before leaving your device.
                   </li>
                   <li>
                     <strong>Sign Once to Commit:</strong> Authorize the initial setup transaction. Your assets stay in your control,
@@ -256,6 +319,12 @@ export default function DocsPage() {
                     <dd className="text-sm leading-relaxed text-[#5F6368]">
                       If an heir&#39;s key is compromised, guardians can call <code>pauseStream()</code> or redirect unvested stream
                       outflows to a pre-registered backup cold storage address.
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">5. Decrypt Legacy Box &amp; Live 2FA</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Heirs sign a one-click authorization to decrypt their Off-Chain Legacy Box strictly in volatile RAM. A synchronized Google Authenticator card renders live 6-digit 2FA codes for seamless exchange login without needing the deceased benefactor&#39;s phone.
                     </dd>
                   </div>
                 </dl>
@@ -545,6 +614,18 @@ export default function DocsPage() {
                       periods.
                     </dd>
                   </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">POST /api/secret-box/upload</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Accepts an EIP-191 authenticated encrypted ciphertext blob (max 10MB) and pins it to decentralized IPFS storage.
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">GET /api/secret-box/[cid]</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Streams raw encrypted ciphertext with strict path traversal sanitization and nosniff headers for client-side RAM decryption.
+                    </dd>
+                  </div>
                 </dl>
               </div>
             </section>
@@ -565,9 +646,9 @@ export default function DocsPage() {
                     OpenZeppelin Solidity.
                   </li>
                   <li>
-                    <strong>11-Point Security Suite:</strong> The backend and sentinel services are audited with an automated test
+                    <strong>11-Point Security Suite &amp; Dedicated Secret Box Penetration Audit:</strong> The backend and sentinel services are audited with an automated test
                     matrix covering rate limiting, EIP-712 replay resistance, brute-force lockout, timing-safe authorization, and CSP
-                    compliance.
+                    compliance. The Off-Chain Legacy Box is backed by 40 dedicated security tests and 8 RFC-6238 TOTP compliance tests.
                   </li>
                   <li>
                     <strong>Open Source &amp; Verified:</strong> All contract source code is verified on Arbiscan, Robinhood Explorer,

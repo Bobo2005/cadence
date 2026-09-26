@@ -138,6 +138,24 @@ export default function DisclosurePage() {
                       equivalence to OpenZeppelin Solidity.
                     </dd>
                   </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">Off-Chain Legacy Box &amp; RAM Isolation</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Off-chain exchange credentials, master passwords, and seed shards are sealed via client-side AES-256-GCM + ECIES envelope encryption. Decryption executes strictly in browser RAM with zero disk or server persistence.
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">RFC-6238 Live 2FA Engine</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      In-browser Web Crypto TOTP generation produces synchronized 6-digit Google Authenticator codes to prevent post-inheritance 2FA lockouts on centralized exchange accounts.
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 p-4 sm:grid-cols-[200px_1fr] sm:gap-4">
+                    <dt className="text-sm font-medium text-[#111111]">Zero-Password Assisted QR Deposit</dt>
+                    <dd className="text-sm leading-relaxed text-[#5F6368]">
+                      Dynamic deposit QR codes for Coinbase, Binance, and Kraken allow users to fund vaults with native FaceID / TouchID / exchange 2FA approval, eliminating credential entry and API key leakage risks.
+                    </dd>
+                  </div>
                 </dl>
               </div>
             </section>

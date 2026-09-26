@@ -111,6 +111,33 @@ const SECURITY_SECTIONS: SecuritySection[] = [
     whyItMatters:
       "Transforms crypto inheritance from a fragile 100% lump-sum dump into an insulated family trust. Unvested capital is safeguarded against phishing drainers, redirecting the family fortune to secure cold storage.",
   },
+  {
+    id: "off-chain-legacy-box",
+    number: "12",
+    title: "Off-Chain Legacy Box (Hybrid AES-256-GCM + ECIES)",
+    whatItDoes:
+      "Enables benefactors to seal off-chain assets (CEX credentials, 1Password emergency kits, seed shards) inside client-side encrypted envelope packages. Data is encrypted using ephemeral AES-256-GCM keys asymmetrically sealed with each heir's ECIES-secp256k1 public key and pinned to IPFS.",
+    whyItMatters:
+      "Solves the un-swept asset dilemma. Assets stranded on centralized platforms or cold hardware wallets can be safely transitioned to heirs without entrusting unencrypted credentials to centralized custodial trust companies or third-party cloud servers.",
+  },
+  {
+    id: "live-totp-authenticator",
+    number: "13",
+    title: "RFC-6238 Live 2FA Google Authenticator Engine",
+    whatItDoes:
+      "Executes zero-dependency client-side HMAC-SHA1 Time-Based One-Time Password computation (RFC-6238) inside browser RAM via Web Crypto API (SubtleCrypto). When heirs decrypt inherited exchange credentials, Cadence renders a synchronized 6-digit live 2FA code with an animated 30-second countdown bar.",
+    whyItMatters:
+      "Eliminates the #1 reason inherited exchange accounts are permanently lost: 2FA lockouts. Heirs receive immediate, live Google Authenticator authorization codes to satisfy exchange login barriers upon finalization, with zero disk persistence.",
+  },
+  {
+    id: "assisted-qr-deposit",
+    number: "14",
+    title: "Assisted 1-Click QR Deposit (Zero-Password / Zero-API-Key Architecture)",
+    whatItDoes:
+      "Generates dynamic high-contrast QR codes and formatted payment URIs for Coinbase, Binance, Kraken, and mobile Web3 wallets. The protocol determines whether to route capital to the deployer's wallet (for atomic 1-click contract creation) or directly to the active InheritanceVault contract.",
+    whyItMatters:
+      "Eliminates phishing risks, rogue OAuth permissions, and leaky exchange API keys. All withdrawal authorizations happen inside the user's native exchange mobile application with native FaceID and hardware 2FA.",
+  },
 ];
 
 export default function SecurityProtocolPanel() {
@@ -138,7 +165,7 @@ export default function SecurityProtocolPanel() {
           </h1>
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F8F9FA] border border-[#E8EAED] text-xs font-mono text-[#5F6368] self-start sm:self-center">
             <span className="w-2 h-2 rounded-full bg-[#137333]" />
-            <span>11 ARCHITECTURAL LAYERS</span>
+            <span>14 ARCHITECTURAL LAYERS</span>
           </div>
         </div>
 
@@ -167,7 +194,7 @@ export default function SecurityProtocolPanel() {
           <span>Security Philosophy & Multi-Chain Verification Posture</span>
         </div>
         <p className="text-xs sm:text-sm text-[#5F6368] leading-relaxed">
-          Cadence is engineered using defense-in-depth cryptographic primitives and non-custodial smart contracts. Smart contracts are verified on <strong>Arbitrum Sepolia</strong> (Chain ID: 421614), <strong>Robinhood Chain Testnet</strong> (Chain ID: 46630), and <strong>Ethereum Sepolia</strong> (Chain ID: 11155111). The codebase has passed <strong>252 / 252 Foundry tests across 18 suites</strong> and achieved a clean <strong>Slither 0.11.6 static analysis pass (0 Critical, 0 High, 0 Medium across 55 contracts)</strong>.
+          Cadence is engineered using defense-in-depth cryptographic primitives and non-custodial smart contracts. Smart contracts are verified on <strong>Arbitrum Sepolia</strong> (Chain ID: 421614), <strong>Robinhood Chain Testnet</strong> (Chain ID: 46630), and <strong>Ethereum Sepolia</strong> (Chain ID: 11155111). The codebase has passed <strong>257 Foundry tests across 18 suites</strong>, <strong>40/40 secret box penetration tests</strong>, <strong>8/8 RFC-6238 TOTP tests</strong>, and achieved a clean <strong>Slither 0.11.6 static analysis pass (0 Critical, 0 High, 0 Medium across 55 contracts)</strong>.
         </p>
         <div className="pt-1 flex flex-wrap items-center gap-4 text-xs font-mono text-[#137333]">
           <a
@@ -201,7 +228,7 @@ export default function SecurityProtocolPanel() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 3. NINE ARCHITECTURAL SECURITY SECTIONS                                   */}
+      {/* 3. FOURTEEN ARCHITECTURAL SECURITY SECTIONS                               */}
       {/* ========================================================================= */}
       <div className="space-y-6">
         {filteredSections.map((section) => (

@@ -24,6 +24,13 @@ A vault smart contract + web app where:
 - If checked-in periods lapse and guardians confirm, a **contestable claim window** opens (72h) — reversible by the owner via a signature, irreversible after.
 - Beneficiaries privately discover and claim their allocation once finalized.
 
+## UX Invariants: Human-Centric Design Philosophy
+> *"It’s not about piling on more and more features — it’s about making the UX effortlessly simple so everyday users never get stuck or overwhelmed."*
+- **Zero Crypto Jargon**: Plain-English actions ("Deposit with 1 Click", "Unlock Allocation", "Unlock Inherited Box") replace technical terminology like ECIES or Merkle roots.
+- **Assisted QR Funding**: Dynamic QR codes for Coinbase, Binance, Kraken, and mobile Web3 wallets enable zero-password, FaceID-confirmed deposits without manual contract copy-pasting.
+- **1-Click Atomic Deployment**: `OneClickInheritanceVault.sol` deploys, deposits, commits Merkle roots, and configures consensus in 1 single signature.
+- **Zero-Password Claiming**: Grieving heirs connect their wallet, click "Unlock Allocation", and client-side Web Crypto handles derivation and decryption in seconds.
+
 ## MVP Feature Scope (all core, none optional — see ARCHITECTURE.md for build order)
 
 | Feature | Why it's core |

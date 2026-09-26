@@ -75,6 +75,13 @@ const FAQ_ITEMS: FAQItem[] = [
     answer:
       "Paxos USDG is a regulated global dollar designed for consumer protection and retail savings. Cadence aligns with Robinhood Earn's published 7.00% APY, allowing retail family estates to compound yield without crypto volatility. For USDG vaults, yield is calculated using a modeled rate pegged to Robinhood Earn's published APY.",
   },
+  {
+    id: "v-05",
+    category: "VAULTS",
+    question: "How do I fund my vault directly from Coinbase, Binance, or Kraken?",
+    answer:
+      "Cadence features an Assisted 1-Click QR Deposit Modal. When creating or funding your vault, select your exchange (Coinbase, Binance, or Kraken) or mobile Web3 wallet to generate a dynamic, pre-filled QR code with your target address and deposit amount. Open your exchange app, scan the code, and confirm the withdrawal using your native FaceID, TouchID, or exchange 2FA. You never type exchange passwords or expose API keys inside Cadence.",
+  },
 
   // 3. HEARTBEATS
   {
@@ -151,6 +158,13 @@ const FAQ_ITEMS: FAQItem[] = [
     answer:
       "Beneficiaries only need an EVM wallet address to be designated as an heir. They do not need to interact with the protocol, install extensions, or hold gas tokens until they claim their inheritance upon vault finalization.",
   },
+  {
+    id: "b-04",
+    category: "BENEFICIARIES",
+    question: "Can I leave exchange accounts, master passwords, or seed phrase shards for my heirs?",
+    answer:
+      "Yes. Cadence provides an Off-Chain Legacy Box (Encrypted Vault Box). You can attach credentials, emergency recovery seeds, 1Password emergency kits, exchange login details, and 2FA Authenticator setup keys. Everything is sealed client-side inside browser RAM using hybrid AES-256-GCM + ECIES-secp256k1 envelope encryption under each heir's public key. The encrypted payload is uploaded to decentralized storage (IPFS/Pinata) where only the designated heir can decrypt it upon vault finalization.",
+  },
 
   // 6. CONTEST WINDOW
   {
@@ -204,6 +218,13 @@ const FAQ_ITEMS: FAQItem[] = [
     answer:
       "Cadence Streams features on-chain anti-drainer circuit breakers. If an heir's keys are stolen, designated guardians or registered backup addresses can call pauseStream() and redirectStream() on-chain, freezing outflows and redirecting remaining streams to a secure cold hardware wallet.",
   },
+  {
+    id: "c-05",
+    category: "CLAIMS",
+    question: "How do heirs bypass Google Authenticator (2FA) when logging into inherited exchange accounts?",
+    answer:
+      "When an heir unlocks their inherited Legacy Box, Cadence's built-in RFC-6238 TOTP Authenticator Engine automatically detects any attached 2FA setup keys. It renders a synchronized, live Google Authenticator card directly in the browser with real-time 6-digit codes and an animated 30-second countdown bar. The heir simply copies the live code to log in, eliminating permanent exchange account lockouts.",
+  },
 
   // 8. SECURITY
   {
@@ -226,6 +247,20 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Are the smart contracts verified and audited?",
     answer:
       "Yes. All contracts are verified across Arbitrum Sepolia Arbiscan, Robinhood Explorer, and Sepolia Etherscan. The codebase features 252 / 252 passing Foundry tests across 18 suites and a clean Slither 0.11.6 static analysis pass (0 Critical, 0 High, 0 Medium across 55 contracts).",
+  },
+  {
+    id: "s-04",
+    category: "SECURITY",
+    question: "Are decrypted passwords, private seeds, or 2FA keys ever saved to disk or Cadence servers?",
+    answer:
+      "Never. Cadence enforces strict Volatile RAM Isolation. Decryption occurs purely in-memory using the native browser Web Crypto API (SubtleCrypto). No plaintexts, unencrypted credentials, or TOTP seeds are ever written to localStorage, sessionStorage, IndexedDB, cookies, or sent across any network.",
+  },
+  {
+    id: "s-05",
+    category: "SECURITY",
+    question: "How does the Assisted QR Deposit protect against exchange credential phishing?",
+    answer:
+      "The Assisted Deposit system does not require you to link an exchange account, connect via OAuth, or share API read/write keys. It operates purely through standard on-chain deposit addresses and EIP-681 payment URIs. The actual withdrawal execution and security authorization (FaceID, exchange 2FA, biometric authentication) occur exclusively inside your trusted exchange mobile app.",
   },
 
   // 9. NETWORK

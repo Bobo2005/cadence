@@ -1238,7 +1238,7 @@ export default function ClaimPortal() {
                     Lending Yield Engine (No Cross-Chain Dependency)
                   </div>
                   <p>
-                    Cadence Streams deposits unvested inheritance into Aave v3&apos;s live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG&apos;s own published yield (7.00% Robinhood Earn APY). Assets are lent, never staked.
+                    Cadence Streams integrates production-ready Aave v3 lending interfaces alongside a modeled rate pegged to USDG&apos;s own published yield (7.00% Robinhood Earn APY). Assets are lent to liquidity pools, never staked.
                   </p>
                   <p className="text-[11px] text-[#137333] font-semibold pt-1">
                     🛡 Anti-Drainer Protection: If your wallet is compromised, designated guardians or registered backups can pause and redirect remaining streams to cold storage.

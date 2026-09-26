@@ -1365,7 +1365,7 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                         </span>
                       </div>
                       <p className="text-[10px] text-[#5F6368] leading-tight">
-                        Cadence Streams deposits unvested inheritance into Aave v3&apos;s live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG&apos;s own published yield.
+                        Cadence Streams integrates production Aave v3 lending adapters alongside a modeled 7.00% yield formula pegged to published Robinhood Earn USDG APY. Unvested capital is lent to earn borrower-paid interest, never staked.
                       </p>
                     </div>
                   </div>

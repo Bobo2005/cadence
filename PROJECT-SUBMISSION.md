@@ -47,8 +47,9 @@ Existing decentralized alternatives rely on brittle smart contract countdown tim
 2. **Zero Plaintext On-Chain:** Asymmetric **ECIES-secp256k1** client-side encryption and double-hashed blinded Merkle allocation roots (`allocationRoot`).
 3. **Zero Gas-Linkage Stealth Recovery:** Living owners dismiss false-alarm claims via off-chain **EIP-712 typed signatures**, relayed with zero gas paid by the owner to eliminate forensic wallet linkage.
 4. **Cadence Streams (Flagship):** Autonomous streaming trust releasing an immediate emergency buffer (e.g. 10%) while streaming the remaining 90% per-second.
-   - *"Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield."*
-   - **Deployment Compliance Fact**: The yield engine has **no cross-chain dependency**, since both Cadence contracts and Aave v3 reside directly on **Arbitrum Sepolia**. Assets are lent to liquidity pools to earn borrower-paid interest, **never staked**.
+   - **Production-Ready Yield Architecture:** Cadence Streams integrates production-ready `IAavePool` and `IAToken` interfaces (`InheritanceVault.sol`) with dynamic supply/withdraw accounting. For testnet evaluation—since Aave DAO does not maintain a canonical Aave v3 market on Arbitrum Sepolia—yield is verified against a high-fidelity testnet pool harness (`MockAavePool`), and prepared for canonical Arbitrum One mainnet deployment.
+   - **Paxos USDG Yield Engine:** USDG vaults compound yield via a modeled formula pegged directly to published Robinhood Earn USDG yield (7.00% APY).
+   - **Lending, Not Staking**: Unvested principal is supplied to lending liquidity pools to earn borrower-paid interest; assets are **never staked**.
    - **Anti-Drainer Defense:** Designated guardians or registered backup addresses can call `pauseStream()` and `redirectStream()` to immediately freeze outflows and redirect unvested streams to a safe cold wallet if an heir is phished.
 5. **Arbitrum Stylus WASM Verification:** Merkle allocation verification implemented in Rust as an Arbitrum Stylus WASM contract (`stylus_merkle`), demonstrating sub-cent execution and bit-for-bit equivalence with OpenZeppelin Solidity.
 6. **Encrypted Vault Box with Live 2FA Authenticator & Assisted CEX Onramp:**
@@ -88,7 +89,7 @@ flowchart LR
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Execution Layer** | Decrypts seed phrase | Reconstructs secret shards | Transfers Safe ownership | Legal / Custodial | **Direct On-Chain Vault Settlement** |
 | **Payout Mechanics** | Lump sum (manual) | Lump sum (manual) | Lump sum (100% dump) | Custodial transfer | **Per-Second Linear Streaming (Cadence Streams)** |
-| **Idle Capital Yield** | 0% (Idle payload) | 0% (Idle payload) | 0% (Unmanaged) | Variable custodial | **Live Aave v3 Pool / 7.00% USDG Earn Peg** |
+| **Idle Capital Yield** | 0% (Idle payload) | 0% (Idle payload) | 0% (Unmanaged) | Variable custodial | **Modeled 7.00% USDG Earn Peg (Robinhood) & Aave v3 Adapter** |
 | **Off-Chain Secret Box** | Seed phrase only | Password fragments | ❌ None | Manual forms | **✅ Encrypted Vault Box (AES-256 + ECIES on IPFS)** |
 | **Anti-Drainer Defense** | ❌ None | ❌ None | ❌ None | ⚠️ Support delay | **✅ Instant Guardian Pause & Cold Wallet Redirection** |
 | **Estate Privacy** | ⚠️ Public on-chain | ⚠️ Hardware-dependent | ❌ Public mappings | ❌ Identity doxxing | **✅ ECIES-secp256k1 + Blinded Merkle Trees** |
@@ -149,8 +150,8 @@ Every design decision in Cadence is engineered to feel as smooth, clear, and rea
 - **Styling:** Vanilla CSS Light Editorial ("Pulse") design system, dynamic SVG ECG oscilloscope rhythm, solid white surfaces, `#ECE9EF` borders.
 - **Notifications Daemon:** Node.js, Express `^4.21.2`, TypeScript `^5.7.2`, Viem multi-chain watcher, Nodemailer SMTP / Resend API, strict EIP-712 binding verifier (`bindingVerifier.ts`).
 - **DeFi & Stablecoin Integrations:**
-  - **Aave v3 (Arbitrum Sepolia):** Live pool supply on claim (`0xBfC91D59fdAA134A4ED45f7B584cAf96D7792Eff`) and balance-of streaming yield.
-  - **Paxos USDG:** 7.00% APY pegged to Robinhood Earn published yield.
+  - **Aave v3 Yield Architecture:** Production-ready `IAavePool` and `IAToken` interfaces in `InheritanceVault.sol` with dynamic supply/withdraw accounting, verified against a high-fidelity testnet harness (`MockAavePool`) and architected for canonical Arbitrum One mainnet deployment (Aave DAO does not maintain a canonical deployment on Arbitrum Sepolia).
+  - **Paxos USDG Yield Engine:** Modeled 7.00% APY compounding yield pegged directly to Robinhood Earn published APY on Robinhood Chain and Arbitrum Sepolia.
 
 ### Submission Tags (25 Tags)
 `arbitrum`, `stylus`, `rust`, `solidity`, `foundry`, `usdg`, `aave`, `paxos`, `next.js`, `typescript`, `viem`, `wagmi`, `erc-4337`, `account-abstraction`, `eip-712`, `ecies`, `cryptography`, `merkle-trees`, `openzeppelin`, `node.js`, `express`, `resend`, `smart-contracts`, `privacy`, `digital-inheritance`

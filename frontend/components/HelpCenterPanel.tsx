@@ -202,7 +202,7 @@ const FAQ_ITEMS: FAQItem[] = [
     category: "CLAIMS",
     question: "What is Cadence Streaming vs. Lump-Sum claim?",
     answer:
-      "Heirs can choose instant lump-sum settlement or continuous per-second streaming (Cadence Streams). Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield. Unvested principal is lent to liquidity pools, never staked.",
+      "Heirs can choose instant lump-sum settlement or continuous per-second streaming (Cadence Streams). Cadence Streams integrates production-ready Aave v3 lending interfaces alongside a modeled 7.00% yield formula pegged to published Robinhood Earn USDG APY. Unvested principal is lent to liquidity pools, never staked.",
   },
   {
     id: "c-03",

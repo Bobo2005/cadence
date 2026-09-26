@@ -14,7 +14,7 @@ export default function EditorialProductPreview() {
       number: "2",
       title: "Configure allocations & Cadence Streams",
       description:
-        "Designate heir addresses, shares, and streaming schedules. Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield.",
+        "Designate heir addresses, shares, and streaming schedules. Cadence Streams integrates production Aave v3 adapters alongside a modeled 7.00% yield formula pegged to published Robinhood Earn USDG APY.",
     },
     {
       number: "3",

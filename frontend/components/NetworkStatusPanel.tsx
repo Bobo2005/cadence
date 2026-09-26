@@ -321,7 +321,7 @@ export default function NetworkStatusPanel() {
           </div>
           <p className="text-xs text-[#5F6368] leading-relaxed max-w-xl">
             {selectedNetwork === "arbitrumSepolia"
-              ? "Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield. No cross-chain dependency."
+              ? "Cadence Streams integrates production Aave v3 adapters alongside a modeled 7.00% yield formula pegged to published Robinhood Earn USDG APY. Unvested capital is lent to earn interest, never staked."
               : "Regulated family wealth preservation with modeled 7.00% APY pegged directly to published Robinhood Earn interest. Unvested capital is lent to earn interest, never staked."}
           </p>
         </div>

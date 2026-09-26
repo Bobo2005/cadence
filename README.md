@@ -14,7 +14,7 @@ Cadence is a self-custodial, trust-minimized digital inheritance protocol engine
 
 ### Smart Contract Quality & Honest Scope
 - **Testnet-Only Deployment**: Cadence is deployed exclusively on Arbitrum Sepolia and Robinhood Chain testnet environments. Zero mainnet contracts are deployed, and zero real funds are at risk.
-- **Auditable Quality**: Backed by **208/208 passing Foundry tests** (expanded to **240/240 tests across 17 suites**), 11/11 automated security regression suites, and clean **Slither (0 Critical / 0 High)** and **Mythril** static analysis reports.
+- **Auditable Quality**: Backed by **257/257 passing Foundry tests across 19 suites** (including `SecretBox.t.sol`), 40/40 dedicated Secret Box security tests, 11/11 automated security regression suites, and clean **Slither (0 Critical / 0 High)** and **Mythril** static analysis reports.
 - **Day 11 Yield Outcome**: Cadence Streams deposits unvested inheritance into Aave v3's live Arbitrum Sepolia market for supported assets, earning real, verifiable interest — USDG-denominated vaults use a modeled rate pegged to USDG's own published yield (~7.00% Robinhood Earn APY).
 - **Deployment Compliance Fact**: The yield engine has **no cross-chain dependency**, since both Cadence's contracts and Aave's Pool contract are on **Arbitrum Sepolia**. This is a compliance fact ensuring atomic local settlement.
 - **Lending, Not Staking**: Cadence Streams supplies unvested principal to Aave's lending pool to earn borrower-paid interest; assets are never bonded to secure a proof-of-stake network.
@@ -78,6 +78,7 @@ flowchart LR
 8. **Dual-Path Paymaster Architecture (Constraint #8)**: Smart accounts route through ERC-4337 verifying paymasters for 0-ETH user operations; plain EOAs execute direct on-chain check-ins without simulation.
 9. **Zero-Simulation Production Integrity (Constraint #9)**: Zero mock fallbacks or fake hashes. All provisioning and check-ins execute real Sepolia transactions.
 10. **Autonomous Streaming Trust & Circuit Breakers (Constraint #10)**: Estate distribution defaults to immediate lump-sum if unconfigured (`streamingDuration == 0`), or transitions to continuous per-second linear vesting with an emergency buffer and on-chain circuit breakers (`pauseStream`, `redirectStream`) to prevent wallet drainers from looting unvested family wealth.
+11. **Off-Chain Legacy Secrets: Encrypted Vault Box (Constraint #11)**: Benefactors can attach non-blockchain credentials (CEX exchange accounts, hardware seed shards, 1Password master keys, and personal wills) protected via client-side hybrid envelope encryption (AES-256-GCM + ECIES). Encrypted blobs are pinned to IPFS and anchored on-chain (`InheritanceVault.sol`). Upon finalized claim, heirs decrypt credentials strictly in volatile browser RAM using an ephemeral Web3 signature (`personal_sign`), with zero disk or cookie persistence, hold-to-reveal password controls, and offline JSON/PDF export.
 
 ---
 

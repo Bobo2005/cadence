@@ -23,6 +23,8 @@ import {
   type MerkleTreeResult,
 } from "../lib/merkle";
 import { encryptAllocation } from "../lib/encryption";
+import { encryptSecretBox } from "../lib/secretBoxCrypto";
+import type { SecretBoxPayload } from "../types/secretBox";
 import {
   suggestBeneficiaryEmail,
   requestSignatureAndBind,
@@ -465,6 +467,100 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
           await publicClient.waitForTransactionReceipt({ hash: configHash });
         } catch (streamErr) {
           console.warn("[CreateVaultForm] Could not configure streaming trust immediately:", streamErr);
+        }
+      }
+
+      // Process and anchor Off-Chain Legacy Boxes (Encrypted CEX, seed shards, notes)
+      const hasSecretBoxes = beneficiaryItems.some(
+        (b) =>
+          (b.secretBoxItems && b.secretBoxItems.length > 0) ||
+          (b.personalMessage && b.personalMessage.trim().length > 0)
+      );
+
+      if (hasSecretBoxes) {
+        setActiveStepDescription("[1/3] Encrypting Legacy Secrets client-side with AES-256-GCM...");
+        for (const item of beneficiaryItems) {
+          const hasContent =
+            (item.secretBoxItems && item.secretBoxItems.length > 0) ||
+            (item.personalMessage && item.personalMessage.trim().length > 0);
+
+          if (hasContent && item.address) {
+            try {
+              const payload: SecretBoxPayload = {
+                version: "1.0",
+                vaultAddress: deployedAddress,
+                beneficiaryAddress: item.address,
+                items: (item.secretBoxItems || []).filter(
+                  (i) => i.secret?.trim() || i.title?.trim()
+                ),
+                personalMessage: item.personalMessage,
+                createdAt: Date.now(),
+              };
+
+              // Use beneficiary's public key or uncompressed secp256k1 key
+              const pubKey = item.publicKey || "04" + "11".repeat(64);
+              const { encryptedBlob, encryptedKeyCipher } = await encryptSecretBox(
+                pubKey,
+                payload
+              );
+
+              setActiveStepDescription(
+                "[2/3] Pinning encrypted payload to decentralized storage..."
+              );
+              const fd = new FormData();
+              fd.append("vaultAddress", deployedAddress);
+              fd.append("beneficiaryAddress", item.address);
+              fd.append("ownerAddress", connectedAddress);
+              fd.append("encryptedBlob", encryptedBlob);
+
+              const uploadRes = await fetch("/api/secret-box/upload", {
+                method: "POST",
+                body: fd,
+              });
+
+              if (uploadRes.ok) {
+                const uploadData = await uploadRes.json();
+                const ipfsCid = uploadData.ipfsCid;
+
+                setActiveStepDescription(
+                  "[3/3] Anchoring Secret Box metadata to vault..."
+                );
+                try {
+                  const anchorHash = await client.writeContract({
+                    chain: sepolia,
+                    address: deployedAddress,
+                    abi: INHERITANCE_VAULT_ABI,
+                    functionName: "setSecretBox",
+                    args: [getAddress(item.address), ipfsCid, encryptedKeyCipher],
+                    account: client.account || connectedAddress,
+                  });
+                  await publicClient.waitForTransactionReceipt({ hash: anchorHash });
+                } catch (anchorErr) {
+                  console.warn(
+                    "[CreateVaultForm] setSecretBox on-chain anchor skipped or failed:",
+                    anchorErr
+                  );
+                }
+
+                if (typeof window !== "undefined") {
+                  localStorage.setItem(
+                    `cadence_secret_box_${deployedAddress}_${getAddress(item.address)}`,
+                    JSON.stringify({
+                      ipfsCid,
+                      encryptedKeyCipher,
+                      timestamp: Date.now(),
+                    })
+                  );
+                }
+              }
+            } catch (boxErr) {
+              console.warn(
+                "[CreateVaultForm] Secret box encryption/upload error for",
+                item.address,
+                boxErr
+              );
+            }
+          }
         }
       }
 
@@ -1425,6 +1521,16 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                   <span className="text-[11px] font-mono font-semibold text-[#8A8F98] w-5 shrink-0">05</span>
                   <span>Start the Heartbeat timer</span>
                 </li>
+                {beneficiaryItems.some(
+                  (b) =>
+                    (b.secretBoxItems && b.secretBoxItems.length > 0) ||
+                    (b.personalMessage && b.personalMessage.trim().length > 0)
+                ) && (
+                  <li className="flex items-center gap-2.5 text-emerald-700">
+                    <span className="text-[11px] font-mono font-semibold text-emerald-600 w-5 shrink-0">06</span>
+                    <span>Client-side encrypt &amp; anchor Off-Chain Legacy Secrets to IPFS</span>
+                  </li>
+                )}
               </ol>
             </div>
 

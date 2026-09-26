@@ -82,11 +82,33 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     event StreamRedirected(address indexed beneficiary, address indexed oldRecipient, address indexed newRecipient);
     event AavePoolUpdated(address indexed pool);
     event ATokenConfigured(address indexed asset, address indexed aToken);
+    event SecretBoxAnchored(
+        address indexed beneficiary,
+        string ipfsCid,
+        string encryptedKeyCipher,
+        uint64 timestamp
+    );
 
     // --- Constants ---
     uint256 public constant MAX_WHITELISTED_TOKENS = 20;
 
     // --- State Variables ---
+
+    // Encrypted Secret Box Anchor Structure (Off-Chain Secrets: CEX, Seed Shards, Passwords)
+    struct SecretBoxAnchor {
+        string ipfsCid;
+        string encryptedKeyCipher;
+        uint64 timestamp;
+    }
+
+    struct SecretBoxAnchorInit {
+        address beneficiary;
+        string ipfsCid;
+        string encryptedKeyCipher;
+    }
+
+    /// @notice Anchored encrypted secret box metadata per beneficiary
+    mapping(address => SecretBoxAnchor) public beneficiarySecretBoxes;
 
     // Backup Claim Data Structures
     struct BackupClaimConfig {
@@ -1044,4 +1066,75 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
             return MerkleProofLib.verify(proof, allocationRoot, leaf);
         }
     }
+
+    // --- Secret Box Functions ---
+
+    /// @notice Anchors an encrypted off-chain legacy secret box for a beneficiary.
+    /// @param beneficiary The designated beneficiary address.
+    /// @param ipfsCid The IPFS CID or Arweave URI of the encrypted payload blob.
+    /// @param encryptedKeyCipher The stringified ECIES ciphertext containing the wrapped AES key.
+    function setSecretBox(
+        address beneficiary,
+        string calldata ipfsCid,
+        string calldata encryptedKeyCipher
+    ) external onlyOwner {
+        if (beneficiary == address(0)) revert ZeroAddress();
+        require(bytes(ipfsCid).length > 0, "Invalid CID");
+        require(bytes(encryptedKeyCipher).length > 0, "Invalid cipher");
+
+        beneficiarySecretBoxes[beneficiary] = SecretBoxAnchor(
+            ipfsCid,
+            encryptedKeyCipher,
+            uint64(block.timestamp)
+        );
+
+        emit SecretBoxAnchored(
+            beneficiary,
+            ipfsCid,
+            encryptedKeyCipher,
+            uint64(block.timestamp)
+        );
+    }
+
+    /// @notice Batch anchors encrypted secret boxes for multiple beneficiaries.
+    /// @param secretBoxes Array of SecretBoxAnchorInit structs.
+    function setSecretBoxesBatch(SecretBoxAnchorInit[] calldata secretBoxes) external onlyOwner {
+        for (uint256 i = 0; i < secretBoxes.length; i++) {
+            address beneficiary = secretBoxes[i].beneficiary;
+            string memory ipfsCid = secretBoxes[i].ipfsCid;
+            string memory encryptedKeyCipher = secretBoxes[i].encryptedKeyCipher;
+
+            if (beneficiary == address(0)) revert ZeroAddress();
+            require(bytes(ipfsCid).length > 0, "Invalid CID");
+            require(bytes(encryptedKeyCipher).length > 0, "Invalid cipher");
+
+            beneficiarySecretBoxes[beneficiary] = SecretBoxAnchor(
+                ipfsCid,
+                encryptedKeyCipher,
+                uint64(block.timestamp)
+            );
+
+            emit SecretBoxAnchored(
+                beneficiary,
+                ipfsCid,
+                encryptedKeyCipher,
+                uint64(block.timestamp)
+            );
+        }
+    }
+
+    /// @notice Returns the anchored secret box metadata for a beneficiary.
+    function getSecretBox(address beneficiary)
+        external
+        view
+        returns (
+            string memory ipfsCid,
+            string memory encryptedKeyCipher,
+            uint64 timestamp
+        )
+    {
+        SecretBoxAnchor storage box = beneficiarySecretBoxes[beneficiary];
+        return (box.ipfsCid, box.encryptedKeyCipher, box.timestamp);
+    }
 }
+

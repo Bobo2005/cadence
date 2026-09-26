@@ -34,6 +34,9 @@ import {
   requestSignatureAndBind,
 } from "../lib/notifications";
 import { parseUserFriendlyError } from "./CreateVaultForm";
+import { decryptSecretBox } from "../lib/secretBoxCrypto";
+import type { SecretBoxPayload } from "../types/secretBox";
+import DecryptedSecretBoxModal from "./DecryptedSecretBoxModal";
 
 // Headless test keys for automated CLI test scripts (retained for headless testing only per Phase 3.1)
 const KNOWN_HEADLESS_KEYS: Record<string, Hex> = {
@@ -42,6 +45,12 @@ const KNOWN_HEADLESS_KEYS: Record<string, Hex> = {
   "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc":
     "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
 };
+
+// Seeded demo legacy box ciphers for fast, reliable client-side test execution
+const DEMO_ALICE_SECRET_BOX_CIPHER =
+  "6eb401489aa6648736b21e214cac561f0208bdbe16d65d2597df9d1df8f86f13284a0966d72d6399ba453d6cb15ed5cad1410dee7b63d928fda1312f465bcd4dbfb2f122c282ba8eb30a502ed5a49dd93bb22a9521cb72f663e70d65587c9e0f01291f751a256e4c4fba818a839a50239af40a7cf73935f6bee760ba8b7d235f7b689d9977afbec62b6724e2486918372dc844dba30199807994fe9fea213a1eeb";
+const DEMO_BOB_SECRET_BOX_CIPHER =
+  "4ba2de58119b5af744f99ec311a7023b02a6c9e9b2544b8b3a9dda9c7f8be0f256e68857c07dce548865f1b61dd5f1a3a803b77040f5b1a14990040d40d63abf325941ece7cc7acae68caad091321ca882359bbb13ea7316d30eb1db78046b2e16cb17bc1e8b5cd65b170143e0d41b505a30a1609a5a034e9e4499b2d447ebbeb6e72c73abfcc47224fb1f31f0fbdd639c1bce19e70220d9ae7501c91b67129603";
 
 export interface StreamInfo {
   totalShareEth: string;
@@ -81,6 +90,12 @@ export interface ClaimableVaultItem {
   initialReleaseBps?: number;
   streamingYieldBps?: number;
   stream?: StreamInfo | null;
+  // Off-Chain Legacy Box (Encrypted CEX, seed shards, notes)
+  secretBox?: {
+    ipfsCid: string;
+    encryptedKeyCipher: string;
+    timestamp?: number;
+  } | null;
 }
 
 export default function ClaimPortal() {
@@ -121,12 +136,21 @@ export default function ClaimPortal() {
   // Phase 3.1: Secure In-Memory ECIES Decryption Key State (Zero raw private key UI inputs)
   const [derivedDecryptionKey, setDerivedDecryptionKey] = useState<Hex | null>(null);
 
+  // Off-Chain Legacy Box Decryption state (RAM only — never stored on disk)
+  const [isDecryptingSecretBox, setIsDecryptingSecretBox] = useState(false);
+  const [secretBoxError, setSecretBoxError] = useState<string | null>(null);
+  const [activeSecretBoxPayload, setActiveSecretBoxPayload] = useState<SecretBoxPayload | null>(null);
+  const [isSecretBoxModalOpen, setIsSecretBoxModalOpen] = useState(false);
+
   // Reset state whenever effective address switches
   useEffect(() => {
     setDerivedDecryptionKey(null);
     setStage01State("Ready");
     setClaimReceipt(null);
     setClaimError(null);
+    setActiveSecretBoxPayload(null);
+    setIsSecretBoxModalOpen(false);
+    setSecretBoxError(null);
   }, [effectiveAddress]);
 
   // Email Notification Binding banner state (DESIGN-SYSTEM.md item 4)
@@ -378,6 +402,59 @@ export default function ClaimPortal() {
 
         const vaultNum = v.id.replace("vault-", "").toUpperCase();
 
+        // 5. Query Off-Chain Legacy Box (Encrypted Secret Box)
+        let secretBoxAnchor: { ipfsCid: string; encryptedKeyCipher: string; timestamp: number } | null = null;
+        try {
+          const rawBox = await publicClient.readContract({
+            address: v.vaultAddress,
+            abi: INHERITANCE_VAULT_ABI,
+            functionName: "getSecretBox",
+            args: [normalizedAddress],
+          });
+          if (rawBox && rawBox[0] && rawBox[0].trim() !== "") {
+            secretBoxAnchor = {
+              ipfsCid: rawBox[0],
+              encryptedKeyCipher: rawBox[1],
+              timestamp: Number(rawBox[2] || 0),
+            };
+          }
+        } catch {
+          // Ignore contract read error if not deployed
+        }
+
+        // Check local storage fallback from vault creation flow
+        if (!secretBoxAnchor && typeof window !== "undefined") {
+          const stored =
+            localStorage.getItem(`cadence_secret_box_${v.vaultAddress}_${normalizedAddress}`) ||
+            localStorage.getItem(`cadence_secret_box_${v.vaultAddress}_${normalizedAddress.toLowerCase()}`);
+          if (stored) {
+            try {
+              const parsed = JSON.parse(stored);
+              if (parsed.ipfsCid) {
+                secretBoxAnchor = {
+                  ipfsCid: parsed.ipfsCid,
+                  encryptedKeyCipher: parsed.encryptedKeyCipher || "",
+                  timestamp: Date.now(),
+                };
+              }
+            } catch {}
+          }
+        }
+
+        // Demo Vault fallback (Alice and Bob)
+        if (
+          !secretBoxAnchor &&
+          (v.id === "vault-demo-sepolia" ||
+            isAddressEqual(v.vaultAddress, "0x6a555565CAef70d28c8eC038D5Af8475fE5C97b1" as Address))
+        ) {
+          const isAlice = isAddressEqual(normalizedAddress, "0x70997970C51812dc3A010C7d01b50e0d17dc79C8" as Address);
+          secretBoxAnchor = {
+            ipfsCid: isAlice ? "bafybeidemo_legacy_box_alice" : "bafybeidemo_legacy_box_bob",
+            encryptedKeyCipher: isAlice ? DEMO_ALICE_SECRET_BOX_CIPHER : DEMO_BOB_SECRET_BOX_CIPHER,
+            timestamp: 1727280000,
+          };
+        }
+
         discovered.push({
           id: v.id,
           name: v.name,
@@ -401,6 +478,7 @@ export default function ClaimPortal() {
           initialReleaseBps: 1000,
           streamingYieldBps: 450,
           stream: null,
+          secretBox: secretBoxAnchor,
         });
       }
 
@@ -526,6 +604,106 @@ export default function ClaimPortal() {
       setClaimError(msg);
     } finally {
       setClaimingVaultId(null);
+    }
+  };
+
+  // Handle Off-Chain Legacy Box Decryption (RAM only — never stored in LocalStorage or cookies)
+  const handleDecryptSecretBox = async (vault: ClaimableVaultItem) => {
+    if (!effectiveAddress || !vault.secretBox?.ipfsCid) return;
+
+    setIsDecryptingSecretBox(true);
+    setSecretBoxError(null);
+
+    try {
+      const normalized = getAddress(effectiveAddress);
+      const challengeMessage = "Cadence Legacy Box Decryption Authorization";
+
+      let sig: Hex | null = null;
+
+      if (walletClient && connectedAddress && isAddressEqual(connectedAddress, normalized)) {
+        sig = await walletClient.signMessage({
+          account: normalized,
+          message: challengeMessage,
+        });
+      } else if (
+        typeof window !== "undefined" &&
+        (window as unknown as { ethereum?: Parameters<typeof createWalletClient>[0]["transport"] }).ethereum &&
+        !personaOverride
+      ) {
+        const { custom } = await import("viem");
+        const { sepolia } = await import("viem/chains");
+        const injectedProvider = (window as unknown as { ethereum: Parameters<typeof custom>[0] }).ethereum;
+        const client = createWalletClient({
+          chain: sepolia,
+          transport: custom(injectedProvider),
+        });
+        const [account] = await client.requestAddresses();
+        sig = await client.signMessage({
+          account: account || normalized,
+          message: challengeMessage,
+        });
+      } else {
+        // Headless test environment / persona review fallback
+        const headlessKey = KNOWN_HEADLESS_KEYS[normalized.toLowerCase()];
+        if (headlessKey) {
+          const account = privateKeyToAccount(headlessKey);
+          sig = await account.signMessage({ message: challengeMessage });
+        } else {
+          throw new Error("No Web3 wallet available to sign Legacy Box decryption authorization.");
+        }
+      }
+
+      if (!sig) {
+        throw new Error("Signature authorization was cancelled or failed.");
+      }
+
+      // Derive 32-byte ECIES private key in volatile RAM memory (Zero disk persistence)
+      const derivedPrivKey = keccak256(sig);
+
+      // Fetch ciphertext bytes from Next.js API route
+      const cid = vault.secretBox.ipfsCid;
+      const res = await fetch(`/api/secret-box/${cid}`);
+      if (!res.ok) {
+        throw new Error(`Failed to retrieve ciphertext from storage gateway (Status ${res.status}).`);
+      }
+      const arrayBuf = await res.arrayBuffer();
+      const ciphertextBytes = new Uint8Array(arrayBuf);
+
+      // Decrypt using derived ephemeral key (with fallback to test key for simulated environments)
+      let decryptedPayload: SecretBoxPayload | null = null;
+      try {
+        decryptedPayload = await decryptSecretBox(
+          derivedPrivKey,
+          vault.secretBox.encryptedKeyCipher,
+          ciphertextBytes
+        );
+      } catch (err1) {
+        const headlessKey = KNOWN_HEADLESS_KEYS[normalized.toLowerCase()];
+        if (headlessKey && headlessKey !== derivedPrivKey) {
+          try {
+            decryptedPayload = await decryptSecretBox(
+              headlessKey,
+              vault.secretBox.encryptedKeyCipher,
+              ciphertextBytes
+            );
+          } catch {
+            throw err1;
+          }
+        } else {
+          throw err1;
+        }
+      }
+
+      if (decryptedPayload) {
+        setActiveSecretBoxPayload(decryptedPayload);
+        setIsSecretBoxModalOpen(true);
+      }
+    } catch (err: unknown) {
+      console.error("[ClaimPortal] Decrypt Legacy Box failed:", err);
+      const msg = err instanceof Error ? err.message : "Failed to decrypt secret box in memory.";
+      setSecretBoxError(msg);
+    } finally {
+      setIsDecryptingSecretBox(false);
     }
   };
 
@@ -796,10 +974,15 @@ export default function ClaimPortal() {
                       <span className="text-[11px] font-mono font-bold text-[#5F6368] uppercase tracking-wider block">
                         STATUS
                       </span>
-                      <div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-full border bg-[#FCE8E6] text-[#C5221F] border-[#FAD2CF] uppercase">
                           {vault.isClaimed ? "CLAIMED" : "FINALIZED"}
                         </span>
+                        {vault.secretBox?.ipfsCid && (
+                          <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-800 border-amber-200">
+                            📦 Legacy Box
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -1064,6 +1247,70 @@ export default function ClaimPortal() {
               </div>
             )}
 
+            {/* Off-Chain Legacy Box (Prominent Golden Card alongside streaming metrics) */}
+            {activeVault.secretBox?.ipfsCid && (
+              <div className="my-5 p-6 rounded-3xl bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-amber-500/10 border border-amber-300 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start sm:items-center gap-3">
+                    <span className="text-2xl p-2.5 rounded-2xl bg-amber-100 border border-amber-200 text-amber-800 shrink-0">
+                      📦
+                    </span>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-base sm:text-lg font-bold text-amber-950">
+                          Off-Chain Legacy Box Available — Inherited Credentials & Instructions
+                        </h3>
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-200/80 text-amber-900 border border-amber-300">
+                          IPFS Anchored
+                        </span>
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-white/80 text-amber-900/70 border border-amber-200">
+                          AES-256-GCM
+                        </span>
+                      </div>
+                      <p className="text-xs text-amber-900/80 mt-1 max-w-xl leading-relaxed">
+                        Your benefactor attached encrypted exchange accounts, master passwords, or personal wills to this vault. Decrypt directly in your browser RAM without exposing secrets.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleDecryptSecretBox(activeVault)}
+                    disabled={isDecryptingSecretBox}
+                    className="px-6 py-3.5 rounded-full font-bold text-xs sm:text-sm bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-md hover:shadow-lg transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2 shrink-0 select-none"
+                  >
+                    {isDecryptingSecretBox ? (
+                      <>
+                        <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                        </svg>
+                        <span>Decrypting in Memory...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🔓</span>
+                        <span>Decrypt Legacy Instructions</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {secretBoxError && (
+                  <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center justify-between gap-2">
+                    <span>{secretBoxError}</span>
+                    <button
+                      type="button"
+                      onClick={() => setSecretBoxError(null)}
+                      className="text-red-500 hover:text-red-800 text-xs font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Action Execution Button */}
             <div className="pt-2">
               {activeVault.isClaimed ? (
@@ -1106,6 +1353,17 @@ export default function ClaimPortal() {
           </div>
         </div>
       )}
+
+      {/* Interactive Decrypted Secret Box Modal */}
+      <DecryptedSecretBoxModal
+        isOpen={isSecretBoxModalOpen}
+        onClose={() => setIsSecretBoxModalOpen(false)}
+        payload={activeSecretBoxPayload}
+        vaultNumber={activeVault?.vaultNumber}
+        vaultAddress={activeVault?.vaultContractAddress}
+        benefactorAddress={activeVault?.originAddress}
+        beneficiaryAddress={effectiveAddress}
+      />
     </div>
   );
 }

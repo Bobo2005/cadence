@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useId } from "react";
 import { type Address, isAddress } from "viem";
 import { generateSalt, type BeneficiaryAllocation } from "../lib/merkle";
+import OffChainLegacyBoxBuilder from "./OffChainLegacyBoxBuilder";
+import type { SecretBoxItem } from "../types/secretBox";
 
 export interface BeneficiaryItem {
   id: string;
@@ -10,6 +12,9 @@ export interface BeneficiaryItem {
   address: string;
   shareBps: number;
   suggestedEmail?: string;
+  publicKey?: string;
+  secretBoxItems?: SecretBoxItem[];
+  personalMessage?: string;
 }
 
 export interface BeneficiarySetupFormProps {
@@ -384,6 +389,23 @@ export default function BeneficiarySetupForm({
                   Heirs will be prompted to verify this email with a wallet signature before any claim notification is dispatched.
                 </p>
               </div>
+
+              {/* Off-Chain Legacy Box (Encrypted CEX, Seed Shards, Passwords, Will) */}
+              <OffChainLegacyBoxBuilder
+                beneficiaryName={b.name || `Beneficiary ${index + 1}`}
+                beneficiaryAddress={b.address}
+                items={b.secretBoxItems || []}
+                personalMessage={b.personalMessage || ""}
+                onChange={(items, personalMessage) => {
+                  setBeneficiaries((prev) =>
+                    prev.map((item) =>
+                      item.id === b.id
+                        ? { ...item, secretBoxItems: items, personalMessage }
+                        : item
+                    )
+                  );
+                }}
+              />
             </div>
           );
         })}

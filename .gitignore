@@ -11,6 +11,8 @@ out/
 */out/
 build/
 */build/
+.cache/
+*/.cache/
 
 # Foundry / Solidity
 contracts/cache/

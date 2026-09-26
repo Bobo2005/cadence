@@ -48,6 +48,13 @@
     - **Compounding Idle Capital Yield**: Unvested principal accrues passive yield (Aave v3 yield strategy model).
     - **Emergency Circuit Breakers**: Beneficiaries (`pauseStream`), consensus guardians via Merkle proof (`pauseStreamWithGuardian`), and registered backup claim addresses (`pauseStream`, `redirectStream`) can freeze and permanently redirect streaming capital to a safe cold hardware wallet if an heir's keys are leaked or phished.
 
+11. **Off-Chain Legacy Secrets: Encrypted Vault Box (Hybrid AES-256 + ECIES).**
+    To protect credentials that cannot live directly on-chain (CEX accounts, 1Password master keys, hardware seed shards, physical safe instructions, personal letters), Cadence utilizes a client-side hybrid envelope encryption pipeline:
+    - **Payload Encryption**: The secret JSON payload is encrypted client-side using a random ephemeral 256-bit symmetric key (`AES-256-GCM`) with a 12-byte IV via the native Web Crypto API (`window.crypto.subtle`).
+    - **Key Wrapping**: The symmetric key is encrypted using the beneficiary's secp256k1 uncompressed public key via ECIES (`EthCrypto.encryptWithPublicKey`).
+    - **Zero Plaintext at Rest**: Encrypted ciphertext is pinned to decentralized storage (IPFS/Pinata); the CID and stringified ECIES cipher are anchored on-chain to `InheritanceVault.sol` (`beneficiarySecretBoxes` mapping) with minimal gas overhead (~45k gas).
+    - **In-Memory Ephemeral Decryption Portal**: Upon finalized Proof-of-Life verification, the heir signs `"Cadence Legacy Box Decryption Authorization"` to derive the ECIES private key in volatile browser RAM. Secrets are displayed inside an interactive modal with hold-to-reveal controls, masked passwords, personal will letter, and offline JSON/PDF export—with zero disk, LocalStorage, or cookie persistence.
+
 ## End-to-End Privacy Architecture & Balance Visibility System
 
 Cadence adheres to a strict multi-layer zero-leakage privacy model verified across smart contracts and client workflows:
@@ -60,6 +67,7 @@ Cadence adheres to a strict multi-layer zero-leakage privacy model verified acro
 | **Double-Hashed Blinded Merkle Proofs** | Cryptography (`lib/merkle.ts`) | Each leaf is computed as `keccak256(bytes.concat(keccak256(abi.encode(beneficiary, shareBps, salt))))`. Random 32-byte salts eliminate dictionary and brute-force guessing attacks. | **22/22 Passing** (`scripts/test-beneficiary-claim-flow.mjs`) |
 | **Zero Gas-Linkage Stealth Cancellation** (Constraint #1) | Consensus (`ProofOfLifeConsensus.sol`) | Living vault owners dismiss false-alarm contest windows off-chain via **EIP-712 typed digests** (`CancelClaim`). Any relayer can broadcast the cancel with zero owner ETH funding or gas tracking. | **19/19 Passing** (`ContestableClaim.t.sol`; `test_relayedCancel_stealthAddressZeroBalance_succeeds`) |
 | **Safe In-Memory Key Derivation** | Frontend UI (`ClaimPortal.tsx`) | Beneficiaries sign an authorization message (`personal_sign` over `keccak256(sig)`). The 32-byte ECIES decryption key is derived strictly in memory—zero raw private keys are ever entered in the UI. | **Verified Live** (Supports single & multi-beneficiary allocation roots without key exposure) |
+| **Off-Chain Legacy Box (Encrypted Vault Box)** (Constraint #11) | Hybrid Crypto & Storage (`lib/secretBoxCrypto.ts`, `ClaimPortal.tsx`, `InheritanceVault.sol`) | CEX logins, seed shards, and wills encrypted via AES-256-GCM + ECIES, pinned to IPFS, anchored on-chain, and decrypted strictly in volatile RAM. | **40/40 Passing** (`scripts/test-secret-box-security.mjs`, `SecretBox.t.sol`) |
 | **Guardian Quorum Privacy** | Registry (`GuardianRegistry.sol`) | Guardians are committed via a 2-of-3 Merkle tree (`guardianRoot`). Observers cannot inspect full guardian rosters on-chain prior to active attestation. | **15/15 Passing** (`StealthAddressRegistry.t.sol`) |
 | **Cryptographic Email Binding** (Constraint #6) | Microservice (`bindingVerifier.ts`) | Beneficiary emails remain unverified/pending until the wallet owner signs an EIP-712 binding proof, preventing notification hijacking. | **18/18 Passing** (`notifications/test/notifications.test.mjs`) |
 

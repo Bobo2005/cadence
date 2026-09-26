@@ -51,13 +51,14 @@ Existing decentralized alternatives rely on brittle smart contract countdown tim
    - **Deployment Compliance Fact**: The yield engine has **no cross-chain dependency**, since both Cadence contracts and Aave v3 reside directly on **Arbitrum Sepolia**. Assets are lent to liquidity pools to earn borrower-paid interest, **never staked**.
    - **Anti-Drainer Defense:** Designated guardians or registered backup addresses can call `pauseStream()` and `redirectStream()` to immediately freeze outflows and redirect unvested streams to a safe cold wallet if an heir is phished.
 5. **Arbitrum Stylus WASM Verification:** Merkle allocation verification implemented in Rust as an Arbitrum Stylus WASM contract (`stylus_merkle`), demonstrating sub-cent execution and bit-for-bit equivalence with OpenZeppelin Solidity.
+6. **Encrypted Vault Box for Off-Chain Secrets:** Hybrid AES-256-GCM + ECIES envelope encryption allowing benefactors to attach private credentials (CEX logins, hardware seed shards, 1Password master keys) pinned to decentralized storage (IPFS/Arweave). Unlocked in browser memory only after finalized Proof-of-Life verification.
 
 ```mermaid
 flowchart LR
     subgraph S1["1. Atomic Setup"]
         A["1-Click Signature"] --> B["Deposit Capital"]
         B --> C["Blinded Merkle Root"]
-        C --> D["Config Cadence Stream"]
+        C --> D["Config Cadence Stream + Vault Box"]
     end
     subgraph S2["2. Heartbeat Vitality"]
         E["Active 62 BPM ECG"] --> F["Paymaster Renewals"]
@@ -70,7 +71,7 @@ flowchart LR
     subgraph S4["4. Claim & Streaming Trust"]
         K{"Living Owner?"}
         K -- "Yes" --> L["EIP-712 Stealth Cancel (0 Gas Linkage)"]
-        K -- "No" --> M["10% Emergency Buffer + Linear Stream + Yield"]
+        K -- "No" --> M["10% Buffer + Stream + Decrypt Legacy Vault Box"]
         M --> N["Anti-Drainer Circuit Breaker (Pause & Redirect)"]
     end
     S1 --> S2 --> S3 --> S4
@@ -85,6 +86,7 @@ flowchart LR
 | **Execution Layer** | Decrypts seed phrase | Reconstructs secret shards | Transfers Safe ownership | Legal / Custodial | **Direct On-Chain Vault Settlement** |
 | **Payout Mechanics** | Lump sum (manual) | Lump sum (manual) | Lump sum (100% dump) | Custodial transfer | **Per-Second Linear Streaming (Cadence Streams)** |
 | **Idle Capital Yield** | 0% (Idle payload) | 0% (Idle payload) | 0% (Unmanaged) | Variable custodial | **Live Aave v3 Pool / 7.00% USDG Earn Peg** |
+| **Off-Chain Secret Box** | Seed phrase only | Password fragments | ❌ None | Manual forms | **✅ Encrypted Vault Box (AES-256 + ECIES on IPFS)** |
 | **Anti-Drainer Defense** | ❌ None | ❌ None | ❌ None | ⚠️ Support delay | **✅ Instant Guardian Pause & Cold Wallet Redirection** |
 | **Estate Privacy** | ⚠️ Public on-chain | ⚠️ Hardware-dependent | ❌ Public mappings | ❌ Identity doxxing | **✅ ECIES-secp256k1 + Blinded Merkle Trees** |
 | **False-Alarm Cancel** | Periodic re-wrap | Manual app login | Direct owner tx | Legal affidavit | **✅ EIP-712 Relayed Stealth Cancel (0 Gas Linkage)** |
@@ -144,6 +146,7 @@ If the owner is alive, they click **`[RESET PROTOCOL: I'M ALIVE]`** to sign an o
 When the contest window concludes, the vault transitions to `Finalized`. The heir connects their wallet, signs an ephemeral message to derive their ECIES key in volatile RAM, decrypts their allocation, and verifies their Merkle proof.
 - **Lump-Sum vs. Streaming:** Pays an immediate emergency buffer (10%) and streams the remaining 90% per-second with live yield.
 - **Anti-Drainer Defense:** If an heir's wallet is compromised, guardians or registered backups call `pauseStream()` and `redirectStream(newColdWallet)` to rescue all unvested capital.
+- **Heir Secret Box Decryption Portal:** If the vault includes an anchored Off-Chain Legacy Box (`beneficiarySecretBoxes`), a prominent golden card alerts the heir: `"📦 Off-Chain Legacy Box Available — Inherited Credentials & Instructions"`. Clicking `[🔓 Decrypt Legacy Instructions]` prompts for an ephemeral EIP-191 signature (`personal_sign` on `"Cadence Legacy Box Decryption Authorization"`), derives the ECIES key in browser RAM, downloads the ciphertext from IPFS, and decrypts the credentials inside an interactive modal (obscured passwords, hold-to-reveal, copy-to-clipboard, personal will letter, and offline JSON/PDF export) with zero disk persistence.
 
 ---
 
@@ -173,18 +176,25 @@ When the contest window concludes, the vault transitions to `Finalized`. The hei
    - *Problem:* A thief with stolen owner keys could make small transfers to indefinitely reset a dead man's switch ("zombie pulse"). Alternatively, compromising an heir's wallet allows drainer bots to steal a lump-sum inheritance instantly.
    - *Solution:* Enforced strict intentional heartbeats (`checkIn()` only) to eliminate zombie pulses, and built **Cadence Streams** with guardian circuit breakers (`pauseStream` and `redirectStream`) to rescue unvested streams.
 
+7. **The "Off-Chain Secret & Plaintext Exposure" Dilemma:**
+   - *Problem:* Real-world wealth involves off-chain accounts: centralized exchange portfolios (Coinbase, Kraken), master passwords (1Password), and cold storage seed shards (Ledger Shamir backups). Storing these on-chain is public suicide, while cloud servers create custodial breach points.
+   - *Solution:* Built an end-to-end Client-Side Hybrid Encryption Engine (AES-256-GCM + ECIES). Benefactors encrypt credentials and wills locally in browser memory before pinning to IPFS. The ciphertext CID and wrapped AES key are anchored immutably to `InheritanceVault.sol`. Heirs unwrap and decrypt strictly in volatile browser RAM upon finalized claim with zero disk or cookie persistence.
+
 ---
 
 ## Verification & Audit Compliance Matrix
 
 | Audit / Test Suite | Scope | Target | Result | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Foundry Smart Contract Suite** | All 18 Test Suites | `contracts/test/` | **252 / 252 tests passing** | **PASSED** |
+| **Foundry Smart Contract Suite** | All 19 Test Suites | `contracts/test/` | **257 / 257 tests passing** | **PASSED** |
+| **Dedicated Secret Box Security Suite** | 6 Security Domains (40 checks) | `frontend/scripts/test-secret-box-security.mjs` | **40 / 40 tests passing** | **PASSED** |
+| **Heir Claim Decryption Flow** | E2E In-Memory Decryption | `frontend/scripts/test-heir-claim-decryption-flow.mjs` | **11 / 11 tests passing** | **PASSED** |
+| **Hybrid Cryptography Suite** | AES-256-GCM + ECIES | `frontend/scripts/test-secret-box-crypto.mjs` | **15 / 15 tests passing** | **PASSED** |
 | **Slither Static Analysis (v0.11.6)** | All 55 contracts | `contracts/` | **0 Critical, 0 High, 0 Medium** | **PASSED** |
 | **Notifications Security Suite** | 11 Security Regression Suites | `notifications/test/security.test.ts` | **11 / 11 suites passing** | **PASSED** |
-| **Frontend ESLint Audit** | 95 source files | `frontend/` | **0 errors, 0 warnings** | **PASSED** |
+| **Frontend ESLint Audit** | 106 source files | `frontend/` | **0 errors, 0 warnings** | **PASSED** |
 | **Frontend TypeScript Typecheck** | Strict compilation | `npx tsc --noEmit` | **0 errors (exit code 0)** | **PASSED** |
-| **Dependency Security Audit** | Monorepo dependencies | `npm audit` | **0 high or critical vulnerabilities** | **PASSED** |
+| **Dependency Security Audit** | Monorepo dependencies | `npm audit` | **0 vulnerabilities** | **PASSED** |
 | **Terminology Compliance** | Frontend & Docs Copy | All files | **0 instances of "staking"; strictly lending** | **PASSED** |
 
 ---

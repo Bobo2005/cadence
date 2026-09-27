@@ -59,6 +59,7 @@ export default function BeneficiarySetupForm({
   const formId = useId();
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryItem[]>(initialBeneficiaries);
   const [showExplainer, setShowExplainer] = useState(false);
+  const [showLostWalletNotice, setShowLostWalletNotice] = useState(false);
 
   // Calculate live sum in basis points
   const totalBps = beneficiaries.reduce(
@@ -221,6 +222,20 @@ export default function BeneficiarySetupForm({
 
           <button
             type="button"
+            onClick={() => setShowLostWalletNotice(!showLostWalletNotice)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors flex items-center gap-1.5 cursor-pointer ${
+              showLostWalletNotice
+                ? "bg-[#111111] text-white border-[#111111]"
+                : "bg-[#F7F8FA] hover:bg-[#E8EAED] text-[#5F6368] hover:text-[#111111] border-[#E8EAED]"
+            }`}
+            title="What if an heir loses access to their wallet later?"
+          >
+            <span className="text-[#10B981]">🛡️</span>
+            <span>Lost Wallet Defense</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => setShowExplainer(!showExplainer)}
             className="w-7 h-7 flex items-center justify-center text-xs rounded-full bg-[#F7F8FA] text-[#5F6368] hover:text-[#111111] border border-[#E8EAED] cursor-pointer"
             aria-label="Explain allocation privacy"
@@ -230,6 +245,66 @@ export default function BeneficiarySetupForm({
           </button>
         </div>
       </div>
+
+      {/* Lost Wallet Defense Guidance Card */}
+      {showLostWalletNotice && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-[#F0FDF4] border border-[#BBF7D0] text-xs text-[#166534] space-y-3 animate-in fade-in">
+          <div className="font-bold text-[#14532D] flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-[#16A34A]" />
+              What happens if a beneficiary loses access to their listed wallet?
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowLostWalletNotice(false)}
+              className="text-[#166534] hover:text-[#14532D] text-xs underline cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+          <p className="leading-relaxed text-[#15803D]">
+            Cadence provides <strong>4 defense layers</strong> to guarantee funds are never permanently lost if an heir loses their key:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+            <div className="p-3 rounded-xl bg-white/80 border border-[#DCFCE7] space-y-1">
+              <div className="font-bold text-[#14532D] flex items-center gap-1.5">
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#166534]">1</span>
+                Living Benefactor Update
+              </div>
+              <p className="text-[11px] text-[#166534] leading-normal">
+                While your vault is <code>Active</code>, you can re-commit a new Merkle root with an updated heir address in 1 click with zero identity leakage.
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-white/80 border border-[#DCFCE7] space-y-1">
+              <div className="font-bold text-[#14532D] flex items-center gap-1.5">
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#166534]">2</span>
+                Pre-Registered Backup Claim
+              </div>
+              <p className="text-[11px] text-[#166534] leading-normal">
+                Heirs can self-sovereignly register a secondary cold wallet on-chain. If their primary key is lost, the backup claims after a 72h veto window.
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-white/80 border border-[#DCFCE7] space-y-1">
+              <div className="font-bold text-[#14532D] flex items-center gap-1.5">
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#166534]">3</span>
+                ERC-4337 Social Recovery
+              </div>
+              <p className="text-[11px] text-[#166534] leading-normal">
+                If an heir uses a smart contract account, nominated family/hardware recovery guardians rotate the signing key without altering the contract address.
+              </p>
+            </div>
+            <div className="p-3 rounded-xl bg-white/80 border border-[#DCFCE7] space-y-1">
+              <div className="font-bold text-[#14532D] flex items-center gap-1.5">
+                <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-[#DCFCE7] text-[#166534]">4</span>
+                In-Flight Stream Redirection
+              </div>
+              <p className="text-[11px] text-[#166534] leading-normal">
+                If key compromise happens during streaming payouts, unvested flows can be instantly redirected to a safe cold wallet via <code>redirectStream</code>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Explainer Card */}
       {showExplainer && (

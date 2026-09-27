@@ -7,6 +7,7 @@ import {
   type Hex,
   type Address,
   type Account,
+  isAddress,
   isAddressEqual,
   getAddress,
   createWalletClient,
@@ -141,6 +142,14 @@ export default function ClaimPortal() {
   const [secretBoxError, setSecretBoxError] = useState<string | null>(null);
   const [activeSecretBoxPayload, setActiveSecretBoxPayload] = useState<SecretBoxPayload | null>(null);
   const [isSecretBoxModalOpen, setIsSecretBoxModalOpen] = useState(false);
+
+  // Pre-Registered Backup Claim Assistant state
+  const [isBackupSectionOpen, setIsBackupSectionOpen] = useState(false);
+  const [backupVaultAddress, setBackupVaultAddress] = useState("");
+  const [primaryBeneficiaryAddress, setPrimaryBeneficiaryAddress] = useState("");
+  const [backupStatusMessage, setBackupStatusMessage] = useState<string | null>(null);
+  const [isCheckingBackup, setIsCheckingBackup] = useState(false);
+  const [isInitiatingBackup, setIsInitiatingBackup] = useState(false);
 
   // Reset state whenever effective address switches
   useEffect(() => {
@@ -728,6 +737,94 @@ export default function ClaimPortal() {
       alert(msg);
     } finally {
       setIsSigningEmail(false);
+    }
+  };
+
+  const handleCheckBackupStatus = async () => {
+    if (!backupVaultAddress || !isAddress(backupVaultAddress) || !primaryBeneficiaryAddress || !isAddress(primaryBeneficiaryAddress)) {
+      setBackupStatusMessage("Please provide valid Ethereum addresses for both the vault and the primary beneficiary.");
+      return;
+    }
+    setIsCheckingBackup(true);
+    setBackupStatusMessage(null);
+    try {
+      const config = (await publicClient.readContract({
+        address: backupVaultAddress as Address,
+        abi: INHERITANCE_VAULT_ABI,
+        functionName: "getBackupConfig",
+        args: [primaryBeneficiaryAddress as Address],
+      })) as unknown as [Address, bigint];
+
+      const [backupAddress, vetoWindow] = config;
+
+      if (!backupAddress || backupAddress === "0x0000000000000000000000000000000000000000") {
+        setBackupStatusMessage("No backup address is registered for this beneficiary in this vault.");
+        return;
+      }
+
+      const isCallerBackup = effectiveAddress && isAddressEqual(effectiveAddress, backupAddress);
+      const req = (await publicClient.readContract({
+        address: backupVaultAddress as Address,
+        abi: INHERITANCE_VAULT_ABI,
+        functionName: "getBackupClaimRequest",
+        args: [primaryBeneficiaryAddress as Address],
+      })) as unknown as [bigint, boolean];
+
+      const [vetoDeadline, active] = req;
+
+      const now = BigInt(Math.floor(Date.now() / 1000));
+      let statusStr = `Configured Backup: ${backupAddress.slice(0, 6)}...${backupAddress.slice(-4)} (Veto Window: ${Number(vetoWindow) / 3600}h). `;
+      if (isCallerBackup) {
+        statusStr += "✓ Your connected wallet IS the authorized backup address! ";
+      } else {
+        statusStr += "⚠️ Note: Your connected wallet is not the authorized backup address. ";
+      }
+
+      if (active) {
+        if (now >= vetoDeadline) {
+          statusStr += "✓ 72h Veto window has ELAPSED! You can now execute claimAsBackup().";
+        } else {
+          const remainingSec = Number(vetoDeadline - now);
+          statusStr += `⏳ Backup claim is ACTIVE. Veto window closes in ~${Math.ceil(remainingSec / 60)} minutes.`;
+        }
+      } else {
+        statusStr += "Ready to initiate: No active claim request pending.";
+      }
+      setBackupStatusMessage(statusStr);
+    } catch (err: unknown) {
+      console.error("[ClaimPortal] Backup check error:", err);
+      setBackupStatusMessage(err instanceof Error ? err.message : "Failed to query backup configuration.");
+    } finally {
+      setIsCheckingBackup(false);
+    }
+  };
+
+  const handleInitiateBackupClaim = async () => {
+    if (!effectiveAddress || !walletClient) {
+      alert("Please connect your wallet first.");
+      return;
+    }
+    if (!backupVaultAddress || !isAddress(backupVaultAddress) || !primaryBeneficiaryAddress || !isAddress(primaryBeneficiaryAddress)) {
+      alert("Please enter valid vault and primary beneficiary addresses.");
+      return;
+    }
+    setIsInitiatingBackup(true);
+    try {
+      const tx = await walletClient.writeContract({
+        address: backupVaultAddress as Address,
+        abi: INHERITANCE_VAULT_ABI,
+        functionName: "initiateBackupClaim",
+        args: [primaryBeneficiaryAddress as Address],
+        chain: cadenceSepolia,
+        account: effectiveAddress,
+      });
+      setBackupStatusMessage(`✓ Backup claim initiated! Tx: ${tx}. The veto window countdown has started.`);
+    } catch (err: unknown) {
+      console.error("[ClaimPortal] Initiate backup claim failed:", err);
+      const msg = parseUserFriendlyError(err);
+      alert(msg);
+    } finally {
+      setIsInitiatingBackup(false);
     }
   };
 
@@ -1353,6 +1450,99 @@ export default function ClaimPortal() {
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* 5. PRE-REGISTERED BACKUP CLAIM ASSISTANT (LOST PRIMARY WALLET RECOVERY)   */}
+      {/* ========================================================================= */}
+      <div className="rounded-3xl bg-white border border-[#E8EAED] p-6 sm:p-7 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="text-xl">🛡️</span>
+            <div>
+              <h3 className="text-base font-bold text-[#111111] tracking-tight">
+                Pre-Registered Backup Claim Assistant
+              </h3>
+              <p className="text-xs text-[#5F6368]">
+                Lost access to your primary heir wallet? If you pre-registered this connected wallet as a backup on-chain, initiate your claim here.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsBackupSectionOpen(!isBackupSectionOpen)}
+            className="px-4 py-2 text-xs font-semibold rounded-full bg-[#F7F8FA] hover:bg-[#E8EAED] text-[#111111] border border-[#E8EAED] transition-colors cursor-pointer self-start sm:self-auto shrink-0"
+          >
+            {isBackupSectionOpen ? "Hide Assistant ▲" : "Open Backup Claim ▼"}
+          </button>
+        </div>
+
+        {isBackupSectionOpen && (
+          <div className="pt-4 border-t border-[#E8EAED] space-y-4 animate-in fade-in">
+            <div className="p-4 rounded-2xl bg-[#F0FDF4] border border-[#DCFCE7] text-xs text-[#166534] space-y-2">
+              <div className="font-bold text-[#14532D]">How does on-chain backup claiming work?</div>
+              <ol className="list-decimal list-inside space-y-1 text-[11px] text-[#15803D]">
+                <li>When the vault transitions to <code>Finalized</code>, the backup wallet calls <code>initiateBackupClaim()</code>.</li>
+                <li>A 72-hour delay/veto window begins. During this window, the primary wallet may veto if it is not actually lost.</li>
+                <li>Once the veto window expires without objection, the backup wallet executes <code>claimAsBackup()</code> to receive the inheritance.</li>
+              </ol>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="block text-xs font-mono text-[#5F6368]">
+                  Vault Contract Address (0x...)
+                </label>
+                <input
+                  type="text"
+                  value={backupVaultAddress}
+                  onChange={(e) => setBackupVaultAddress(e.target.value.trim())}
+                  placeholder="0x..."
+                  className="w-full font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#F7F8FA] text-[#111111] border border-[#E8EAED] focus:outline-none focus:bg-white focus:border-[#111111] transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-xs font-mono text-[#5F6368]">
+                  Primary Beneficiary Address (Lost Key)
+                </label>
+                <input
+                  type="text"
+                  value={primaryBeneficiaryAddress}
+                  onChange={(e) => setPrimaryBeneficiaryAddress(e.target.value.trim())}
+                  placeholder="0x..."
+                  className="w-full font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#F7F8FA] text-[#111111] border border-[#E8EAED] focus:outline-none focus:bg-white focus:border-[#111111] transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleCheckBackupStatus}
+                disabled={isCheckingBackup || !backupVaultAddress || !primaryBeneficiaryAddress}
+                className="px-5 py-2.5 rounded-full text-xs font-bold font-mono bg-[#F7F8FA] hover:bg-[#E8EAED] text-[#111111] border border-[#E8EAED] transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isCheckingBackup ? "Checking On-Chain..." : "Check Backup Status"}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleInitiateBackupClaim}
+                disabled={isInitiatingBackup || !backupVaultAddress || !primaryBeneficiaryAddress}
+                className="px-5 py-2.5 rounded-full text-xs font-bold font-mono bg-[#111111] hover:bg-black text-white transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isInitiatingBackup ? "Submitting..." : "Initiate Backup Claim (Start 72h Window)"}
+              </button>
+            </div>
+
+            {backupStatusMessage && (
+              <div className="p-3.5 rounded-xl bg-[#F8F9FA] border border-[#E8EAED] text-xs font-mono text-[#111111]">
+                {backupStatusMessage}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Interactive Decrypted Secret Box Modal */}
       <DecryptedSecretBoxModal

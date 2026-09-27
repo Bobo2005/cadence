@@ -372,6 +372,8 @@ export function EmptyClaimState({
   connectedAddress,
   onSwitchPersona,
 }: EmptyClaimStateProps) {
+  const [showRecoveryGuide, setShowRecoveryGuide] = React.useState(false);
+
   return (
     <div className="rounded-3xl bg-white border border-[#E8EAED] p-8 sm:p-12 text-center space-y-6 shadow-sm">
       <div className="space-y-2 max-w-md mx-auto">
@@ -391,6 +393,45 @@ export function EmptyClaimState({
           </span>
         </div>
       )}
+
+      {/* Lost Wallet & Backup Claim Guide */}
+      <div className="max-w-md mx-auto text-left">
+        <button
+          type="button"
+          onClick={() => setShowRecoveryGuide(!showRecoveryGuide)}
+          className="w-full p-3.5 rounded-2xl bg-[#F0FDF4] border border-[#DCFCE7] hover:border-[#BBF7D0] flex items-center justify-between text-xs font-semibold text-[#166534] transition-all cursor-pointer shadow-xs"
+        >
+          <span className="flex items-center gap-2">
+            <span>🛡️</span>
+            <span>Lost Access to Your Listed Address? (Recovery Guide)</span>
+          </span>
+          <span className="font-mono text-[11px] text-[#15803D]">
+            {showRecoveryGuide ? "Hide ▲" : "View Options ▼"}
+          </span>
+        </button>
+
+        {showRecoveryGuide && (
+          <div className="mt-2.5 p-4 rounded-2xl bg-[#F7FDF9] border border-[#DCFCE7] text-xs text-[#166534] space-y-3 animate-in fade-in">
+            <div className="font-bold text-[#14532D]">
+              How to recover an inheritance if your primary wallet is lost:
+            </div>
+            <ul className="space-y-2 text-[11px] text-[#15803D] list-disc list-inside">
+              <li>
+                <strong>Pre-Registered Backup Claim:</strong> If you pre-registered this connected wallet on-chain via <code>registerBackupClaimAddress</code>, you can call <code>initiateBackupClaim</code>. After a 72-hour delay window, your backup address claims 100% of the inheritance via <code>claimAsBackup</code>.
+              </li>
+              <li>
+                <strong>Living Benefactor Update:</strong> If the vault owner is still alive and the vault is <code>Active</code>, they can update their Merkle allocation root to your new address in 1 click without gas or identity linkage.
+              </li>
+              <li>
+                <strong>ERC-4337 Social Recovery:</strong> If your listed address is a smart account, your designated guardians can execute a threshold signature recovery to assign a new signing key without altering the contract address.
+              </li>
+              <li>
+                <strong>Stream Redirection:</strong> For active Cadence Streams, the recipient address can be redirected to a secure cold wallet using <code>redirectStream</code>.
+              </li>
+            </ul>
+          </div>
+        )}
+      </div>
 
       {onSwitchPersona && (
         <div className="p-5 rounded-2xl bg-[#F8F9FA] border border-[#E8EAED] max-w-md mx-auto text-left space-y-3">

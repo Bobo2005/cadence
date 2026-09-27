@@ -350,7 +350,77 @@ all the math and decryption silently in the background in seconds.
 
 
 ======================================================================
-10. VERIFIED CONTRACT DEPLOYMENTS
+10. NON-CUSTODIAL SECURITY: CAN CADENCE ACCESS USER VAULTS?
+======================================================================
+DIRECT ANSWER: NO. Cadence can NEVER access, control, freeze, or 
+withdraw from any user vault.
+
+1. User-Owned Smart Contracts (Zero Protocol Admin Keys):
+   Every vault deployed through OneClickInheritanceVault.sol designates the 
+   user's wallet as the immutable contract owner. Cadence holds zero 
+   protocol admin keys, no multi-sig master overrides, and no backdoors.
+
+2. Zero Drain or "Emergency Withdraw" Functions:
+   Smart contracts contain no emergency withdrawal or admin drain mechanisms. 
+   The contracts are immutable and non-upgradeable (no UUPS or transparent 
+   proxies). Once deployed, bytecode cannot be mutated or upgraded.
+
+3. Cryptographically Restricted Withdrawals:
+   Funds can exit the vault only when Proof-of-Life Consensus reaches 
+   Finalized (inactivity timer lapses + 2-of-3 guardian consensus 
+   attestations + 72-hour contest grace window elapses without owner 
+   cancellation). Assets transfer directly to the authenticated heir 
+   presenting a verified Merkle proof — never touching Cadence.
+
+4. Zero Knowledge on Off-Chain Secrets:
+   The Encrypted Legacy Box is sealed client-side in the browser using 
+   AES-256-GCM and wrapped with the heir's public key (ECIES-secp256k1). 
+   Cadence servers only see unreadable ciphertext (0x...). The RFC-6238 
+   live Google Authenticator 2FA engine executes strictly in the heir's 
+   browser RAM upon verified claim. Cadence has zero decryption keys.
+
+5. Decoupled Infrastructure (Fail-Safe Autonomy):
+   If Cadence the company or its servers went offline permanently, your 
+   vault, funds, consensus rules, and inheritance streams would continue 
+   running trustlessly on Arbitrum and Ethereum forever.
+
+
+======================================================================
+11. BENEFICIARY WALLET RECOVERY MATRIX: WHAT IF AN HEIR LOSES ACCESS?
+======================================================================
+A common failure mode in legacy inheritance is an heir losing access to the 
+private key of the wallet address initially designated for them. Because 
+Cadence is 100% non-custodial and has zero protocol admin overrides, the 
+protocol guarantees fund safety through 4 defense layers:
+
+Layer 1: Living Benefactor Dynamic Re-Commitment (Active State)
+- While the benefactor is alive, they can navigate to the dashboard, update 
+  the heir's address, and re-commit the Merkle root (setAllocationRoot) in 
+  1 click with zero on-chain identity linkage.
+
+Layer 2: Pre-Registered Backup Claim Address (Finalized State)
+- Implemented in InheritanceVault.sol (L613-L726): Beneficiaries can 
+  self-sovereignly pre-register a secondary cold wallet on-chain 
+  (registerBackupClaimAddress).
+- Only the beneficiary (msg.sender) can set or revoke their backup address.
+- If the primary key is lost upon finalization, the backup wallet calls 
+  initiateBackupClaim(). A 72-hour delay/veto window opens. If unvetoed, 
+  claimAsBackup() distributes 100% of the inheritance directly to the backup.
+
+Layer 3: ERC-4337 Smart Account Social Recovery (BeneficiarySmartAccount.sol)
+- If an heir uses an ERC-4337 smart account, key loss is resolved at the 
+  account abstraction layer. Nominated guardians execute a threshold 
+  signature recovery to rotate the account's signing key without altering 
+  the contract address registered in the Cadence vault.
+
+Layer 4: In-Flight Cadence Stream Redirection (redirectStream)
+- If key loss or wallet compromise occurs during active streaming distributions, 
+  the beneficiary or guardian can execute redirectStream(), permanently 
+  rerouting future linear payouts to a secure hardware wallet.
+
+
+======================================================================
+12. VERIFIED CONTRACT DEPLOYMENTS
 ======================================================================
 ARBITRUM SEPOLIA (CHAIN ID: 421614)
 - Primary USDG Vault: 

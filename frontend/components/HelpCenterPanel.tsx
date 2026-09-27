@@ -165,6 +165,13 @@ const FAQ_ITEMS: FAQItem[] = [
     answer:
       "Yes. Cadence provides an Off-Chain Legacy Box (Encrypted Vault Box). You can attach credentials, emergency recovery seeds, 1Password emergency kits, exchange login details, and 2FA Authenticator setup keys. Everything is sealed client-side inside browser RAM using hybrid AES-256-GCM + ECIES-secp256k1 envelope encryption under each heir's public key. The encrypted payload is uploaded to decentralized storage (IPFS/Pinata) where only the designated heir can decrypt it upon vault finalization.",
   },
+  {
+    id: "b-05",
+    category: "BENEFICIARIES",
+    question: "What if a beneficiary loses access to the wallet address I listed for them?",
+    answer:
+      "Cadence provides 4 layers of protection: (1) While you are alive, you can silently re-commit a new allocation Merkle root with your heir's new address in 1 click without gas or identity linkage. (2) Heirs can pre-register a secondary backup claim address on-chain (registerBackupClaimAddress); if the primary wallet is lost, the backup address can claim the inheritance after a 72-hour delay window. (3) Heirs can use ERC-4337 Smart Accounts with social recovery guardians to replace lost signing keys. (4) If using Cadence Streams, unvested streams can be redirected to a safe new cold wallet using redirectStream().",
+  },
 
   // 6. CONTEST WINDOW
   {

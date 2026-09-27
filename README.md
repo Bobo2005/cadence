@@ -89,6 +89,8 @@ flowchart LR
   - Microservice Health Check: [`https://cadence-notifications.onrender.com/health`](https://cadence-notifications.onrender.com/health)
 - 🏆 **Hackathon Pitch Kit & 3-Min Video Script**: [`docs/HACKATHON-PITCH.md`](docs/HACKATHON-PITCH.md)
 - 📑 **Comprehensive Hackathon Submission & Built-With Guide**: [`PROJECT-SUBMISSION.md`](PROJECT-SUBMISSION.md)
+- 💼 **Market Potential, Business Case & Venture Thesis**: [`docs/BUSINESS-CASE.md`](docs/BUSINESS-CASE.md)
+- 📋 **Buildathon Project Submission (Plain Text Form)**: [`docs/BUILDATHON-DESCRIPTION.txt`](docs/BUILDATHON-DESCRIPTION.txt)
 
 ### Verified Smart Contracts (Ethereum Sepolia)
 
@@ -284,7 +286,61 @@ Cadence enforces 10 strict cryptographic and architectural invariants across all
 | **Constraint #7**<br>Strict Beneficiary Autonomy | Backup claim addresses resolve strictly to `msg.sender`. Vault owners and guardians have zero override power. | Strict `msg.sender` caller enforcement | **Custodial Griefing**: Vault creators or malicious guardians cannot redirect or confiscate an heir's payout. |
 | **Constraint #8**<br>Dual-Path Paymaster Architecture | Paymaster sponsorship routes strictly to ERC-4337 smart accounts; EOAs execute honest direct transactions. | Bytecode check (`code.length > 0`) + Pimlico Paymaster | **Simulated Sponsoring Fallacy**: Plain EOAs cannot be falsely claimed as gasless; surfaces honest gas states. |
 | **Constraint #9**<br>Zero Simulation Integrity | Zero fake transaction hashes, zero random hex generators. All provisioning and actions hit real Sepolia contracts. | Real on-chain contract execution & Etherscan receipts | **Demo Fragility**: Every button click produces verifiable, broadcasted Ethereum Sepolia transactions. |
-| **Constraint #10**<br>Streaming Trust & Circuit Breakers | Unvested inheritance streams per-second with compounding yield and emergency freeze/redirect controls. Cadence Streams integrates production-ready IAavePool/IAToken adapters (tested via MockAavePool testnet harness) and modeled 7.00% USDG yield pegged to Robinhood Earn published APY. | Linear Vesting Math + IAavePool Adapter / 7% USDG Model + Merkle Guardian Quorum | **Lump-Sum Drainer Trap**: Attacker who steals an heir's key cannot loot the multi-generational estate. |
+| **Constraint #11**<br>Off-Chain Secret & 2FA Privacy | Encrypted Legacy Box uses client-side AES-256-GCM + ECIES key wrapping. TOTP engine runs in browser RAM. | Web Crypto API + RFC-6238 TOTP + IPFS CID | **Exchange 2FA Lockout & Cloud Leak**: Zero plaintext passwords, seeds, or 2FA keys touch cloud or disk. |
+| **Constraint #12**<br>Assisted QR CEX Deposit | Dynamic high-contrast QR codes for mobile exchange transfers (Coinbase, Binance, Kraken, Web3). | EIP-681 Web3 Payment URI + Mobile QR | **Phishing & Address Mismatch**: Eliminates error-prone manual copy-pasting; authorized via native FaceID. |
+
+---
+
+### 🛡️ Non-Custodial Security Guarantee: Can Cadence Access User Vaults?
+
+**Direct Answer: No. Cadence can NEVER access, control, freeze, or withdraw from your vault.**
+
+Cadence is built on a **strictly self-custodial, zero-trust cryptographic architecture**. Neither the Cadence core team, protocol developers, relayers, nor backend servers have any cryptographic or contractual ability to touch your funds, modify your rules, or view your private estate secrets:
+
+1. **User-Owned Smart Contracts (Zero Protocol Admin Keys):**
+   - When deploying a vault via `OneClickInheritanceVault.sol`, your wallet address is designated as the immutable `owner` (`Ownable(initialOwner)`).
+   - There are **no protocol admin keys**, **no multi-sig master overrides**, and **no developer backdoors**.
+2. **Zero Drain or "Emergency Withdraw" Functions:**
+   - Cadence contracts contain **zero admin withdrawal functions** and **zero fund-rescue backdoors**.
+   - The contracts are **immutable bytecode** — they are **not upgradeable proxies** (no UUPS, no Transparent Proxy). Once deployed, no one can swap or mutate the contract code.
+3. **Mathematical & Cryptographic Withdrawal Locks:**
+   - Funds can leave the vault **only** when Proof-of-Life Consensus reaches `Finalized` (owner check-in lapses + 2-of-3 guardian consensus attestations + 72-hour contest grace window elapses without owner cancellation).
+   - Withdrawals execute **strictly to verified beneficiaries** presenting valid Merkle proofs matching `allocationRoot`. Funds transfer directly to the heir's wallet — never through Cadence or any intermediary.
+4. **Zero Knowledge / Zero Plaintext on Off-Chain Secrets:**
+   - The Encrypted Legacy Box is sealed client-side in your browser using **AES-256-GCM** and wrapped with the heir's public key (**ECIES-secp256k1**).
+   - Cadence servers and IPFS gateways only ever see opaque, indecipherable ciphertext (`0x...`).
+   - The **RFC-6238 live Google Authenticator 2FA engine** generates codes strictly in volatile browser RAM upon claim. Cadence has zero decryption keys.
+5. **Decoupled Infrastructure (Fail-Safe Autonomy):**
+   - If Cadence the company or its servers went offline permanently, your vault, funds, consensus rules, and inheritance streams would continue running trustlessly on Arbitrum and Ethereum forever.
+
+---
+
+### 🔄 Beneficiary Wallet Recovery Matrix: What Happens If an Heir Loses Access to Their Listed Wallet?
+
+A common failure mode in legacy inheritance setups is when an heir loses access to the private key of the wallet address initially designated for them. Because Cadence is 100% non-custodial and has zero protocol admin overrides, the protocol guarantees fund safety and heir recovery through **4 defense layers across the vault lifecycle**:
+
+| Layer | Defense Mechanism | Vault Phase | Actor & On-Chain Authority | Security Guarantee |
+| :--- | :--- | :--- | :--- | :--- |
+| **Layer 1** | **Living Benefactor Merkle Re-Commitment** | `Active` (Living) | Vault Owner (`setAllocationRoot`) | Owner updates the heir's address in 1 click without gas or identity linkage on-chain. |
+| **Layer 2** | **Pre-Registered Backup Claim (`claimAsBackup`)** | `Finalized` (Post-Mortem) | Authorized Heir Backup (`registerBackupClaimAddress`) | Heir pre-registers a secondary cold wallet. Claims after an on-chain 72-hour delay/veto window. |
+| **Layer 3** | **ERC-4337 Account Abstraction Social Recovery** | Any State | Heir Account Guardians (`BeneficiarySmartAccount.sol`) | Guardians sign threshold recovery to assign a new signing key without altering the contract address. |
+| **Layer 4** | **In-Flight Cadence Stream Redirection (`redirectStream`)** | Streaming Distribution | Heir / Guardian (`redirectStream`) | Reroutes remaining unvested streams to a safe cold wallet if keys are lost or compromised during distribution. |
+
+#### Detailed Layer Breakdown:
+1. **Layer 1: Living Benefactor Dynamic Re-Commitment (`setAllocationRoot`)**
+   - If an heir misplaces their wallet while the vault creator is alive, the benefactor navigates to their dashboard, replaces the beneficiary address, and re-commits the Merkle root (`setAllocationRoot`) in a single transaction.
+   - Sibling allocations and blinding salts remain client-side encrypted via ECIES, guaranteeing zero on-chain relationship or address linkage.
+2. **Layer 2: Pre-Registered Backup Claim Address (`registerBackupClaimAddress`)**
+   - Implemented in `InheritanceVault.sol` (`L613–L726`): Beneficiaries can self-sovereignly register a secondary cold wallet or trusted contact directly on-chain (`registerBackupClaimAddress(address backupAddress, uint256 vetoWindow)`).
+   - *Strict Beneficiary Autonomy*: Only the beneficiary (`msg.sender`) can set or revoke their backup address. Neither the vault owner nor guardians can tamper with or override it.
+   - *Contestable Backup Claim*: If the primary key is lost upon finalization, the backup wallet calls `initiateBackupClaim(address beneficiary)`. A 72-hour delay/veto window opens. If unvetoed, `claimAsBackup()` distributes 100% of the inheritance directly to the backup address.
+3. **Layer 3: ERC-4337 Smart Account Social Recovery (`BeneficiarySmartAccount.sol`)**
+   - When an heir utilizes an ERC-4337 smart account, key loss is resolved entirely at the account abstraction layer.
+   - Nominated recovery guardians (trusted friends, family, institutional custodians, hardware keys) execute an off-chain threshold signature to rotate the account's signing key.
+   - The contract address registered in the Cadence vault remains identical, requiring zero modifications to the vault.
+4. **Layer 4: In-Flight Cadence Stream Redirection (`redirectStream`)**
+   - For inheritance distributed via continuous yield-bearing streams (Cadence Streams), loss of key access or wallet compromise does not forfeit the remaining locked principal.
+   - The authorized beneficiary or guardian can execute `redirectStream(address beneficiary, address newRecipient)`, permanently rerouting future linear payouts to a secure hardware wallet.
 
 ---
 

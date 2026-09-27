@@ -135,6 +135,13 @@ const FAQ_ITEMS: FAQItem[] = [
     answer:
       "Guardian Resilience eliminates the risk of orphan lockouts if a guardian loses their private key or becomes unreachable. Guardians can nominate a non-custodial backup key. After an attestation waiting period elapses, the backup can submit consensus attestations, preventing estates from freezing.",
   },
+  {
+    id: "g-05",
+    category: "GUARDIANS",
+    question: "Can guardians secretly finalize or drain my vault without my knowledge?",
+    answer:
+      "No. Smart contracts strictly reject guardian attestations while your heartbeat interval is active. If your interval does lapse and guardians attest, you receive automated email alerts and an un-bypassable 72-hour Contest Window opens. Zero funds leave your vault during this window, and guardians have zero power to redirect funds away from your pre-committed Merkle allocation root.",
+  },
 
   // 5. BENEFICIARIES
   {
@@ -194,6 +201,13 @@ const FAQ_ITEMS: FAQItem[] = [
     question: "Can anyone trigger the Contest Window maliciously?",
     answer:
       "No. The smart contract strictly prohibits opening a Contest Window unless the owner's check-in interval has genuinely elapsed on-chain AND the required quorum of guardians have cryptographically signed inactivity attestations.",
+  },
+  {
+    id: "cw-04",
+    category: "CONTEST WINDOW",
+    question: "If I am alive and guardians attest to my inactivity, will I receive a warning or alert?",
+    answer:
+      "Yes! Cadence deploys an automated 3-stage warning system: (1) Approaching Deadline Warning is emailed before your interval expires. (2) Overdue Alert is emailed immediately when the interval lapses, notifying you that guardians have been requested to attest. (3) Contest Challenge Warning is dispatched when guardians attest. You then have 72 hours to click 'RESET PROTOCOL: I'M ALIVE' with an off-chain EIP-712 stealth signature (zero gas linkage) to instantly cancel the contest and wipe all guardian attestations.",
   },
 
   // 7. CLAIMS

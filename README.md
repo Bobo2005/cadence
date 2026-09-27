@@ -344,6 +344,52 @@ A common failure mode in legacy inheritance setups is when an heir loses access 
 
 ---
 
+### 🚨 Guardian Attestation & False-Positive Defense: How Cadence Alerts & Protects Living Owners
+
+A critical concern in decentralized estate planning is the **false-positive scenario**: *What happens if the vault owner is alive, but temporarily misses a scheduled check-in due to travel, hospital stay, or loss of internet, and guardians attest to inactivity? Will the owner be warned, and can guardians secretly finalize or drain the vault?*
+
+Cadence resolves this with an **automated 4-stage alert pipeline** paired with **cryptographic fail-safes** that make secret finalization mathematically impossible:
+
+```mermaid
+flowchart TD
+    A["Stage 1: Approaching Deadline<br/>(3 Days / 25% Time Left)"] -->|Email Alert 1| O1["Owner Reminder Dispatched:<br/>'Action Required: Check-in deadline in X hours'"]
+    A -->|Interval Lapses| B["Stage 2: Heartbeat Overdue"]
+    B -->|Email Alert 2| O2["Urgent Owner Alert Dispatched:<br/>'URGENT: Vault Heartbeat Overdue — Guardians Prompted'"]
+    B -->|Smart Contract Guard| G["Guardians 1 & 2 Attest Inactivity<br/>(Rejected on-chain if heartbeat active)"]
+    G -->|2-of-3 Quorum Reached| C["Stage 3: 72-Hour Contest Window Opens<br/>(ClaimPending State)"]
+    C -->|Email Alert 3 & UI Warning| O3["Owner Dashboard Flashes Amber Arrhythmia<br/>& Email Confirms Contest Challenge Active"]
+    O3 -->|1-Click Stealth Reset| D["Stage 4: Living Owner Signs 'I'm Alive'<br/>(EIP-712 cancelClaimWithSig)"]
+    D -->|Instant Reversal| E["Contest Halted · Attestations Wiped<br/>Vault Restored to 62 BPM Steady"]
+```
+
+#### The 4-Stage Alert Pipeline:
+1. **Stage 1: Pre-Attestation Warning (Approaching Deadline)**
+   - The autonomous Sentinel daemon (`notifications/sentinel.ts`) monitors on-chain check-in deadlines continuously.
+   - When $\le 3$ days or 25% of the interval remains ($\le 2$ minutes on test setups), an alert is dispatched:  
+     `[Cadence] Action Required: Check-in deadline in X hours`.  
+     This warns the owner *before* guardians are even permitted to interact with the vault.
+2. **Stage 2: Overdue Alert (The Instant the Interval Lapses)**
+   - Smart contracts strictly reject guardian attestations while the check-in is active (`HeartbeatStillActive()`).
+   - The moment the deadline passes, the Sentinel immediately dispatches:  
+     `[Cadence Alert] URGENT: Vault Heartbeat Overdue — Check-In Required`.  
+     Informs the owner that guardians have been notified to review proof-of-life vitality.
+3. **Stage 3: Contest Challenge Warning (Guardians Attest)**
+   - When 2 of 3 guardians attest, **zero funds leave the vault**.
+   - Instead, the smart contract opens an immutable **72-hour Contest Window** (`ClaimPending` state).
+   - An urgent notice is dispatched to the owner's bound email, and the dApp UI on `/dashboard` and `/contest` switches from green (`62 BPM Steady`) to flashing amber (`92 BPM Erratic`).
+4. **Stage 4: Sovereign 1-Click "I'm Alive" Stealth Reset**
+   - If the owner is alive, they connect their wallet and click **`[RESET PROTOCOL: I'M ALIVE]`**.
+   - The owner signs an off-chain **EIP-712 typed signature** (`cancelClaimWithSig`).
+   - Relayers broadcast the signature to Sepolia with **zero gas linkage** to the owner's primary account, protecting compromised wallets from front-running.
+   - The contest halts instantly, guardian attestations are wiped clean, and the vault returns to `Active` (`62 BPM Steady`).
+
+#### Why Guardians Can Never Secretly Steal or Drain a Vault:
+- **No Direct Asset Access:** Guardians have zero withdrawal or transfer capabilities in `ProofOfLifeConsensus.sol` or `InheritanceVault.sol`.
+- **The Blinded Merkle Root Lock:** Funds can exit the vault **strictly** to addresses verified in the owner's blinded `allocationRoot`. Even if all guardians were rogue, they cannot alter beneficiary shares or siphon funds to themselves.
+- **Un-Bypassable 72-Hour Challenge Delay:** Payouts are hardcoded to require the 72-hour grace period to expire without owner cancellation.
+
+---
+
 ## 6. Complete 12-Page Frontend Architecture & Design System
 
 The Cadence frontend is built with **Next.js 15 (App Router)**, **Viem**, **Wagmi v2**, and custom CSS implementing the clinical **Light Editorial** aesthetic:

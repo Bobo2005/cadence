@@ -179,6 +179,24 @@ A common failure mode in legacy inheritance setups is when an heir loses access 
 
 ---
 
+## 🚨 Guardian Attestation & False-Positive Defense: How Cadence Protects Living Owners
+
+What happens if the owner is alive, but temporarily misses a scheduled check-in due to travel, hospital stay, or device loss, and guardians attest to inactivity? Will the owner be warned, and can guardians secretly finalize or drain the vault?
+
+Cadence resolves this with an **automated 4-stage alert pipeline** backed by **immutable smart contract fail-safes**:
+
+1. **Stage 1: Pre-Attestation Warning (Approaching Deadline):** The background Sentinel daemon monitors on-chain check-in deadlines continuously. When $\le 3$ days or 25% of the interval remains, an automated warning is dispatched: `[Cadence] Action Required: Check-in deadline in X hours`, prompting the owner to check in before guardians can act.
+2. **Stage 2: Overdue Inactivity Notice (The Instant the Interval Lapses):** Smart contracts reject guardian attestations while the heartbeat is active. The instant the deadline passes, the owner receives an urgent email: `[Cadence Alert] URGENT: Vault Heartbeat Overdue — Check-In Required`, notifying them that guardians have been requested to attest.
+3. **Stage 3: 72-Hour Contest Window (Guardians Attest):** When 2 of 3 guardians attest, **zero funds leave the vault**. An un-bypassable 72-hour Contest Window opens (`ClaimPending` state), the UI switches to an irregular amber ECG waveform (88 BPM Arrhythmia), and an urgent alert is dispatched.
+4. **Stage 4: 1-Click Sovereign Stealth Reset (`cancelClaimWithSig`):** The living owner clicks **`RESET PROTOCOL: I'M ALIVE`** on `/contest` and signs an off-chain EIP-712 typed digest. Relayers submit it with zero gas linkage to the owner. The contest cancels instantly, guardian attestations are wiped clean, and the locker returns to `Active` (`62 BPM Steady`).
+
+### Why Guardians Can Never Secretly Steal or Drain Assets:
+- **Zero Withdrawal Authority:** Guardians have zero access to vault assets in contract bytecode.
+- **Blinded Merkle Root Lock:** Funds can exit strictly to addresses verified in the owner's blinded `allocationRoot`.
+- **Hardcoded 72-Hour Delay:** Payouts cannot be finalized until the full 72-hour countdown expires without owner cancellation.
+
+---
+
 ## 📋 Verified Deployments
 
 | Contract | Arbitrum Sepolia (`421614`) | Robinhood Chain Testnet (`46630`) | Ethereum Sepolia (`11155111`) |

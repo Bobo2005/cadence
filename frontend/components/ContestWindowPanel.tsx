@@ -905,6 +905,28 @@ export default function ContestWindowPanel({
         </div>
       </div>
 
+      {/* Living Owner Protection & False-Alarm Safety Valve Banner */}
+      {consensusState === ConsensusState.ClaimPending && (
+        <div className="p-5 rounded-2xl bg-[#FFFBEB] border border-[#FDE68A] space-y-3 animate-in fade-in">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div className="space-y-1">
+              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-[#92400E]">
+                Living Owner Protection: False-Alarm Safety Valve Active
+              </h3>
+              <p className="text-xs text-[#78350F] leading-relaxed">
+                If you are the owner and missed your scheduled check-in, <strong>your funds are 100% safe</strong>. Guardian consensus has opened this reversible 72-hour Contest Window, but smart contracts strictly freeze all asset distributions.
+              </p>
+              <div className="text-[11px] text-[#92400E] flex flex-wrap items-center gap-x-4 gap-y-1 pt-1 font-mono">
+                <span>✓ Automated email alerts dispatched</span>
+                <span>✓ Zero funds can leave vault</span>
+                <span>✓ 1-Click gasless stealth reset below</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Cancellation Success Notification */}
       {cancellationTx && (
         <div className="p-5 rounded-2xl bg-[#E6F4EA] border border-[#CEEAD6] text-[#137333] text-xs font-mono space-y-2 animate-in fade-in">

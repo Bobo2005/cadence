@@ -19,6 +19,7 @@ export interface BeneficiaryItem {
 
 export interface BeneficiarySetupFormProps {
   initialBeneficiaries?: BeneficiaryItem[];
+  connectedAddress?: string;
   onChange?: (state: {
     beneficiaries: BeneficiaryItem[];
     totalBps: number;
@@ -54,6 +55,7 @@ const SEGMENT_COLORS = [
 
 export default function BeneficiarySetupForm({
   initialBeneficiaries = DEFAULT_BENEFICIARIES,
+  connectedAddress,
   onChange,
 }: BeneficiarySetupFormProps) {
   const formId = useId();
@@ -78,11 +80,44 @@ export default function BeneficiarySetupForm({
     .filter((idx) => idx !== -1);
   const areAddressesValid = invalidAddressIndices.length === 0;
 
-  const isFormValid = isExact10000 && areAddressesValid && beneficiaries.length > 0;
+  // Self-nomination validation (connected owner cannot be an heir)
+  const selfNominatedIndices = beneficiaries
+    .map((b, idx) => {
+      if (connectedAddress && b.address && isAddress(b.address) && isAddress(connectedAddress)) {
+        return b.address.toLowerCase() === connectedAddress.toLowerCase() ? idx : -1;
+      }
+      return -1;
+    })
+    .filter((idx) => idx !== -1);
+  const isNoSelfNomination = selfNominatedIndices.length === 0;
 
-  // Determine error message
+  // Duplicate beneficiary address validation
+  const duplicateAddressIndices = beneficiaries
+    .map((b, idx) => {
+      if (!b.address || !isAddress(b.address)) return -1;
+      const normalized = b.address.toLowerCase();
+      const firstIdx = beneficiaries.findIndex(
+        (other) => other.address && isAddress(other.address) && other.address.toLowerCase() === normalized
+      );
+      return firstIdx !== -1 && firstIdx !== idx ? idx : -1;
+    })
+    .filter((idx) => idx !== -1);
+  const areAddressesUnique = duplicateAddressIndices.length === 0;
+
+  const isFormValid =
+    isExact10000 &&
+    areAddressesValid &&
+    isNoSelfNomination &&
+    areAddressesUnique &&
+    beneficiaries.length > 0;
+
+  // Determine error message with clear priority
   let errorMessage: string | undefined;
-  if (isUnderAllocated) {
+  if (!isNoSelfNomination) {
+    errorMessage = "This address is your connected wallet. An owner cannot be their own beneficiary.";
+  } else if (!areAddressesUnique) {
+    errorMessage = "This address is already listed as a beneficiary. Please combine shares instead of duplicating.";
+  } else if (isUnderAllocated) {
     errorMessage = `Total allocation is ${totalBps.toLocaleString()} / 10,000 bps (${totalPercent}%). Underallocated by ${remainingBps.toLocaleString()} bps (${(remainingBps / 100).toFixed(2)}%). Exactly 10,000 bps (100%) required before creating vault.`;
   } else if (isOverAllocated) {
     const surplus = totalBps - 10000;
@@ -326,6 +361,9 @@ export default function BeneficiarySetupForm({
       <div className="space-y-4">
         {beneficiaries.map((b, index) => {
           const isAddrValid = !b.address || isAddress(b.address);
+          const isSelfNominated = selfNominatedIndices.includes(index);
+          const isDuplicate = duplicateAddressIndices.includes(index);
+          const hasAddressError = !isAddrValid || isSelfNominated || isDuplicate;
           const color = SEGMENT_COLORS[index % SEGMENT_COLORS.length];
 
           return (
@@ -389,14 +427,26 @@ export default function BeneficiarySetupForm({
                     onChange={(e) => updateBeneficiary(b.id, "address", e.target.value.trim())}
                     placeholder="0xABCD...1234"
                     className={`w-full font-mono text-xs px-3.5 py-2.5 rounded-xl bg-[#F7F8FA] text-[#111111] border focus:outline-none focus:bg-white transition-all ${
-                      isAddrValid
-                        ? "border-[#E8EAED] focus:border-[#111111]"
-                        : "border-[#D64545] focus:border-[#D64545]"
+                      hasAddressError
+                        ? "border-[#D64545] focus:border-[#D64545]"
+                        : "border-[#E8EAED] focus:border-[#111111]"
                     }`}
                   />
                   {!isAddrValid && (
                     <span className="text-[10px] text-[#D64545] mt-1 block">
                       Invalid Ethereum address format
+                    </span>
+                  )}
+                  {isAddrValid && isSelfNominated && (
+                    <span className="text-[11px] font-mono text-[#D64545] mt-1 flex items-center gap-1">
+                      <span>⚠️</span>
+                      <span>This address is your connected wallet. An owner cannot be their own beneficiary.</span>
+                    </span>
+                  )}
+                  {isAddrValid && !isSelfNominated && isDuplicate && (
+                    <span className="text-[11px] font-mono text-[#D64545] mt-1 flex items-center gap-1">
+                      <span>⚠️</span>
+                      <span>This address is already listed as a beneficiary. Please combine shares instead of duplicating.</span>
                     </span>
                   )}
                 </div>

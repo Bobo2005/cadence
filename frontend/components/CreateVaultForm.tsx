@@ -368,21 +368,31 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
       return;
     }
 
-    let effectiveG1 = guardian1.trim();
-    let effectiveG2 = guardian2.trim();
-    let effectiveG3 = guardian3.trim();
     if (!effectiveG1 || !effectiveG2 || !effectiveG3) {
-      effectiveG1 = effectiveG1 || "0x81C3D582F3473F71C4C8bF394E1d32BA218991a2";
-      effectiveG2 = effectiveG2 || "0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0";
-      effectiveG3 = effectiveG3 || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
       setGuardian1(effectiveG1);
       setGuardian2(effectiveG2);
       setGuardian3(effectiveG3);
     }
 
-    if (!isAddress(effectiveG1) || !isAddress(effectiveG2) || !isAddress(effectiveG3)) {
+    if (!areGuardianFormatsValid) {
       setActiveStep(3);
+      setValidationError("Please specify three valid guardian Ethereum addresses.");
       showToast("Please specify three valid guardian Ethereum addresses.", "warning");
+      return;
+    }
+
+    if (hasGuardianConflict) {
+      setActiveStep(3);
+      let conflictMsg = "Please resolve guardian role conflicts before deploying.";
+      if (isGuardianSelfNominated) {
+        conflictMsg = "Guardian address matches your connected owner wallet. Deceased owners cannot attest to their own proof-of-life.";
+      } else if (hasDuplicateGuardians) {
+        conflictMsg = "Guardians must be 3 distinct addresses to satisfy the 2-of-3 consensus threshold.";
+      } else if (isGuardianBeneficiaryCollusion) {
+        conflictMsg = "Conflict of interest: Guardian address is also listed as an heir beneficiary.";
+      }
+      setValidationError(conflictMsg);
+      showToast(conflictMsg, "warning");
       return;
     }
 
@@ -685,12 +695,73 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
     setDepositAmount(safeMax > 0 ? safeMax.toFixed(4) : "0");
   };
 
+  // Derived guardian addresses & real-time validation
+  const effectiveG1 = guardian1.trim() || "0x81C3D582F3473F71C4C8bF394E1d32BA218991a2";
+  const effectiveG2 = guardian2.trim() || "0x34d7E2B013A49FC43c9c7fc7A7010b108B7cA1F0";
+  const effectiveG3 = guardian3.trim() || "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+
+  const isG1FormatValid = isAddress(effectiveG1);
+  const isG2FormatValid = isAddress(effectiveG2);
+  const isG3FormatValid = isAddress(effectiveG3);
+  const areGuardianFormatsValid = isG1FormatValid && isG2FormatValid && isG3FormatValid;
+
+  // 1. Self-nomination checks (Guardian matching connected owner)
+  const isG1Self = Boolean(
+    connectedAddress && isAddress(connectedAddress) && isG1FormatValid &&
+    effectiveG1.toLowerCase() === connectedAddress.toLowerCase()
+  );
+  const isG2Self = Boolean(
+    connectedAddress && isAddress(connectedAddress) && isG2FormatValid &&
+    effectiveG2.toLowerCase() === connectedAddress.toLowerCase()
+  );
+  const isG3Self = Boolean(
+    connectedAddress && isAddress(connectedAddress) && isG3FormatValid &&
+    effectiveG3.toLowerCase() === connectedAddress.toLowerCase()
+  );
+  const isGuardianSelfNominated = isG1Self || isG2Self || isG3Self;
+
+  // 2. Duplicate guardian sybil collision checks
+  const isG1G2Dup = Boolean(
+    isG1FormatValid && isG2FormatValid &&
+    effectiveG1.toLowerCase() === effectiveG2.toLowerCase()
+  );
+  const isG1G3Dup = Boolean(
+    isG1FormatValid && isG3FormatValid &&
+    effectiveG1.toLowerCase() === effectiveG3.toLowerCase()
+  );
+  const isG2G3Dup = Boolean(
+    isG2FormatValid && isG3FormatValid &&
+    effectiveG2.toLowerCase() === effectiveG3.toLowerCase()
+  );
+  const hasDuplicateGuardians = isG1G2Dup || isG1G3Dup || isG2G3Dup;
+
+  // 3. Heir-guardian collusion checks
+  const beneficiaryAddressesNormalized = beneficiaryItems
+    .map((b) => b.address?.trim().toLowerCase())
+    .filter((addr): addr is string => Boolean(addr && isAddress(addr)));
+
+  const isG1Collusion = Boolean(
+    isG1FormatValid && beneficiaryAddressesNormalized.includes(effectiveG1.toLowerCase())
+  );
+  const isG2Collusion = Boolean(
+    isG2FormatValid && beneficiaryAddressesNormalized.includes(effectiveG2.toLowerCase())
+  );
+  const isG3Collusion = Boolean(
+    isG3FormatValid && beneficiaryAddressesNormalized.includes(effectiveG3.toLowerCase())
+  );
+  const isGuardianBeneficiaryCollusion = isG1Collusion || isG2Collusion || isG3Collusion;
+
+  const hasGuardianConflict =
+    isGuardianSelfNominated || hasDuplicateGuardians || isGuardianBeneficiaryCollusion;
+
   // Can deploy check
   const isDeploymentReady =
     isDepositValid &&
     isBeneficiaryValid &&
     currentTotalBps === 10000 &&
-    !isDepositExceedingBalance;
+    !isDepositExceedingBalance &&
+    areGuardianFormatsValid &&
+    !hasGuardianConflict;
 
   return (
     <div className="w-full max-w-6xl mx-auto space-y-8 text-[#111111]">
@@ -991,7 +1062,10 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
               )}
 
               {/* Beneficiary Setup Form with Prominent Validator Banner */}
-              <BeneficiarySetupForm onChange={handleBeneficiaryChange} />
+              <BeneficiarySetupForm
+                connectedAddress={connectedAddress}
+                onChange={handleBeneficiaryChange}
+              />
 
               {/* Step 2 Navigation Footer */}
               <div className="pt-4 border-t border-[#E8EAED] flex items-center justify-between">
@@ -1045,129 +1119,259 @@ export default function CreateVaultForm({ onDeploySuccess }: CreateVaultFormProp
                   </p>
                 </div>
 
+                {/* Consolidated Guardian Separation of Powers Callout */}
+                {hasGuardianConflict && (
+                  <div className="p-4 rounded-2xl bg-[#FFFBEB] border border-[#D99A00]/40 text-xs text-[#996B00] space-y-1.5 animate-in fade-in">
+                    <div className="font-bold flex items-center gap-1.5 text-[#111111]">
+                      <span>⚠️</span>
+                      <span>Guardian Separation of Powers Required</span>
+                    </div>
+                    {isGuardianSelfNominated && (
+                      <p className="leading-relaxed">
+                        • <strong>Self-Nomination:</strong> Guardian address matches your connected owner wallet. Deceased owners cannot attest to their own proof-of-life.
+                      </p>
+                    )}
+                    {hasDuplicateGuardians && (
+                      <p className="leading-relaxed">
+                        • <strong>Duplicate Nodes:</strong> Guardians must be 3 distinct addresses to satisfy the 2-of-3 consensus threshold.
+                      </p>
+                    )}
+                    {isGuardianBeneficiaryCollusion && (
+                      <p className="leading-relaxed">
+                        • <strong>Conflict of Interest:</strong> A guardian address is also listed as an heir beneficiary. Guardians must be neutral to prevent self-dealing.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   {/* Guardian 1 */}
-                  <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold text-[#111111] flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
-                        Guardian Node 1
-                      </span>
-                      <span className="text-[10px] font-mono text-[#5F6368] bg-white px-2 py-0.5 rounded-full border border-[#E8EAED]">
-                        Node #1
-                      </span>
-                    </div>
+                  {(() => {
+                    const g1HasError = !isG1FormatValid || isG1Self || isG1G2Dup || isG1G3Dup;
+                    const g1HasWarning = isG1Collusion;
+                    return (
+                      <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-mono font-bold text-[#111111] flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
+                            Guardian Node 1
+                          </span>
+                          <span className="text-[10px] font-mono text-[#5F6368] bg-white px-2 py-0.5 rounded-full border border-[#E8EAED]">
+                            Node #1
+                          </span>
+                        </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-mono text-[#5F6368]">
-                        Wallet Address <span className="text-[#D64545]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={guardian1}
-                        onChange={(e) => setGuardian1(e.target.value)}
-                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
-                        placeholder="0x81C3...91a2"
-                        aria-label="Guardian 1 Ethereum address"
-                      />
-                    </div>
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-mono text-[#5F6368]">
+                            Wallet Address <span className="text-[#D64545]">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={guardian1}
+                            onChange={(e) => setGuardian1(e.target.value)}
+                            className={`w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border text-[#111111] placeholder-[#8A8F98] focus:outline-none transition-all ${
+                              g1HasError
+                                ? "border-[#D64545] focus:border-[#D64545]"
+                                : g1HasWarning
+                                ? "border-[#D99A00] focus:border-[#D99A00]"
+                                : "border-[#E8EAED] focus:border-[#111111]"
+                            }`}
+                            placeholder="0x81C3...91a2"
+                            aria-label="Guardian 1 Ethereum address"
+                          />
+                          {!isG1FormatValid && (
+                            <span className="text-[10px] text-[#D64545] mt-1 block">
+                              Invalid Ethereum address format
+                            </span>
+                          )}
+                          {isG1FormatValid && isG1Self && (
+                            <span className="text-[11px] font-mono text-[#D64545] mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>Matches connected owner wallet.</span>
+                            </span>
+                          )}
+                          {isG1FormatValid && !isG1Self && (isG1G2Dup || isG1G3Dup) && (
+                            <span className="text-[11px] font-mono text-[#D64545] mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>Duplicate guardian address.</span>
+                            </span>
+                          )}
+                          {isG1FormatValid && !isG1Self && !isG1G2Dup && !isG1G3Dup && isG1Collusion && (
+                            <span className="text-[11px] font-mono text-[#D99A00] mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>Address is also an heir beneficiary.</span>
+                            </span>
+                          )}
+                        </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-mono text-[#5F6368]">
-                        Alert Email <span className="text-[#8A8F98]">(Optional)</span>
-                      </label>
-                      <input
-                        type="email"
-                        value={guardian1Email}
-                        onChange={(e) => setGuardian1Email(e.target.value)}
-                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
-                        placeholder="guardian1@cadence.xyz"
-                        aria-label="Guardian 1 Email address"
-                      />
-                    </div>
-                  </div>
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-mono text-[#5F6368]">
+                            Alert Email <span className="text-[#8A8F98]">(Optional)</span>
+                          </label>
+                          <input
+                            type="email"
+                            value={guardian1Email}
+                            onChange={(e) => setGuardian1Email(e.target.value)}
+                            className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
+                            placeholder="guardian1@cadence.xyz"
+                            aria-label="Guardian 1 Email address"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Guardian 2 */}
-                  <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold text-[#111111] flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
-                        Guardian Node 2
-                      </span>
-                      <span className="text-[10px] font-mono text-[#5F6368] bg-white px-2 py-0.5 rounded-full border border-[#E8EAED]">
-                        Node #2
-                      </span>
-                    </div>
+                  {(() => {
+                    const g2HasError = !isG2FormatValid || isG2Self || isG1G2Dup || isG2G3Dup;
+                    const g2HasWarning = isG2Collusion;
+                    return (
+                      <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-mono font-bold text-[#111111] flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
+                            Guardian Node 2
+                          </span>
+                          <span className="text-[10px] font-mono text-[#5F6368] bg-white px-2 py-0.5 rounded-full border border-[#E8EAED]">
+                            Node #2
+                          </span>
+                        </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-mono text-[#5F6368]">
-                        Wallet Address <span className="text-[#D64545]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={guardian2}
-                        onChange={(e) => setGuardian2(e.target.value)}
-                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
-                        placeholder="0x34d7...A1F0"
-                        aria-label="Guardian 2 Ethereum address"
-                      />
-                    </div>
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-mono text-[#5F6368]">
+                            Wallet Address <span className="text-[#D64545]">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={guardian2}
+                            onChange={(e) => setGuardian2(e.target.value)}
+                            className={`w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border text-[#111111] placeholder-[#8A8F98] focus:outline-none transition-all ${
+                              g2HasError
+                                ? "border-[#D64545] focus:border-[#D64545]"
+                                : g2HasWarning
+                                ? "border-[#D99A00] focus:border-[#D99A00]"
+                                : "border-[#E8EAED] focus:border-[#111111]"
+                            }`}
+                            placeholder="0x34d7...A1F0"
+                            aria-label="Guardian 2 Ethereum address"
+                          />
+                          {!isG2FormatValid && (
+                            <span className="text-[10px] text-[#D64545] mt-1 block">
+                              Invalid Ethereum address format
+                            </span>
+                          )}
+                          {isG2FormatValid && isG2Self && (
+                            <span className="text-[11px] font-mono text-[#D64545] mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>Matches connected owner wallet.</span>
+                            </span>
+                          )}
+                          {isG2FormatValid && !isG2Self && (isG1G2Dup || isG2G3Dup) && (
+                            <span className="text-[11px] font-mono text-[#D64545] mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>Duplicate guardian address.</span>
+                            </span>
+                          )}
+                          {isG2FormatValid && !isG2Self && !isG1G2Dup && !isG2G3Dup && isG2Collusion && (
+                            <span className="text-[11px] font-mono text-[#D99A00] mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>Address is also an heir beneficiary.</span>
+                            </span>
+                          )}
+                        </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-mono text-[#5F6368]">
-                        Alert Email <span className="text-[#8A8F98]">(Optional)</span>
-                      </label>
-                      <input
-                        type="email"
-                        value={guardian2Email}
-                        onChange={(e) => setGuardian2Email(e.target.value)}
-                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
-                        placeholder="guardian2@cadence.xyz"
-                        aria-label="Guardian 2 Email address"
-                      />
-                    </div>
-                  </div>
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-mono text-[#5F6368]">
+                            Alert Email <span className="text-[#8A8F98]">(Optional)</span>
+                          </label>
+                          <input
+                            type="email"
+                            value={guardian2Email}
+                            onChange={(e) => setGuardian2Email(e.target.value)}
+                            className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
+                            placeholder="guardian2@cadence.xyz"
+                            aria-label="Guardian 2 Email address"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Guardian 3 */}
-                  <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold text-[#111111] flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
-                        Guardian Node 3
-                      </span>
-                      <span className="text-[10px] font-mono text-[#5F6368] bg-white px-2 py-0.5 rounded-full border border-[#E8EAED]">
-                        Node #3
-                      </span>
-                    </div>
+                  {(() => {
+                    const g3HasError = !isG3FormatValid || isG3Self || isG1G3Dup || isG2G3Dup;
+                    const g3HasWarning = isG3Collusion;
+                    return (
+                      <div className="p-4 rounded-2xl bg-[#F7F8FA] border border-[#E8EAED] space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-mono font-bold text-[#111111] flex items-center gap-1.5">
+                            <span className="h-2 w-2 rounded-full bg-[#22A06B]" />
+                            Guardian Node 3
+                          </span>
+                          <span className="text-[10px] font-mono text-[#5F6368] bg-white px-2 py-0.5 rounded-full border border-[#E8EAED]">
+                            Node #3
+                          </span>
+                        </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-mono text-[#5F6368]">
-                        Wallet Address <span className="text-[#D64545]">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={guardian3}
-                        onChange={(e) => setGuardian3(e.target.value)}
-                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
-                        placeholder="0xf39F...2266"
-                        aria-label="Guardian 3 Ethereum address"
-                      />
-                    </div>
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-mono text-[#5F6368]">
+                            Wallet Address <span className="text-[#D64545]">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            value={guardian3}
+                            onChange={(e) => setGuardian3(e.target.value)}
+                            className={`w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border text-[#111111] placeholder-[#8A8F98] focus:outline-none transition-all ${
+                              g3HasError
+                                ? "border-[#D64545] focus:border-[#D64545]"
+                                : g3HasWarning
+                                ? "border-[#D99A00] focus:border-[#D99A00]"
+                                : "border-[#E8EAED] focus:border-[#111111]"
+                            }`}
+                            placeholder="0xf39F...2266"
+                            aria-label="Guardian 3 Ethereum address"
+                          />
+                          {!isG3FormatValid && (
+                            <span className="text-[10px] text-[#D64545] mt-1 block">
+                              Invalid Ethereum address format
+                            </span>
+                          )}
+                          {isG3FormatValid && isG3Self && (
+                            <span className="text-[11px] font-mono text-[#D64545] mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>Matches connected owner wallet.</span>
+                            </span>
+                          )}
+                          {isG3FormatValid && !isG3Self && (isG1G3Dup || isG2G3Dup) && (
+                            <span className="text-[11px] font-mono text-[#D64545] mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>Duplicate guardian address.</span>
+                            </span>
+                          )}
+                          {isG3FormatValid && !isG3Self && !isG1G3Dup && !isG2G3Dup && isG3Collusion && (
+                            <span className="text-[11px] font-mono text-[#D99A00] mt-1 flex items-center gap-1">
+                              <span>⚠️</span>
+                              <span>Address is also an heir beneficiary.</span>
+                            </span>
+                          )}
+                        </div>
 
-                    <div className="space-y-1">
-                      <label className="block text-[11px] font-mono text-[#5F6368]">
-                        Alert Email <span className="text-[#8A8F98]">(Optional)</span>
-                      </label>
-                      <input
-                        type="email"
-                        value={guardian3Email}
-                        onChange={(e) => setGuardian3Email(e.target.value)}
-                        className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
-                        placeholder="guardian3@cadence.xyz"
-                        aria-label="Guardian 3 Email address"
-                      />
-                    </div>
-                  </div>
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-mono text-[#5F6368]">
+                            Alert Email <span className="text-[#8A8F98]">(Optional)</span>
+                          </label>
+                          <input
+                            type="email"
+                            value={guardian3Email}
+                            onChange={(e) => setGuardian3Email(e.target.value)}
+                            className="w-full font-mono text-xs px-3 py-2 rounded-xl bg-white border border-[#E8EAED] text-[#111111] placeholder-[#8A8F98] focus:outline-none focus:border-[#111111]"
+                            placeholder="guardian3@cadence.xyz"
+                            aria-label="Guardian 3 Email address"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 

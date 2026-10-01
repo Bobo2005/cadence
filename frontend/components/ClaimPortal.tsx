@@ -13,8 +13,7 @@ import {
   createWalletClient,
   keccak256,
 } from "viem";
-import { privateKeyToAccount } from "viem/accounts";
-import { cadenceSepolia, sepoliaTransports } from "../lib/wagmi";
+import { cadenceSepolia } from "../lib/wagmi";
 import LiveECGMonitor from "./ui/LiveECGMonitor";
 import LiveStreamCounter from "./ui/LiveStreamCounter";
 import {
@@ -39,13 +38,7 @@ import { decryptSecretBox } from "../lib/secretBoxCrypto";
 import type { SecretBoxPayload } from "../types/secretBox";
 import DecryptedSecretBoxModal from "./DecryptedSecretBoxModal";
 
-// Headless test keys for automated CLI test scripts (retained for headless testing only per Phase 3.1)
-const KNOWN_HEADLESS_KEYS: Record<string, Hex> = {
-  "0x70997970c51812dc3a010c7d01b50e0d17dc79c8":
-    "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d",
-  "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc":
-    "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
-};
+
 
 // Seeded demo legacy box ciphers for fast, reliable client-side test execution
 const DEMO_ALICE_SECRET_BOX_CIPHER =
@@ -225,14 +218,7 @@ export default function ClaimPortal() {
           message: derivationMessage,
         });
       } else {
-        // Headless test environment / Persona review fallback
-        const headlessKey = KNOWN_HEADLESS_KEYS[normalized.toLowerCase()];
-        if (headlessKey) {
-          const account = privateKeyToAccount(headlessKey);
-          sig = await account.signMessage({ message: derivationMessage });
-        } else {
-          throw new Error("No Web3 wallet available to sign key derivation message.");
-        }
+        throw new Error("No Web3 wallet available to sign key derivation message.");
       }
 
       if (sig) {
@@ -262,13 +248,8 @@ export default function ClaimPortal() {
       const normalizedAddress = getAddress(effectiveAddress);
       const allVaults = getRegisteredVaults();
 
-      // Phase 3.1: Derive key from in-memory wallet signature or explicit unlock
-      const keyToUse =
-        overrideKey ||
-        derivedDecryptionKey ||
-        (stage01State === "Unlocked"
-          ? KNOWN_HEADLESS_KEYS[normalizedAddress.toLowerCase()]
-          : null);
+      // Derive key from in-memory wallet signature or explicit unlock
+      const keyToUse = overrideKey || derivedDecryptionKey;
 
       const discovered: ClaimableVaultItem[] = [];
 
@@ -360,19 +341,7 @@ export default function ClaimPortal() {
               salt = (rawSalt.startsWith("0x") ? rawSalt : `0x${rawSalt}`) as Hex;
             }
           } catch {
-            // Headless fallback if keyToUse was not able to decrypt
-            const headlessKey = KNOWN_HEADLESS_KEYS[normalizedAddress.toLowerCase()];
-            if (headlessKey && headlessKey !== keyToUse) {
-              try {
-                const decrypted: AllocationData = await decryptAllocation(
-                  headlessKey,
-                  allocRecord.ciphertext
-                );
-                shareBps = Number(decrypted.shareBps);
-                const rawSalt = String(decrypted.salt || "");
-                salt = (rawSalt.startsWith("0x") ? rawSalt : `0x${rawSalt}`) as Hex;
-              } catch {}
-            }
+            // Decryption failed or ciphertext not intended for this key
           }
 
           // Generate cryptographic Merkle leaf & proof
@@ -536,8 +505,7 @@ export default function ClaimPortal() {
       setStage01State("Decrypting");
       const key = await handleDeriveDecryptionKey();
       await new Promise((r) => setTimeout(r, 600));
-      const keyToApply =
-        key || KNOWN_HEADLESS_KEYS[getAddress(effectiveAddress).toLowerCase()];
+      const keyToApply = key;
       if (keyToApply) {
         setDerivedDecryptionKey(keyToApply);
         setStage01State("Unlocked");
@@ -561,21 +529,8 @@ export default function ClaimPortal() {
     setClaimError(null);
 
     try {
-      let effectiveClient = walletClient;
-      let effectiveAccount: Account | Address = walletClient?.account || effectiveAddress;
-
-      if (!effectiveClient && effectiveAddress) {
-        const headlessKey = KNOWN_HEADLESS_KEYS[effectiveAddress.toLowerCase()];
-        if (headlessKey) {
-          const localAccount = privateKeyToAccount(headlessKey);
-          effectiveClient = createWalletClient({
-            account: localAccount,
-            chain: cadenceSepolia,
-            transport: sepoliaTransports,
-          }) as unknown as typeof walletClient;
-          effectiveAccount = localAccount;
-        }
-      }
+      const effectiveClient = walletClient;
+      const effectiveAccount: Account | Address = walletClient?.account || effectiveAddress;
 
       let txHash: Hex;
       if (effectiveClient) {
@@ -652,14 +607,7 @@ export default function ClaimPortal() {
           message: challengeMessage,
         });
       } else {
-        // Headless test environment / persona review fallback
-        const headlessKey = KNOWN_HEADLESS_KEYS[normalized.toLowerCase()];
-        if (headlessKey) {
-          const account = privateKeyToAccount(headlessKey);
-          sig = await account.signMessage({ message: challengeMessage });
-        } else {
-          throw new Error("No Web3 wallet available to sign Legacy Box decryption authorization.");
-        }
+        throw new Error("No Web3 wallet available to sign Legacy Box decryption authorization.");
       }
 
       if (!sig) {
@@ -678,30 +626,12 @@ export default function ClaimPortal() {
       const arrayBuf = await res.arrayBuffer();
       const ciphertextBytes = new Uint8Array(arrayBuf);
 
-      // Decrypt using derived ephemeral key (with fallback to test key for simulated environments)
-      let decryptedPayload: SecretBoxPayload | null = null;
-      try {
-        decryptedPayload = await decryptSecretBox(
-          derivedPrivKey,
-          vault.secretBox.encryptedKeyCipher,
-          ciphertextBytes
-        );
-      } catch (err1) {
-        const headlessKey = KNOWN_HEADLESS_KEYS[normalized.toLowerCase()];
-        if (headlessKey && headlessKey !== derivedPrivKey) {
-          try {
-            decryptedPayload = await decryptSecretBox(
-              headlessKey,
-              vault.secretBox.encryptedKeyCipher,
-              ciphertextBytes
-            );
-          } catch {
-            throw err1;
-          }
-        } else {
-          throw err1;
-        }
-      }
+      // Decrypt using derived ephemeral key (Zero disk persistence)
+      const decryptedPayload: SecretBoxPayload | null = await decryptSecretBox(
+        derivedPrivKey,
+        vault.secretBox.encryptedKeyCipher,
+        ciphertextBytes
+      );
 
       if (decryptedPayload) {
         setActiveSecretBoxPayload(decryptedPayload);

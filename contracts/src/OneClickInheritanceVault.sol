@@ -38,10 +38,11 @@ contract OneClickInheritanceVault is InheritanceVault {
             emit AllocationRootCommitted(initialAllocationRoot, block.timestamp);
         }
 
-        // 3. Commit Guardian Merkle Root in GuardianRegistry
+        // 3. Commit Guardian Merkle Root in GuardianRegistry for initialOwner (SEC-02)
         if (initialGuardianRoot != bytes32(0) && guardianRegistryAddress != address(0)) {
-            IGuardianRegistry(guardianRegistryAddress).commitGuardianRoot(
+            IGuardianRegistry(guardianRegistryAddress).commitGuardianRootForOwner(
                 address(this),
+                initialOwner,
                 initialGuardianRoot,
                 guardianThreshold,
                 totalGuardians

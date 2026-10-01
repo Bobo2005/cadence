@@ -594,7 +594,8 @@ contract GuardianAttestationTest is Test {
         vm.prank(guardianA);
         registry.registerGuardianBackup(backupA);
 
-        // Open window
+        // Open window by authorized vault owner
+        vm.prank(vaultOwner);
         registry.openAttestationPeriod(vault);
         vm.warp(block.timestamp + 8 days);
 
@@ -624,5 +625,67 @@ contract GuardianAttestationTest is Test {
     ///         another guardian, or any address other than the guardian themselves.
     function test_resilience_3_guardianBackupNominationZeroCustodialTrust() public {
         test_vaultOwnerCannotSetOrOverrideGuardianBackup();
+    }
+
+    /// @notice SEC-07: Verify arbitrary third party cannot front-run uninitialized vault guardian root.
+    function test_commitGuardianRoot_uninitializedVault_strangerCannotFrontRun() public {
+        MockVaultContract aliceVault = new MockVaultContract(address(0xA11CE));
+        address attacker = address(0xBAD);
+
+        // Attacker attempts to front-run guardian root commitment before Alice
+        vm.prank(attacker);
+        vm.expectRevert(GuardianRegistry.Unauthorized.selector);
+        registry.commitGuardianRoot(address(aliceVault), root, THRESHOLD, TOTAL_GUARDIANS);
+
+        // Real owner Alice commits successfully
+        vm.prank(address(0xA11CE));
+        registry.commitGuardianRoot(address(aliceVault), root, THRESHOLD, TOTAL_GUARDIANS);
+        assertEq(registry.vaultOwners(address(aliceVault)), address(0xA11CE));
+    }
+
+    /// @notice SEC-08: Verify openAttestationPeriod access control and ClaimPending state requirement.
+    function test_openAttestationPeriod_accessControl_andState() public {
+        address stranger = address(0xBAD);
+
+        // 1. Stranger cannot initiate attestation window
+        vm.prank(stranger);
+        vm.expectRevert(GuardianRegistry.Unauthorized.selector);
+        registry.openAttestationPeriod(vault);
+
+        // 2. Configure mock consensus contract
+        MockConsensusState mockConsensus = new MockConsensusState();
+        vm.prank(vaultOwner);
+        registry.setConsensusForVault(vault, address(mockConsensus));
+
+        // When consensus state is Active (0), opening attestation period must revert
+        mockConsensus.setState(0);
+        vm.prank(vaultOwner);
+        vm.expectRevert(GuardianRegistry.Unauthorized.selector);
+        registry.openAttestationPeriod(vault);
+
+        // When consensus state is ClaimPending (1), authorized caller succeeds
+        mockConsensus.setState(1);
+        vm.prank(vaultOwner);
+        registry.openAttestationPeriod(vault);
+
+        // Verified window is open
+        assertGt(registry.cycleFirstAttestationTime(vault, registry.attestationCycle(vault)), 0);
+    }
+}
+
+contract MockVaultContract {
+    address public owner;
+    constructor(address _owner) {
+        owner = _owner;
+    }
+}
+
+contract MockConsensusState {
+    uint8 public state;
+    function setState(uint8 _state) external {
+        state = _state;
+    }
+    function getState(address) external view returns (uint8) {
+        return state;
     }
 }

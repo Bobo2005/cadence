@@ -3,6 +3,8 @@ pragma solidity ^0.8.24;
 
 import {Test, console} from "forge-std/Test.sol";
 import {PackedUserOperation} from "@openzeppelin/contracts/interfaces/IERC4337.sol";
+import {IERC1271} from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {
     BeneficiarySmartAccount,
@@ -463,5 +465,64 @@ contract BeneficiarySmartAccountTest is Test {
         vm.prank(stranger);
         vm.expectRevert(IBeneficiarySmartAccount.OnlyOwner.selector);
         account.cancelRecovery();
+    }
+
+    function test_recoveryWithSignatures_smartContractGuardian_eip1271_success() public {
+        // Deploy a smart contract guardian implementing EIP-1271
+        Mock1271Wallet smartGuardian = new Mock1271Wallet(guardian2);
+
+        address[] memory mixedGuardians = new address[](3);
+        mixedGuardians[0] = guardian1;
+        mixedGuardians[1] = address(smartGuardian);
+        mixedGuardians[2] = guardian3;
+
+        address accountAddr = factory.createAccount(beneficiaryOwner, mixedGuardians, 2, 99);
+        BeneficiarySmartAccount account = BeneficiarySmartAccount(payable(accountAddr));
+
+        uint256 expectedNonce = 1;
+        bytes32 digest = keccak256(
+            abi.encode(
+                accountAddr,
+                "RECOVER_OWNERSHIP",
+                newBeneficiaryOwner,
+                expectedNonce,
+                block.chainid
+            )
+        );
+        bytes32 ethSignedDigest = MessageHashUtils.toEthSignedMessageHash(digest);
+
+        // Guardian 1 (EOA) signs
+        (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(guardian1Key, ethSignedDigest);
+        bytes memory sig1 = abi.encodePacked(r1, s1, v1);
+
+        // Guardian 2 (Smart Contract) signs via its signer key
+        (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(guardian2Key, ethSignedDigest);
+        bytes memory sig2 = abi.encodePacked(r2, s2, v2);
+
+        bytes[] memory signatures = new bytes[](2);
+        signatures[0] = sig1;
+        signatures[1] = sig2;
+
+        vm.prank(stranger);
+        account.recoverWithSignatures(newBeneficiaryOwner, signatures);
+
+        assertEq(account.owner(), newBeneficiaryOwner);
+    }
+}
+
+contract Mock1271Wallet is IERC1271 {
+    bytes4 internal constant MAGICVALUE = 0x1626ba7e;
+    address public signer;
+
+    constructor(address _signer) {
+        signer = _signer;
+    }
+
+    function isValidSignature(bytes32 hash, bytes memory signature) external view override returns (bytes4) {
+        (address recovered, ECDSA.RecoverError err, ) = ECDSA.tryRecover(hash, signature);
+        if (err == ECDSA.RecoverError.NoError && recovered == signer) {
+            return MAGICVALUE;
+        }
+        return 0xffffffff;
     }
 }

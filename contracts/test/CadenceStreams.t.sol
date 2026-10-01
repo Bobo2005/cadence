@@ -10,6 +10,7 @@ import {MerkleProofLib} from "../src/libraries/MerkleProofLib.sol";
 import {MockERC20} from "./mocks/MockERC20.sol";
 import {Hashes} from "@openzeppelin/contracts/utils/cryptography/Hashes.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {MockAavePool} from "./mocks/MockAavePool.sol";
 
 /// @title CadenceStreamsTest
 /// @notice Comprehensive unit and integration test suite for Cadence Streams:
@@ -91,6 +92,9 @@ contract CadenceStreamsTest is Test {
         address[] memory initialTokens = new address[](1);
         initialTokens[0] = address(usdc);
         vault = new InheritanceVault(owner, CHECK_IN_INTERVAL, initialTokens, address(consensus));
+        MockAavePool aavePool = new MockAavePool();
+        vm.prank(owner);
+        vault.setAavePool(address(aavePool));
 
         // 4. Setup guardians
         bytes32 gLeafA = MerkleProofLib.computeGuardianLeaf(guardianA);
@@ -179,6 +183,11 @@ contract CadenceStreamsTest is Test {
         // Exceeds 20% APY
         vm.expectRevert(InheritanceVault.InvalidStreamingConfig.selector);
         vault.setStreamingConfig(STREAM_DURATION, INITIAL_RELEASE_BPS, 2001);
+
+        // SEC-03 Test: Non-zero yieldBps on vault without Aave pool reverts
+        InheritanceVault noAaveVault = new InheritanceVault(owner, CHECK_IN_INTERVAL, new address[](0), address(consensus));
+        vm.expectRevert(InheritanceVault.InvalidStreamingConfig.selector);
+        noAaveVault.setStreamingConfig(STREAM_DURATION, INITIAL_RELEASE_BPS, 500);
         vm.stopPrank();
     }
 
@@ -283,8 +292,8 @@ contract CadenceStreamsTest is Test {
         vm.warp(block.timestamp + 180 days);
 
         (uint256 claimableEth, , , uint256 accruedYieldEth) = vault.claimableStreamAmount(beneficiaryA);
-        assertTrue(accruedYieldEth > 0, "Yield should accrue on locked capital over time");
-        assertTrue(claimableEth > 0);
+        assertEq(accruedYieldEth, 0, "Non-Aave assets must accrue 0 phantom yield (SEC-03)");
+        assertTrue(claimableEth > 0, "Vested principal must be claimable");
 
         uint256 balBefore = beneficiaryA.balance;
         vm.prank(beneficiaryA);

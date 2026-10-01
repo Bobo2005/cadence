@@ -6,6 +6,7 @@ import {IGuardianRegistry} from "./interfaces/IGuardianRegistry.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 
 /// @title GuardianRegistry
 /// @notice Merkle commitment storage and M-of-N attestation verification for guardians.
@@ -79,15 +80,70 @@ contract GuardianRegistry is ReentrancyGuard, EIP712, IGuardianRegistry {
         uint256 threshold,
         uint256 totalGuardians
     ) external {
+        _commitGuardianRoot(vault, msg.sender, guardianRoot, threshold, totalGuardians);
+    }
+
+    /// @notice Allows a vault contract to commit its guardian root on behalf of a designated owner (SEC-02).
+    /// @param vault The vault contract address.
+    /// @param owner The designated human owner of the vault.
+    /// @param guardianRoot The Merkle root of all valid guardian leaves.
+    /// @param threshold The M-of-N threshold required to satisfy consensus (M).
+    /// @param totalGuardians Total number of guardians in the Merkle tree (N).
+    function commitGuardianRootForOwner(
+        address vault,
+        address owner,
+        bytes32 guardianRoot,
+        uint256 threshold,
+        uint256 totalGuardians
+    ) external {
+        if (msg.sender != vault) revert Unauthorized();
+        if (owner == address(0)) revert ZeroAddress();
+        _commitGuardianRoot(vault, owner, guardianRoot, threshold, totalGuardians);
+    }
+
+    function _commitGuardianRoot(
+        address vault,
+        address owner,
+        bytes32 guardianRoot,
+        uint256 threshold,
+        uint256 totalGuardians
+    ) internal {
         if (vault == address(0)) revert ZeroAddress();
         if (guardianRoot == bytes32(0)) revert InvalidRoot();
         if (threshold == 0) revert InvalidThreshold();
         if (totalGuardians < threshold) revert InvalidThreshold();
 
-        if (vaultOwners[vault] == address(0)) {
-            vaultOwners[vault] = msg.sender;
-        } else if (msg.sender != vaultOwners[vault] && msg.sender != vault) {
-            revert Unauthorized();
+        address currentOwner = vaultOwners[vault];
+        address vaultContractOwner = address(0);
+        (bool success, bytes memory data) = vault.staticcall(abi.encodeWithSignature("owner()"));
+        if (success && data.length >= 32) {
+            vaultContractOwner = abi.decode(data, (address));
+        }
+
+        if (currentOwner == address(0)) {
+            // SEC-07 Fix: Prevent front-running of uninitialized vaults
+            if (vaultContractOwner != address(0)) {
+                if (msg.sender != vault && msg.sender != vaultContractOwner) {
+                    revert Unauthorized();
+                }
+                if (owner == vault) {
+                    vaultOwners[vault] = vaultContractOwner;
+                } else {
+                    vaultOwners[vault] = owner;
+                }
+            } else {
+                if (vault.code.length > 0 && msg.sender != vault) {
+                    revert Unauthorized();
+                }
+                vaultOwners[vault] = owner;
+            }
+        } else if (msg.sender != currentOwner && msg.sender != vault) {
+            // If currentOwner was set to the vault address, allow the verified vault owner to claim and update
+            if (currentOwner == vault && vaultContractOwner != address(0) && msg.sender == vaultContractOwner) {
+                vaultOwners[vault] = vaultContractOwner;
+            } else {
+                revert Unauthorized();
+            }
         }
 
         GuardianConfig storage config = guardianConfigs[vault];
@@ -297,10 +353,31 @@ contract GuardianRegistry is ReentrancyGuard, EIP712, IGuardianRegistry {
     }
 
     /// @notice Opens the attestation period for the current cycle of a vault if not already open.
+    /// @dev SEC-08: Callable only by authorized consensus contract or vault owner.
     /// @param vault The vault address.
     function openAttestationPeriod(address vault) external override {
+        if (msg.sender != consensusContracts[vault] && msg.sender != vaultOwners[vault] && msg.sender != vault) {
+            revert Unauthorized();
+        }
+
         GuardianConfig storage config = guardianConfigs[vault];
         if (config.guardianRoot == bytes32(0)) revert RootNotCommitted(vault);
+
+        // SEC-08: Ensure timer can only be started when vault enters ClaimPending state
+        address consensus = consensusContracts[vault];
+        if (consensus != address(0)) {
+            (bool success, bytes memory data) = consensus.staticcall(
+                abi.encodeWithSignature("getState(address)", vault)
+            );
+            if (success && data.length >= 32) {
+                uint8 state = abi.decode(data, (uint8));
+                // 1 represents ConsensusState.ClaimPending
+                if (state != 1) {
+                    revert Unauthorized();
+                }
+            }
+        }
+
         uint256 currentCycle = attestationCycle[vault];
         if (cycleFirstAttestationTime[vault][currentCycle] == 0) {
             cycleFirstAttestationTime[vault][currentCycle] = block.timestamp;

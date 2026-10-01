@@ -464,9 +464,13 @@ export async function registerMonitoredVault(params: {
   guardians?: Array<{ address: string; label?: string; email?: string }>;
 }): Promise<{ success: boolean; error?: string }> {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (process.env.CADENCE_INTERNAL_API_KEY) {
+      headers["x-cadence-internal-key"] = process.env.CADENCE_INTERNAL_API_KEY;
+    }
     const res = await fetch(`${NOTIFICATION_SERVICE_URL}/api/monitor-vault`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify(params),
     });
     if (!res.ok) {

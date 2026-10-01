@@ -236,7 +236,15 @@ app.get("/api/status/:walletAddress", (req: Request, res: Response) => {
     });
   }
 
-  // Mask email for privacy if requested by unauthenticated query
+  // SEC-05 Fix: Determine if caller is privileged (internal service or admin)
+  const rawKey = req.headers["x-cadence-internal-key"] || req.headers["x-internal-key"] || req.headers["x-admin-key"];
+  const authHeader = req.headers["authorization"];
+  const bearerToken = typeof authHeader === "string" ? authHeader.replace(/^Bearer\s+/i, "").trim() : "";
+  const token = (typeof rawKey === "string" ? rawKey.trim() : Array.isArray(rawKey) ? rawKey[0] : "") || bearerToken;
+  const adminKey = process.env.ADMIN_API_KEY || "cadence-admin-secret";
+  const isPrivileged = Boolean(token && (safeCompare(token, INTERNAL_KEY) || safeCompare(token, adminKey)));
+
+  // Mask email for privacy to prevent PII harvesting
   const maskedEmail = binding.email.replace(/^(.)(.*)(@.*)$/, (_, first, middle, domain) => {
     return `${first}${"*".repeat(Math.min(middle.length, 5))}${domain}`;
   });
@@ -245,7 +253,7 @@ app.get("/api/status/:walletAddress", (req: Request, res: Response) => {
     walletAddress: address,
     bound: true,
     verified: binding.verified,
-    email: binding.email,
+    email: isPrivileged ? binding.email : null,
     maskedEmail,
     pendingSuggestion: !binding.verified && !!binding.suggestedBy,
     suggestedBy: binding.suggestedBy || null,
@@ -464,7 +472,7 @@ app.post("/api/notify/claim-ready", requireInternalKey, async (req: Request, res
  * POST /api/notify/guardian-attest-request
  * Dispatches distinct email alerts to Guardian Node 1 and/or Guardian Node 2 when heartbeat lapses.
  */
-app.post("/api/notify/guardian-attest-request", async (req: Request, res: Response) => {
+app.post("/api/notify/guardian-attest-request", requireInternalKey, async (req: Request, res: Response) => {
   const parseResult = GuardianAttestRequestSchema.safeParse(req.body);
   if (!parseResult.success) {
     const err = formatZodError(parseResult.error);
@@ -510,7 +518,7 @@ app.post("/api/notify/guardian-attest-request", async (req: Request, res: Respon
  * POST /api/notify/contest-concluded
  * Dispatches alert when the contest grace period concludes.
  */
-app.post("/api/notify/contest-concluded", async (req: Request, res: Response) => {
+app.post("/api/notify/contest-concluded", requireInternalKey, async (req: Request, res: Response) => {
   const parseResult = ContestConcludedSchema.safeParse(req.body);
   if (!parseResult.success) {
     const err = formatZodError(parseResult.error);
@@ -633,7 +641,7 @@ app.get("/api/outbox", (req: Request, res: Response) => {
  * POST /api/monitor-vault
  * Registers a vault with the autonomous Sentinel for automated on-chain monitoring.
  */
-app.post("/api/monitor-vault", async (req: Request, res: Response) => {
+app.post("/api/monitor-vault", requireInternalKey, async (req: Request, res: Response) => {
   const parseResult = MonitorVaultSchema.safeParse(req.body);
   if (!parseResult.success) {
     const err = formatZodError(parseResult.error);

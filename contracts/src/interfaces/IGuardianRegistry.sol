@@ -37,6 +37,14 @@ interface IGuardianRegistry {
         uint256 totalGuardians
     ) external;
 
+    function commitGuardianRootForOwner(
+        address vault,
+        address owner,
+        bytes32 guardianRoot,
+        uint256 threshold,
+        uint256 totalGuardians
+    ) external;
+
     function attest(address vault, bytes32[] calldata proof) external;
 
     function attestWithSig(

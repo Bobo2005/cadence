@@ -331,14 +331,11 @@ contract AaveYieldIntegrationTest is Test {
             vault.claimableStreamAmount(beneficiaryB, address(usdg));
 
         // 50 days of 100 days = 50% vested of 4,000 = 2,000 USDG base
-        // Modeled yield on remaining 2,000 USDG at 7% APY for 50 days:
-        // (2,000e6 * 700 * 50 days) / (10000 * 365 days)
-        uint256 expectedYield = (uint256(2_000 * 1e6) * 700 * 50 days) / (10000 * 365 days);
-
+        // SEC-03 Fix: USDG is not supplied to Aave; non-Aave assets strictly accrue 0 phantom yield to eliminate insolvency.
         assertEq(totalVested, 1_000 * 1e6 + 2_000 * 1e6);
         assertEq(remaining, 2_000 * 1e6);
-        assertEq(yieldAmount, expectedYield);
-        assertEq(claimable, 2_000 * 1e6 + expectedYield);
+        assertEq(yieldAmount, 0, "Non-Aave assets must accrue 0 phantom yield (SEC-03)");
+        assertEq(claimable, 2_000 * 1e6, "Claimable amount strictly equals vested principal");
 
         // Beneficiary claims stream from vault directly
         vm.prank(beneficiaryB);

@@ -7,6 +7,7 @@ import {IChainlinkAutomation} from "./interfaces/IChainlinkAutomation.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {EIP712} from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {EIP712Lib} from "./libraries/EIP712Lib.sol";
 
 /// @title ProofOfLifeConsensus
@@ -187,11 +188,13 @@ contract ProofOfLifeConsensus is IProofOfLifeConsensus, IChainlinkAutomation, Re
         bytes32 structHash = EIP712Lib.hashCancelClaim(vaultId, nonce, deadline);
         bytes32 digest = _hashTypedDataV4(structHash);
 
-        address signer = ECDSA.recover(digest, sig);
         address expectedOwner = vaultOwners[vault];
-        if (signer == address(0) || signer != expectedOwner) revert InvalidSignature();
+        // SEC-04 Fix: Support both standard EOAs and EIP-1271 smart contract wallets
+        if (!SignatureChecker.isValidSignatureNow(expectedOwner, digest, sig)) {
+            revert InvalidSignature();
+        }
 
-        _executeClaimCancellation(vault, signer);
+        _executeClaimCancellation(vault, expectedOwner);
     }
 
     /// @inheritdoc IProofOfLifeConsensus

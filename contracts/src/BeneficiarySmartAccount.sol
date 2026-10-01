@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import {PackedUserOperation, IAccount, IEntryPoint} from "@openzeppelin/contracts/interfaces/IERC4337.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {Create2} from "@openzeppelin/contracts/utils/Create2.sol";
 import {IBeneficiarySmartAccount, IBeneficiaryAccountFactory} from "./interfaces/IBeneficiarySmartAccount.sol";
@@ -111,15 +112,14 @@ contract BeneficiarySmartAccount is IBeneficiarySmartAccount {
     ) external override returns (uint256 validationData) {
         if (msg.sender != entryPoint) revert OnlyEntryPoint();
 
-        // Validate signature over userOpHash against the account owner
+        // Validate signature over userOpHash against the account owner (supports EOAs & EIP-1271)
         bytes32 ethSignedHash = MessageHashUtils.toEthSignedMessageHash(userOpHash);
-        address recovered = ECDSA.recover(ethSignedHash, userOp.signature);
-        if (recovered != owner) {
-            // Check raw userOpHash without Ethereum prefix
-            recovered = ECDSA.recover(userOpHash, userOp.signature);
+        bool isValid = SignatureChecker.isValidSignatureNow(owner, ethSignedHash, userOp.signature);
+        if (!isValid) {
+            isValid = SignatureChecker.isValidSignatureNow(owner, userOpHash, userOp.signature);
         }
 
-        if (recovered != owner) {
+        if (!isValid) {
             return SIG_VALIDATION_FAILED;
         }
 
@@ -247,8 +247,22 @@ contract BeneficiarySmartAccount is IBeneficiarySmartAccount {
         uint256 validCount = 0;
 
         for (uint256 i = 0; i < signatures.length; i++) {
-            address signer = ECDSA.recover(ethSignedDigest, signatures[i]);
-            if (!isGuardian[signer]) {
+            address signer = address(0);
+            (address recovered, ECDSA.RecoverError err, ) = ECDSA.tryRecover(ethSignedDigest, signatures[i]);
+            if (err == ECDSA.RecoverError.NoError && isGuardian[recovered]) {
+                signer = recovered;
+            } else {
+                // SEC-04 Fix: Support EIP-1271 smart contract guardians
+                for (uint256 g = 0; g < guardians.length; g++) {
+                    address candidate = guardians[g];
+                    if (SignatureChecker.isValidSignatureNow(candidate, ethSignedDigest, signatures[i])) {
+                        signer = candidate;
+                        break;
+                    }
+                }
+            }
+
+            if (signer == address(0) || !isGuardian[signer]) {
                 revert OnlyGuardian();
             }
 

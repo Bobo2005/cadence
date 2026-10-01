@@ -156,6 +156,9 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
     /// @notice Secondary mapping for token-specific stream records.
     mapping(address => mapping(address => BeneficiaryStream)) public beneficiaryTokenStreams;
 
+    /// @notice Total initial streaming principal supplied to Aave per asset (SEC-01).
+    mapping(address => uint256) public totalStreamingPrincipal;
+
     /// @notice Pre-registered backup claim address and veto window per beneficiary.
     /// @dev Strictly beneficiary-controlled: only the beneficiary can register or revoke their backup address.
     mapping(address => BackupClaimConfig) public beneficiaryBackups;
@@ -412,6 +415,10 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
         if (duration > 10 * 365 days) revert InvalidStreamingConfig();
         if (initialBps > 10000) revert InvalidStreamingConfig();
         if (yieldBps > 2000) revert InvalidStreamingConfig(); // max 20% APY guard
+        // SEC-03 Fix: Prevent phantom yield insolvency by requiring a valid Aave pool for yield generation
+        if (yieldBps > 0 && address(aavePool) == address(0)) {
+            revert InvalidStreamingConfig();
+        }
 
         IProofOfLifeConsensus.ConsensusState state = consensus.getState(address(this));
         if (state == IProofOfLifeConsensus.ConsensusState.Finalized) {
@@ -503,6 +510,7 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
                     }
 
                     if (address(aavePool) != address(0) && aTokenAddr != address(0)) {
+                        totalStreamingPrincipal[token] += unvestedToken;
                         IERC20(token).forceApprove(address(aavePool), unvestedToken);
                         aavePool.supply(token, unvestedToken, address(this), 0);
                     }
@@ -779,7 +787,14 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
 
             address aToken = aTokens[asset];
             uint256 aTokenBal = IAToken(aToken).balanceOf(address(this));
-            uint256 totalValue = aTokenBal + stream.streamingClaimed;
+
+            // SEC-01 Fix: Isolate individual beneficiary's proportional share of live Aave balance
+            uint256 totalPrincipal = totalStreamingPrincipal[asset];
+            uint256 beneficiaryLiveBalance = totalPrincipal > 0
+                ? (aTokenBal * stream.streamingPrincipal) / totalPrincipal
+                : stream.streamingPrincipal;
+
+            uint256 totalValue = beneficiaryLiveBalance + stream.streamingClaimed;
 
             totalVestedAmount = stream.duration > 0
                 ? (totalValue * effectiveElapsed) / stream.duration
@@ -789,6 +804,9 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
                 ? totalVestedAmount - stream.streamingClaimed
                 : 0;
 
+            if (claimableAmount > beneficiaryLiveBalance) {
+                claimableAmount = beneficiaryLiveBalance;
+            }
             if (claimableAmount > aTokenBal) {
                 claimableAmount = aTokenBal;
             }
@@ -817,11 +835,10 @@ contract InheritanceVault is Ownable, ReentrancyGuard, IChainlinkAutomation {
 
             remainingLockedAmount = stream.totalShareEth > totalVestedAmount ? stream.totalShareEth - totalVestedAmount : 0;
 
-            if (streamingYieldBps > 0 && remainingLockedAmount > 0 && elapsed > 0) {
-                accruedYieldAmount = (remainingLockedAmount * streamingYieldBps * effectiveElapsed) / (10000 * 365 days);
-            }
-
-            claimableAmount = baseClaimable + accruedYieldAmount;
+            // SEC-03 Fix: Non-Aave assets have no on-chain yield generation mechanism.
+            // Disallow synthetic/phantom yield payouts to eliminate vault insolvency and principal siphoning.
+            accruedYieldAmount = 0;
+            claimableAmount = baseClaimable;
         }
     }
 

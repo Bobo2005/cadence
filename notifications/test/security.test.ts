@@ -172,6 +172,41 @@ async function runSecurityAuditTests() {
     assert.ok(typeof outboxData.total === "number", "Outbox response must contain total count");
     console.log("✓ GET /api/outbox with valid admin key accepted with 200 OK");
 
+    // 2f. POST /api/notify/guardian-attest-request without internal key -> 401
+    const unauthAttestRes = await fetch(`${BASE_URL}/api/notify/guardian-attest-request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-test-bypass-limiter": "true" },
+      body: JSON.stringify({
+        vaultAddress: "0x3333333333333333333333333333333333333333",
+        guardianAddress: accountOwner.address,
+      }),
+    });
+    assert.strictEqual(unauthAttestRes.status, 401, "Expected 401 Unauthorized for unauthenticated guardian-attest-request");
+    console.log("✓ POST /api/notify/guardian-attest-request rejected with 401 Unauthorized");
+
+    // 2g. POST /api/notify/contest-concluded without internal key -> 401
+    const unauthContestRes = await fetch(`${BASE_URL}/api/notify/contest-concluded`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-test-bypass-limiter": "true" },
+      body: JSON.stringify({
+        vaultAddress: "0x3333333333333333333333333333333333333333",
+        recipientAddress: accountOwner.address,
+      }),
+    });
+    assert.strictEqual(unauthContestRes.status, 401, "Expected 401 Unauthorized for unauthenticated contest-concluded");
+    console.log("✓ POST /api/notify/contest-concluded rejected with 401 Unauthorized");
+
+    // 2h. POST /api/monitor-vault without internal key -> 401
+    const unauthMonitorRes = await fetch(`${BASE_URL}/api/monitor-vault`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-test-bypass-limiter": "true" },
+      body: JSON.stringify({
+        vaultAddress: "0x3333333333333333333333333333333333333333",
+      }),
+    });
+    assert.strictEqual(unauthMonitorRes.status, 401, "Expected 401 Unauthorized for unauthenticated monitor-vault");
+    console.log("✓ POST /api/monitor-vault rejected with 401 Unauthorized");
+
     // =========================================================================
     // 3. Strict Rate Limiting Enforcement
     // =========================================================================
@@ -310,7 +345,11 @@ async function runSecurityAuditTests() {
     // Register a test monitored vault with guardian email
     const monitorRes = await fetch(`${BASE_URL}/api/monitor-vault`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "x-test-bypass-limiter": "true" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-cadence-internal-key": "cadence-internal-secret",
+        "x-test-bypass-limiter": "true",
+      },
       body: JSON.stringify({
         vaultAddress: "0x3333333333333333333333333333333333333333",
         name: "Security Test Vault",
@@ -338,6 +377,26 @@ async function runSecurityAuditTests() {
     const testVaultPrivileged = privilegedVaultsData.vaults.find((v: any) => v.vaultAddress === "0x3333333333333333333333333333333333333333");
     assert.strictEqual(testVaultPrivileged.guardians[0]?.email, "secret.guardian@cadence.io", "Privileged caller sees full email");
     console.log("✓ Privileged query with role authorization receives full email");
+
+    // SEC-05 Test: Verify GET /api/status/:walletAddress masks email for unauthenticated query
+    const unauthStatusRes = await fetch(`${BASE_URL}/api/status/${accountOwner.address}`, {
+      headers: { "x-test-bypass-limiter": "true" }
+    });
+    const unauthStatusData = await unauthStatusRes.json();
+    assert.strictEqual(unauthStatusData.email, null, "Unauthenticated status check must return email: null");
+    assert.ok(unauthStatusData.maskedEmail?.includes("***"), "Must return maskedEmail");
+    console.log("✓ SEC-05 Verified: Unauthenticated /api/status returns email: null and maskedEmail");
+
+    // Authenticated status query reveals full email
+    const authStatusRes = await fetch(`${BASE_URL}/api/status/${accountOwner.address}`, {
+      headers: {
+        "x-cadence-internal-key": "cadence-internal-secret",
+        "x-test-bypass-limiter": "true"
+      }
+    });
+    const authStatusData = await authStatusRes.json();
+    assert.strictEqual(authStatusData.email, "victim.owner@cadence.io", "Privileged status query reveals full email");
+    console.log("✓ SEC-05 Verified: Privileged /api/status reveals full email");
 
     // =========================================================================
     // 6. SQL & Database Security Suite

@@ -351,9 +351,7 @@ contract ContestableClaimTest is Test {
         // Corrupt the signature length or contents
         bytes memory malformedSig = hex"12345678";
         vm.prank(relayer);
-        vm.expectRevert(
-            abi.encodeWithSelector(ECDSA.ECDSAInvalidSignatureLength.selector, malformedSig.length)
-        );
+        vm.expectRevert(ProofOfLifeConsensus.InvalidSignature.selector);
         consensus.cancelClaimWithSig(address(vault), nonce, deadline, malformedSig);
 
         // 3c. TAMPERED SIGNATURE (wrong signature hash)

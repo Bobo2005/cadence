@@ -64,5 +64,14 @@ contract OneClickVaultTest is Test {
         assertEq(interval, 300, "Checkin interval must be 300s");
         assertEq(windowDuration, 300, "Contest window must be 300s (5 min)");
         assertEq(consensus.vaultOwners(address(vault)), user, "Consensus vaultOwner must be user");
+
+        // Verify GuardianRegistry records user as vaultOwner (SEC-02 fix)
+        assertEq(guardianRegistry.vaultOwners(address(vault)), user, "GuardianRegistry vaultOwner must be user");
+
+        // Verify human owner can subsequently update guardian root without revert
+        bytes32 updatedRoot = keccak256("updatedRoot");
+        vm.prank(user);
+        guardianRegistry.commitGuardianRoot(address(vault), updatedRoot, 2, 2);
+        assertEq(guardianRegistry.getGuardianConfig(address(vault)).guardianRoot, updatedRoot, "Owner must be able to update root");
     }
 }
